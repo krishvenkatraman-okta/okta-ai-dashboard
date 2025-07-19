@@ -573,8 +573,8 @@ Response (be natural and concise):`;
             break;
 
           case '30_day_review':
-            // Process system logs for unused applications
-            finalResponse = `**📊 30-Day Access Review - AI Enhanced**\n\n✅ Retrieved system logs via intelligent API mapping.\n\nAnalyzing authentication patterns...\n\n*📊 AI continuously learns from usage patterns*\n\n**Feedback:** 👍 👎 (Help AI improve accuracy)`;
+            // Use the processed message from MCP server
+            finalResponse = mcpResult.message || `**📊 30-Day Access Review - AI Enhanced**\n\n✅ Retrieved system logs via intelligent API mapping.\n\nAnalyzing authentication patterns...\n\n*📊 AI continuously learns from usage patterns*\n\n**Feedback:** 👍 👎 (Help AI improve accuracy)`;
             break;
 
           case 'access_request_submitted':

@@ -116,12 +116,15 @@ export class OktaMCPServer {
 
   private process30DayReview(results: any[]): string {
     try {
-      // Find the user apps and system logs results
-      const userAppsResult = results.find(r => r.endpoint === 'list_user_apps');
-      const systemLogsResult = results.find(r => r.endpoint === 'get_system_logs');
+      console.log('🔍 Processing 30-day review with results:', results.map(r => ({ endpoint: r.endpoint, success: r.success, dataLength: r.data?.length })));
+      
+      // Find the user apps and system logs results - check both endpoint name and success data
+      const userAppsResult = results.find(r => r.endpoint === 'list_user_apps' && r.success);
+      const systemLogsResult = results.find(r => r.endpoint === 'get_system_logs' && r.success);
 
       if (!userAppsResult?.data && !systemLogsResult?.data) {
-        return `**📊 30-Day Access Review - AI Enhanced**\n\n❌ Unable to retrieve application data. Please check your API permissions.\n\n**Feedback:** 👍 👎 (Help AI improve accuracy)`;
+        console.log('⚠️ No valid data found for 30-day review');
+        return `**📊 30-Day Access Review - AI Enhanced**\n\n❌ Unable to retrieve application data. Debug info:\n• User Apps API: ${userAppsResult ? 'Success' : 'Failed'}\n• System Logs API: ${systemLogsResult ? 'Success' : 'Failed'}\n\n**Feedback:** 👍 👎 (Help AI improve accuracy)`;
       }
 
       const userApps = userAppsResult?.data || [];
@@ -477,6 +480,13 @@ export class OktaMCPServer {
           type: '30_day_review',
           data: results,
           message: processedReview
+        };
+      } else {
+        return {
+          success: true,
+          type: '30_day_review',
+          data: results,
+          message: `**📊 30-Day Access Review - AI Enhanced**\n\n❌ Unable to retrieve comprehensive data. API responses:\n${results.map(r => `• ${r.endpoint}: ${r.success ? 'Success' : 'Failed'}`).join('\n')}\n\n**Feedback:** 👍 👎 (Help AI improve accuracy)`
         };
       }
     }

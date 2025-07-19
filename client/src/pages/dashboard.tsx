@@ -11,16 +11,40 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [activeNav, setActiveNav] = useState('dashboard');
 
-  const { data: user, isLoading } = useQuery<User>({
+  const { data: user, isLoading, error } = useQuery<User>({
     queryKey: ['/api/auth/user'],
     retry: false,
+    queryFn: async () => {
+      const res = await fetch('/api/auth/user', {
+        credentials: 'include'
+      });
+      
+      if (!res.ok) {
+        if (res.status === 401) {
+          return null;
+        }
+        throw new Error(`Failed to fetch user: ${res.status}`);
+      }
+      
+      return await res.json();
+    }
   });
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!isLoading && !user && !error) {
       setLocation('/');
     }
-  }, [user, isLoading, setLocation]);
+  }, [user, isLoading, error, setLocation]);
+
+  // Add debug logging
+  useEffect(() => {
+    console.log('Dashboard state:', { user, isLoading, error });
+    // Also check auth status
+    fetch('/api/auth/status', { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => console.log('Auth status:', data))
+      .catch(console.error);
+  }, [user, isLoading, error]);
 
   const handleSignOut = async () => {
     try {
@@ -45,8 +69,29 @@ export default function Dashboard() {
     );
   }
 
+  if (error) {
+    console.error('Dashboard error:', error);
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600">Error loading dashboard</p>
+          <p className="text-gray-600 text-sm">{error.message}</p>
+          <Button onClick={() => setLocation('/')} className="mt-4">
+            Return to Login
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (!user) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Redirecting to login...</p>
+        </div>
+      </div>
+    );
   }
 
   const navigationItems = [

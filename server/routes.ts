@@ -83,7 +83,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.cookie('session_id', sessionId, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        maxAge: tokens.expiresIn * 1000
+        sameSite: 'lax',
+        maxAge: tokens.expiresIn * 1000,
+        path: '/'
+      });
+
+      console.log('✅ Session created:', {
+        sessionId: sessionId.substring(0, 8) + '...',
+        userId: user.id,
+        userName: user.name
       });
 
       res.redirect('/dashboard');
@@ -96,30 +104,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/auth/status', async (req, res) => {
     try {
       const sessionId = req.cookies.session_id;
+      console.log('🔍 Auth status check:', {
+        hasSessionId: !!sessionId,
+        sessionId: sessionId?.substring(0, 8) + '...' || 'none',
+        cookies: Object.keys(req.cookies)
+      });
+
       if (!sessionId) {
-        return res.json({ authenticated: false });
+        return res.json({ authenticated: false, reason: 'no_session_cookie' });
       }
 
       const session = await storage.getSession(sessionId);
-      if (!session || session.expiresAt < new Date()) {
-        return res.json({ authenticated: false });
+      if (!session) {
+        return res.json({ authenticated: false, reason: 'session_not_found' });
+      }
+
+      if (session.expiresAt < new Date()) {
+        return res.json({ authenticated: false, reason: 'session_expired' });
       }
 
       const user = await storage.getUser(session.userId);
       if (!user) {
-        return res.json({ authenticated: false });
+        return res.json({ authenticated: false, reason: 'user_not_found' });
       }
 
+      console.log('✅ Auth status success:', user.name);
       res.json({ authenticated: true, user });
     } catch (error) {
       console.error('Auth status error:', error);
-      res.json({ authenticated: false });
+      res.json({ authenticated: false, reason: 'server_error' });
     }
   });
 
   app.get('/api/auth/user', async (req, res) => {
     try {
       const sessionId = req.cookies.session_id;
+      console.log('🔍 User fetch:', {
+        hasSessionId: !!sessionId,
+        sessionId: sessionId?.substring(0, 8) + '...' || 'none'
+      });
+
       if (!sessionId) {
         return res.status(401).json({ error: 'Not authenticated' });
       }
@@ -134,6 +158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'User not found' });
       }
 
+      console.log('✅ User fetch success:', user.name);
       res.json(user);
     } catch (error) {
       console.error('Get user error:', error);

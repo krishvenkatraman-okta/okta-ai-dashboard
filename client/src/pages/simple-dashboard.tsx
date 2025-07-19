@@ -14,11 +14,16 @@ interface OktaApp {
   id: string;
   name: string;
   label: string;
-  status: string;
-  accessibility: {
+  status?: string;
+  linkUrl?: string;
+  logoUrl?: string;
+  appName?: string;
+  appInstanceId?: string;
+  sortOrder?: number;
+  accessibility?: {
     selfService: boolean;
   };
-  visibility: {
+  visibility?: {
     hide: {
       iOS: boolean;
       web: boolean;
@@ -58,6 +63,7 @@ function OktaApplicationsGrid({ user }: { user: User }) {
         if (response.ok) {
           const appsData = await response.json();
           console.log('Fetched Okta apps:', appsData);
+          console.log('Sample app structure:', JSON.stringify(appsData[0], null, 2));
           setApps(appsData);
         } else {
           console.log('Failed to fetch apps, falling back to iframe');
@@ -139,15 +145,21 @@ function OktaApplicationsGrid({ user }: { user: User }) {
 
 function OktaApplicationTile({ app }: { app: OktaApp }) {
   const handleClick = () => {
-    // Use app link if available, otherwise open in Okta
+    // For appLinks, use the linkUrl directly
+    if (app.linkUrl) {
+      window.open(app.linkUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    
+    // For regular apps, construct proper Okta app launch URL
     const appUrl = app._links?.appLinks?.[0]?.href || 
-                   app.settings?.app?.url ||
-                   `https://fcxdemo.okta.com/app/${app.name}/${app.id}`;
+                   `https://fcxdemo.okta.com/home/${app.name}/${app.id}/alnk`;
     window.open(appUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const logoUrl = app._links?.logo?.[0]?.href || 
-                  `https://fcxdemo-admin.okta.com/img/logos/default.6770228fb0dab250a8556360d72fcebabde7696e.png`;
+  const logoUrl = app.logoUrl ||
+                  app._links?.logo?.[0]?.href || 
+                  `https://op1static.oktacdn.com/assets/img/logos/default.6770228fb0dab250a8556360d72fcebabde7696e.png`;
 
   return (
     <div 

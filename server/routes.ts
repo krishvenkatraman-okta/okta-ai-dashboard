@@ -214,15 +214,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { LocalOllamaService } = await import('./services/local-ollama.ts');
       const ollamaService = new LocalOllamaService();
 
-      // Generate AI response using Ollama
-      const prompt = `You are the Okta Assistant helping ${user.name} (Role: ${user.role}). 
-      
+      // Generate AI response using Ollama with specific context
+      let prompt = `You are the Okta Assistant helping ${user.name} (Role: ${user.role}).
+
 User message: "${message}"
 
-Provide a helpful response about Okta governance, access management, or admin operations. 
-${user.role === 'super_admin' ? 'You have full admin capabilities.' : user.role === 'app_owner' ? 'You can manage applications and user access.' : 'You can request access and view your applications.'}
+Context: You are an expert in Okta identity and access management. Respond appropriately based on the user's request:
 
-Keep responses concise and professional.`;
+- If asking about "access request" or requesting access to applications: Help them understand how to request access to specific applications through Okta's access request process. Do NOT mention governance campaigns.
+- If asking about governance: Help with governance campaigns, access reviews, and compliance workflows.
+- If asking about applications: Help them find, access, or manage their applications.
+- If asking about user management: Help with user provisioning, deprovisioning, and administration.
+
+${user.role === 'super_admin' ? 'You have full administrative capabilities including user management, application configuration, and governance operations.' : user.role === 'app_owner' ? 'You can manage applications and approve user access requests.' : 'You can view your applications and request access to new ones.'}
+
+Be specific and actionable. Keep responses concise and professional.`;
 
       const aiResponse = await ollamaService.generateResponse(prompt);
 
@@ -266,10 +272,16 @@ Keep responses concise and professional.`;
       const { OktaApiService } = await import('./services/okta-api.ts');
       const oktaApi = new OktaApiService();
 
-      // Get user's assigned applications using Okta API
-      const apps = await oktaApi.getUserApplications(user.oktaId, session.oktaTokens.accessToken);
+      // Try to get user's appLinks first (these have proper launch URLs)
+      let apps = await oktaApi.getUserAppLinks(session.oktaTokens.accessToken);
+      
+      if (apps.length === 0) {
+        console.log('No appLinks found, trying getUserApplications...');
+        apps = await oktaApi.getUserApplications(user.oktaId, session.oktaTokens.accessToken);
+      }
       
       console.log(`✅ Found ${apps.length} applications for user`);
+      console.log('📱 Sample app data:', JSON.stringify(apps.slice(0, 1), null, 2));
       res.json(apps);
     } catch (error) {
       console.error('Failed to fetch user apps:', error);

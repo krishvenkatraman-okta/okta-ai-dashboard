@@ -547,12 +547,20 @@ Response (be natural and concise):`;
         
         switch (functionCall.function) {
           case 'fetch_catalog':
+            console.log('🎯 Fetching real IGA catalog from Okta...');
             const catalog = await governanceService.getCatalogEntries(session.oktaTokens.accessToken);
-            finalResponse = `**🏪 Application Catalog - Access Request Portal**\n\nHere are the available applications you can request access to:\n\n${
-              catalog.map((entry, index) => 
-                `${index + 1}. **${entry.displayName}**\n   App ID: ${entry.id}\n   Status: ${entry.status}${entry.description ? `\n   Description: ${entry.description}` : ''}`
-              ).join('\n\n')
-            }\n\n**Next Steps:**\n• To request access, say "request access to [app name]"\n• To see roles/permissions for an app, say "show roles for [app name]"\n• Need help choosing? Ask "which app should I request?"`;
+            
+            if (catalog.length === 1 && catalog[0].id === 'api-error') {
+              finalResponse = `**❌ IGA Catalog API Error**\n\n${catalog[0].description}\n\n**Troubleshooting Steps:**\n• Verify your OKTA_API_TOKEN is valid and has IGA permissions\n• Ensure Identity Governance is enabled in your Okta tenant\n• Check that the governance domain is accessible\n\n**Alternative:** You can manually browse available applications in your Okta dashboard.`;
+            } else if (catalog.length === 0) {
+              finalResponse = `**📋 Empty Catalog**\n\nNo applications are currently available for request in your IGA catalog.\n\nThis could mean:\n• No applications are published to the catalog\n• Your user doesn't have permission to see available apps\n• IGA catalog needs configuration by your admin\n\nContact your Okta administrator for assistance.`;
+            } else {
+              finalResponse = `**🏪 Real Okta IGA Catalog - Access Request Portal**\n\n✅ **Fetched ${catalog.length} real applications from your Okta tenant:**\n\n${
+                catalog.map((entry, index) => 
+                  `${index + 1}. **${entry.displayName}**\n   App ID: ${entry.id}\n   Status: ${entry.status}${entry.description ? `\n   Description: ${entry.description}` : ''}`
+                ).join('\n\n')
+              }\n\n**Next Steps:**\n• To request access, say "request access to [app name]"\n• To see roles/permissions for an app, say "show roles for [app name]"\n• Need help choosing? Ask "which app should I request?"\n\n*This data is live from your Okta IGA catalog*`;
+            }
             break;
             
           case 'fetch_30_day_review':

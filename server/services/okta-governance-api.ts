@@ -66,106 +66,83 @@ export class OktaGovernanceService {
 
   async getCatalogEntries(accessToken?: string): Promise<CatalogEntry[]> {
     try {
-      // Use IGA catalog API with proper endpoint structure
+      // Use proper IGA catalog API endpoint
       const url = `https://${this.domain}/governance/api/v2/my/catalogs/default/entries?filter=not%28parent+pr%29&limit=20`;
       
-      console.log('🏪 Fetching IGA catalog entries from:', url);
+      console.log('🏪 Fetching real IGA catalog from:', url);
+      console.log('🔑 Using API token:', this.apiToken ? 'Present' : 'Missing');
       
       const response = await fetch(url, {
+        method: 'GET',
         headers: {
           'Authorization': `SSWS ${this.apiToken}`,
           'Accept': 'application/json',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'User-Agent': 'Okta-AI-Dashboard/1.0'
         }
       });
 
-      if (!response.ok) {
-        console.error('❌ IGA Catalog fetch failed:', response.status, await response.text());
+      console.log('📡 API Response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Real catalog fetched:', data?.length || 0, 'entries');
         
-        // Return mock catalog for development/testing
-        return [
-          {
-            id: 'salesforce-app',
-            displayName: 'Salesforce CRM',
-            description: 'Customer relationship management platform',
-            type: 'application',
-            status: 'AVAILABLE'
-          },
-          {
-            id: 'jira-app',
-            displayName: 'Atlassian Jira',
-            description: 'Issue tracking and project management',
-            type: 'application',
-            status: 'AVAILABLE'
-          },
-          {
-            id: 'confluence-app',
-            displayName: 'Confluence',
-            description: 'Team collaboration and documentation',
-            type: 'application',
-            status: 'AVAILABLE'
-          },
-          {
-            id: 'slack-app',
-            displayName: 'Slack Enterprise',
-            description: 'Team communication platform',
-            type: 'application',
-            status: 'AVAILABLE'
-          },
-          {
-            id: 'aws-console',
-            displayName: 'AWS Console',
-            description: 'Amazon Web Services management console',
-            type: 'application',
-            status: 'AVAILABLE'
-          }
-        ];
+        if (data && Array.isArray(data) && data.length > 0) {
+          return data.map((item: any) => ({
+            id: item.id,
+            displayName: item.displayName || item.name,
+            description: item.description,
+            type: item.type || 'application',
+            status: item.status || 'AVAILABLE'
+          }));
+        }
       }
 
-      const data = await response.json();
-      console.log('✅ IGA Catalog entries fetched:', data.length || 0, 'items');
+      // Log the error details for debugging
+      const errorText = await response.text();
+      console.error('❌ IGA Catalog API failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText,
+        url: url
+      });
       
-      return data.map((item: any) => ({
-        id: item.id,
-        displayName: item.displayName,
-        description: item.description,
-        type: item.type,
-        status: item.status
-      }));
-    } catch (error) {
-      console.error('❌ Error fetching IGA catalog:', error);
-      
-      // Return sample catalog data for development
-      return [
-        {
-          id: 'salesforce-app',
-          displayName: 'Salesforce CRM',
-          description: 'Customer relationship management platform',
-          type: 'application',
-          status: 'AVAILABLE'
-        },
-        {
-          id: 'jira-app',  
-          displayName: 'Atlassian Jira',
-          description: 'Issue tracking and project management',
-          type: 'application',
-          status: 'AVAILABLE'
-        },
-        {
-          id: 'confluence-app',
-          displayName: 'Confluence',
-          description: 'Team collaboration and documentation',
-          type: 'application',
-          status: 'AVAILABLE'
-        },
-        {
-          id: 'github-enterprise',
-          displayName: 'GitHub Enterprise',
-          description: 'Code repository and collaboration',
-          type: 'application',
-          status: 'AVAILABLE'
+      // Try alternative endpoint if main one fails
+      console.log('🔄 Trying alternative IGA endpoint...');
+      const altUrl = `https://${this.domain}/api/v2/governance/catalogs`;
+      const altResponse = await fetch(altUrl, {
+        headers: {
+          'Authorization': `SSWS ${this.apiToken}`,
+          'Accept': 'application/json'
         }
-      ];
+      });
+      
+      if (altResponse.ok) {
+        const altData = await altResponse.json();
+        console.log('✅ Alternative catalog endpoint worked:', altData?.length || 0, 'entries');
+        return altData?.map((item: any) => ({
+          id: item.id,
+          displayName: item.displayName || item.name,
+          description: item.description,
+          type: item.type || 'application',
+          status: item.status || 'AVAILABLE'
+        })) || [];
+      }
+
+      // If both endpoints fail, throw error to indicate real API failure
+      throw new Error(`IGA Catalog API failed: ${response.status} - ${errorText}`);
+    } catch (error) {
+      console.error('❌ Fatal error accessing IGA catalog:', error);
+      
+      // Return error indicator instead of mock data
+      return [{
+        id: 'api-error',
+        displayName: 'IGA Catalog API Error',
+        description: `Failed to fetch real catalog: ${error.message}. Please check your OKTA_API_TOKEN and ensure IGA is enabled.`,
+        type: 'error',
+        status: 'UNAVAILABLE'
+      }];
     }
   }
 

@@ -1,12 +1,151 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
+import { ExternalLink } from "lucide-react";
 
 interface User {
   id: number;
   name: string;
   role: string;
   email: string;
+}
+
+interface ApplicationTileProps {
+  name: string;
+  icon: string;
+  url: string;
+}
+
+function ApplicationTile({ name, icon, url }: ApplicationTileProps) {
+  const handleClick = () => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  return (
+    <div 
+      onClick={handleClick}
+      className="group cursor-pointer bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-blue-300 transition-all duration-200 text-center"
+    >
+      <div className="mb-3 flex justify-center">
+        <img 
+          src={icon} 
+          alt={name}
+          className="w-12 h-12 rounded-lg"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23374151'><rect width='24' height='24' fill='%23f3f4f6'/><text x='12' y='16' text-anchor='middle' font-family='Arial' font-size='10' fill='%23374151'>${name[0]}</text></svg>`;
+          }}
+        />
+      </div>
+      <h3 className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2">
+        {name}
+      </h3>
+      <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-blue-500 mx-auto mt-2 opacity-0 group-hover:opacity-100 transition-opacity" />
+    </div>
+  );
+}
+
+function OktaAssistantChat({ user }: { user: User }) {
+  const [messages, setMessages] = useState([
+    {
+      role: 'assistant',
+      content: `Hello ${user.name}! I'm your Okta Assistant. I can help you with:\n\n• Access requests for applications\n• Governance and compliance tasks\n• User and group management${user.role === 'super_admin' ? '\n• Advanced admin operations' : ''}\n\nWhat would you like to do today?`
+    }
+  ]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return;
+
+    const userMessage = input.trim();
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/chat/message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ message: userMessage })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
+      }
+    } catch (error) {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Connection error. Please check your network and try again.' }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  return (
+    <>
+      {/* Chat Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((message, index) => (
+          <div key={index} className={`${message.role === 'user' ? 'ml-4' : 'mr-4'}`}>
+            <div className={`p-3 rounded-lg ${
+              message.role === 'user' 
+                ? 'bg-blue-600 text-white ml-auto max-w-[80%]' 
+                : 'bg-gray-100 text-gray-900'
+            }`}>
+              <pre className="whitespace-pre-wrap text-sm font-sans">{message.content}</pre>
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="mr-4">
+            <div className="bg-gray-100 text-gray-900 p-3 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <div className="animate-pulse flex space-x-1">
+                  <div className="rounded-full bg-gray-400 h-2 w-2"></div>
+                  <div className="rounded-full bg-gray-400 h-2 w-2"></div>
+                  <div className="rounded-full bg-gray-400 h-2 w-2"></div>
+                </div>
+                <span className="text-sm">Thinking...</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Chat Input */}
+      <div className="p-4 border-t border-gray-200">
+        <div className="flex space-x-2">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Ask me about access, governance, or admin tasks..."
+            className="flex-1 resize-none border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+            rows={2}
+            disabled={loading}
+          />
+          <Button 
+            onClick={sendMessage} 
+            disabled={!input.trim() || loading}
+            size="sm"
+            className="self-end"
+          >
+            Send
+          </Button>
+        </div>
+      </div>
+    </>
+  );
 }
 
 export default function SimpleDashboard() {
@@ -117,41 +256,88 @@ export default function SimpleDashboard() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              Welcome back, {user.name}!
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Your Okta dashboard is loading successfully.
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-              <div className="bg-blue-50 p-6 rounded-lg">
-                <h3 className="font-semibold text-blue-900 mb-2">Applications</h3>
-                <p className="text-blue-700 text-sm">Access your enterprise applications</p>
-              </div>
-              
-              <div className="bg-green-50 p-6 rounded-lg">
-                <h3 className="font-semibold text-green-900 mb-2">AI Assistant</h3>
-                <p className="text-green-700 text-sm">Get help with governance and access</p>
-              </div>
-              
-              <div className="bg-purple-50 p-6 rounded-lg">
-                <h3 className="font-semibold text-purple-900 mb-2">Access Level</h3>
-                <p className="text-purple-700 text-sm capitalize">{user.role.replace('_', ' ')}</p>
-              </div>
-            </div>
-            
-            <div className="mt-8 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-green-800 font-medium">✅ Dashboard Successfully Loaded!</p>
-              <p className="text-green-700 text-sm mt-1">
-                Authentication working, Ollama AI ready, all systems operational
-              </p>
-            </div>
+      {/* Main Content - Okta Style Layout */}
+      <div className="flex flex-1">
+        {/* Applications Dashboard */}
+        <div className="flex-1 px-6 py-8">
+          <div className="mb-6">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-2">My Apps</h2>
+            <p className="text-gray-600">Click any app to launch</p>
           </div>
+          
+          {/* Applications Grid - Okta Style */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+            <ApplicationTile 
+              name="Salesforce"
+              icon="https://logo.clearbit.com/salesforce.com"
+              url="https://login.salesforce.com"
+            />
+            <ApplicationTile 
+              name="Microsoft 365"
+              icon="https://logo.clearbit.com/office.com"
+              url="https://portal.office.com"
+            />
+            <ApplicationTile 
+              name="Google Workspace"
+              icon="https://logo.clearbit.com/workspace.google.com"
+              url="https://workspace.google.com"
+            />
+            <ApplicationTile 
+              name="Slack"
+              icon="https://logo.clearbit.com/slack.com"
+              url="https://slack.com"
+            />
+            <ApplicationTile 
+              name="Jira"
+              icon="https://logo.clearbit.com/atlassian.com"
+              url="https://atlassian.com"
+            />
+            <ApplicationTile 
+              name="GitHub"
+              icon="https://logo.clearbit.com/github.com"
+              url="https://github.com"
+            />
+            <ApplicationTile 
+              name="AWS Console"
+              icon="https://logo.clearbit.com/aws.amazon.com"
+              url="https://console.aws.amazon.com"
+            />
+            <ApplicationTile 
+              name="Zoom"
+              icon="https://logo.clearbit.com/zoom.us"
+              url="https://zoom.us"
+            />
+            <ApplicationTile 
+              name="Notion"
+              icon="https://logo.clearbit.com/notion.so"
+              url="https://notion.so"
+            />
+            <ApplicationTile 
+              name="Figma"
+              icon="https://logo.clearbit.com/figma.com"
+              url="https://figma.com"
+            />
+            <ApplicationTile 
+              name="DocuSign"
+              icon="https://logo.clearbit.com/docusign.com"
+              url="https://docusign.com"
+            />
+            <ApplicationTile 
+              name="HubSpot"
+              icon="https://logo.clearbit.com/hubspot.com"
+              url="https://hubspot.com"
+            />
+          </div>
+        </div>
+
+        {/* AI Assistant Sidebar */}
+        <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
+          <div className="p-4 border-b border-gray-200 bg-blue-50">
+            <h3 className="text-lg font-semibold text-blue-900 mb-1">Okta Assistant</h3>
+            <p className="text-sm text-blue-700">Access Level: {user.role.replace('_', ' ').toUpperCase()}</p>
+          </div>
+          
+          <OktaAssistantChat user={user} />
         </div>
       </div>
     </div>

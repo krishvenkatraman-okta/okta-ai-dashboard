@@ -210,24 +210,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         messageType: 'user'
       });
 
-      // Process message through MCP server
-      const mcpResponse = await mcpServer.processMessage(message, user, {
-        accessToken: session.oktaTokens.accessToken,
-        idToken: session.oktaTokens.idToken,
-        refreshToken: session.oktaTokens.refreshToken,
-        expiresAt: session.oktaTokens.expiresAt
-      });
+      // Import local services
+      const { LocalOllamaService } = await import('./services/local-ollama.ts');
+      const ollamaService = new LocalOllamaService();
+
+      // Generate AI response using Ollama
+      const prompt = `You are the Okta Assistant helping ${user.name} (Role: ${user.role}). 
+      
+User message: "${message}"
+
+Provide a helpful response about Okta governance, access management, or admin operations. 
+${user.role === 'super_admin' ? 'You have full admin capabilities.' : user.role === 'app_owner' ? 'You can manage applications and user access.' : 'You can request access and view your applications.'}
+
+Keep responses concise and professional.`;
+
+      const aiResponse = await ollamaService.generateResponse(prompt);
 
       // Save assistant response
       await storage.createChatMessage({
         userId: user.id,
-        message: mcpResponse.data?.response || 'I processed your request.',
-        response: JSON.stringify(mcpResponse),
+        message: aiResponse,
+        response: JSON.stringify({ response: aiResponse, source: 'ollama' }),
         messageType: 'assistant',
-        command: mcpResponse.toolName
+        command: 'chat'
       });
 
-      res.json(mcpResponse);
+      res.json({ response: aiResponse });
     } catch (error) {
       console.error('Chat message error:', error);
       res.status(500).json({ error: 'Failed to process message' });

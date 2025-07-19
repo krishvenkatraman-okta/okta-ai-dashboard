@@ -1,0 +1,105 @@
+2025-07-18 23:57:07.06
+01f78866
+User
+🤖 MCP: Processing request: "show my apps"
+2025-07-18 23:57:07.06
+01f78866
+User
+⚠️ MCP failed, falling back to function detection
+2025-07-18 23:57:07.06
+01f78866
+User
+🎯 Fallback function call: fetch_owned_apps
+2025-07-18 23:57:07.06
+01f78866
+User
+6:57:07 AM [express] POST /api/chat/message 200 in 1ms :: {"response":"**🔄 Fallback Mode**\n\nMCP f…
+2025-07-18 23:57:22.87
+01f78866
+User
+💬 Chat request received
+2025-07-18 23:57:22.87
+01f78866
+User
+Cookies: {
+2025-07-18 23:57:22.87
+01f78866
+User
+session_id: '7f8b6e22e781c845f7776717154332bf8e6147e15f4edaf6eec0d7bed43fd45c',
+2025-07-18 23:57:22.87
+01f78866
+User
+last_interaction_id: '1752908201860'
+2025-07-18 23:57:22.87
+01f78866
+User
+}
+2025-07-18 23:57:22.87
+01f78866
+User
+🔍 Session ID found: 7f8b6e22...
+2025-07-18 23:57:22.87
+01f78866
+User
+🤖 Attempting MCP processing for: governance campaign
+2025-07-18 23:57:22.87
+01f78866
+User
+🤖 MCP: Processing request: "governance campaign"
+2025-07-18 23:57:22.87
+01f78866
+User
+🔧 MCP: Executing POST https://fcxdemo.okta.com/governance/api/v2/campaigns
+2025-07-18 23:57:23.02
+01f78866
+User
+❌ MCP: create_governance_campaign failed: Error: API Error 405: {"errorCode":"E0000022","errorSummary":"The endpoint does not support the provided HTTP method","errorLink":"E0000022","errorId":"oaehLLdusEuTh20aL0JFn7iMQ","errorCauses":[]}
+2025-07-18 23:57:23.02
+01f78866
+User
+at OktaMCPServer.executeRequest (file:///home/runner/workspace/dist/index.js:1650:19)
+2025-07-18 23:57:23.02
+01f78866
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-07-18 23:57:23.02
+01f78866
+User
+at async Promise.all (index 0)
+2025-07-18 23:57:23.02
+01f78866
+User
+at async OktaMCPServer.processRequest (file:///home/runner/workspace/dist/index.js:1703:25)
+2025-07-18 23:57:23.02
+01f78866
+User
+at async file:///home/runner/workspace/dist/index.js:3658:25
+2025-07-18 23:57:23.02
+01f78866
+User
+Chat message error: ReferenceError: url is not defined
+2025-07-18 23:57:23.02
+01f78866
+User
+at OktaMCPServer.executeRequest (file:///home/runner/workspace/dist/index.js:1679:15)
+2025-07-18 23:57:23.02
+01f78866
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-07-18 23:57:23.02
+01f78866
+User
+at async Promise.all (index 0)
+2025-07-18 23:57:23.02
+01f78866
+User
+at async OktaMCPServer.processRequest (file:///home/runner/workspace/dist/index.js:1703:25)
+2025-07-18 23:57:23.02
+01f78866
+User
+at async file:///home/runner/workspace/dist/index.js:3658:25
+2025-07-18 23:57:23.02
+01f78866
+User
+6:57:23 AM [express] POST /api/chat/message 500 in 146ms :: {"error":"Failed to process message"}
+2025-07-18 23:57:29.73

@@ -84,18 +84,18 @@ export class OktaMCPServer {
     },
     // Governance Campaign APIs
     {
-      name: 'create_governance_campaign',
-      method: 'POST',
+      name: 'list_governance_campaigns',
+      method: 'GET',
       endpoint: '/governance/api/v2/campaigns',
-      description: 'Create a governance campaign for access reviews',
-      bodySchema: {
-        name: 'string',
-        description: 'string',
-        applicationIds: 'array',
-        reviewers: 'array',
-        duration: 'number',
-        durationUnit: 'string'
-      }
+      description: 'List existing governance campaigns for access reviews',
+      optionalParams: ['limit', 'after', 'status']
+    },
+    {
+      name: 'list_owned_apps',
+      method: 'GET', 
+      endpoint: '/api/v1/apps',
+      description: 'List applications owned or managed by the current user',
+      optionalParams: ['filter', 'limit', 'after']
     }
   ];
 
@@ -271,17 +271,21 @@ export class OktaMCPServer {
       });
     }
 
-    // Governance campaign creation
-    if (message.includes('create campaign') || message.includes('governance campaign')) {
+    // Governance campaign creation - Use GET to list campaigns instead of POST
+    if (message.includes('governance campaign') || message.includes('campaign')) {
       requests.push({
-        endpoint: this.endpoints.find(e => e.name === 'create_governance_campaign')!,
-        params: {},
-        body: {
-          name: 'AI-Generated Access Review Campaign',
-          description: 'Automated governance campaign created via AI assistant',
-          duration: 14,
-          durationUnit: 'days'
+        endpoint: this.endpoints.find(e => e.name === 'list_governance_campaigns')!,
+        params: {
+          limit: 50
         }
+      });
+    }
+    
+    // Show my apps - Add intent for owned applications
+    if (message.includes('show my apps') || message.includes('my applications') || message.includes('owned apps')) {
+      requests.push({
+        endpoint: this.endpoints.find(e => e.name === 'list_owned_apps')!,
+        params: {}
       });
     }
 
@@ -384,7 +388,8 @@ export class OktaMCPServer {
       return {
         success: false,
         error: error.message,
-        endpoint: request.endpoint.name
+        endpoint: request.endpoint.name,
+        url: url || 'unknown'
       };
     }
   }
@@ -462,6 +467,34 @@ export class OktaMCPServer {
   private formatResponse(originalMessage: string, results: any[]): any {
     const message = originalMessage.toLowerCase();
     
+    // Handle owned apps requests
+    if (message.includes('show my apps') || message.includes('my applications') || message.includes('owned apps')) {
+      const appsResult = results.find(r => r.endpoint === 'list_owned_apps');
+      if (appsResult?.success && appsResult.data) {
+        console.log('📊 MCP: Owned apps result found with', appsResult.data.length, 'entries');
+        return {
+          success: true,
+          type: 'owned_apps',
+          data: appsResult.data,
+          message: `Found ${appsResult.data?.length || 0} applications you manage`
+        };
+      }
+    }
+    
+    // Handle governance campaigns
+    if (message.includes('governance campaign') || message.includes('campaign')) {
+      const campaignResult = results.find(r => r.endpoint === 'list_governance_campaigns');
+      if (campaignResult?.success) {
+        console.log('📊 MCP: Governance campaigns result found with', campaignResult.data?.length || 0, 'entries');
+        return {
+          success: true,
+          type: 'governance_campaigns',
+          data: campaignResult.data || [],
+          message: `Found ${campaignResult.data?.length || 0} governance campaigns`
+        };
+      }
+    }
+
     // Handle catalog requests
     if (message.includes('catalog') || message.includes('access request')) {
       const catalogResult = results.find(r => r.endpoint === 'list_catalog_entries');

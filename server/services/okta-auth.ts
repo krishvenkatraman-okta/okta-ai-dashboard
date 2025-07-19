@@ -262,6 +262,38 @@ export class OktaAuthService {
     return 'regular_user';
   }
 
+  // Get all user roles for display purposes
+  getAllUserRoles(groups: string[]): string[] {
+    const roles: string[] = [];
+    
+    const superAdminGroups = ['Super Admins', 'Org Admins', 'Organization Administrators'];
+    if (groups.some(group => superAdminGroups.includes(group))) {
+      roles.push('Super Admin');
+    }
+
+    const appOwnerGroups = ['App Admins', 'Application Owners', 'Application Administrators', 'App Owners'];
+    if (groups.some(group => appOwnerGroups.includes(group))) {
+      roles.push('App Owner');
+    }
+
+    const groupAdminGroups = ['Group Admins', 'Group Administrators'];
+    if (groups.some(group => groupAdminGroups.includes(group))) {
+      roles.push('Group Admin');
+    }
+
+    const userAdminGroups = ['User Admins', 'User Administrators'];
+    if (groups.some(group => userAdminGroups.includes(group))) {
+      roles.push('User Admin');
+    }
+
+    const helpDeskGroups = ['Help Desk Admins', 'Help Desk'];
+    if (groups.some(group => helpDeskGroups.includes(group))) {
+      roles.push('Help Desk Admin');
+    }
+
+    return roles.length > 0 ? roles : ['Regular User'];
+  }
+
   generateSessionId(): string {
     return randomBytes(32).toString('hex');
   }

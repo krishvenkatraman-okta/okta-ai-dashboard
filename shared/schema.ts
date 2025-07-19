@@ -9,6 +9,7 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   name: text("name").notNull(),
   role: text("role").notNull(), // super_admin, app_owner, regular_user
+  allRoles: jsonb("all_roles").$type<string[]>().default([]), // All user roles for display
   groups: jsonb("groups").$type<string[]>().default([]),
   lastLogin: timestamp("last_login"),
   createdAt: timestamp("created_at").defaultNow(),

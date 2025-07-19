@@ -572,6 +572,32 @@ Response (be natural and concise):`;
         
         // Format MCP results into user-friendly responses
         switch (mcpResult.type) {
+          case 'owned_apps':
+            const ownedAppsData = mcpResult.data;
+            if (ownedAppsData && ownedAppsData.length > 0) {
+              finalResponse = `**📱 Your Owned Applications**\n\n✅ **Found ${ownedAppsData.length} applications you manage:**\n\n${
+                ownedAppsData.slice(0, 10).map((app: any, index: number) => 
+                  `${index + 1}. **${app.label || app.name}**\n   Status: ${app.status || 'ACTIVE'}\n   Type: ${app.signOnMode || 'Application'}${app.settings?.app?.url ? `\n   URL: ${app.settings.app.url}` : ''}`
+                ).join('\n\n')
+              }${ownedAppsData.length > 10 ? `\n\n... and ${ownedAppsData.length - 10} more applications` : ''}\n\n**Management Options:**\n• Configure application settings\n• Review user assignments\n• Run governance campaigns\n\n**Feedback:** 👍 👎`;
+            } else {
+              finalResponse = `**📱 Your Owned Applications**\n\n❌ No applications found under your management.\n\nThis may indicate:\n• You don't have App Owner permissions for any applications\n• Applications may be managed by other admins\n• Check with your Okta administrator\n\n**Feedback:** 👍 👎`;
+            }
+            break;
+            
+          case 'governance_campaigns':
+            const campaignsData = mcpResult.data;
+            if (campaignsData && campaignsData.length > 0) {
+              finalResponse = `**🏛️ Governance Campaigns**\n\n✅ **Found ${campaignsData.length} active campaigns:**\n\n${
+                campaignsData.slice(0, 5).map((campaign: any, index: number) => 
+                  `${index + 1}. **${campaign.name || 'Unnamed Campaign'}**\n   Status: ${campaign.status || 'ACTIVE'}\n   Type: ${campaign.type || 'ACCESS_REVIEW'}${campaign.dueDate ? `\n   Due: ${new Date(campaign.dueDate).toLocaleDateString()}` : ''}`
+                ).join('\n\n')
+              }${campaignsData.length > 5 ? `\n\n... and ${campaignsData.length - 5} more campaigns` : ''}\n\n**Actions:**\n• Create new governance campaign\n• Review pending certifications\n\n**Feedback:** 👍 👎`;
+            } else {
+              finalResponse = `**🏛️ Governance Campaigns**\n\n📋 No active campaigns found.\n\n**Available Actions:**\n• Create a new access review campaign\n• Set up automated governance workflows\n• Configure compliance policies\n\n**Feedback:** 👍 👎`;
+            }
+            break;
+
           case 'catalog':
             const catalogData = mcpResult.data;
             console.log('🎯 Catalog data received in routes:', catalogData?.length, 'entries');

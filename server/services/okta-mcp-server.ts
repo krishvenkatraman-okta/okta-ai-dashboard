@@ -555,6 +555,54 @@ export class OktaMCPServer {
   async executeWorkflow(workflow: any, message: string, userContext?: any): Promise<any> {
     console.log('🔄 MCP: Executing workflow:', workflow.name);
     
+    // Handle governance campaign workflow
+    if (workflow.name === 'governance_campaign_creation') {
+      console.log('🏛️ MCP: Processing governance campaign request');
+      
+      try {
+        // Use governance service to create/list campaigns
+        const { OktaGovernanceService } = await import('./okta-governance-api.ts');
+        const governanceService = new OktaGovernanceService();
+        
+        // List existing campaigns first
+        const campaigns = await governanceService.getGovernanceCampaigns(userContext?.accessToken);
+        
+        console.log('📊 MCP: Found', campaigns.length, 'existing campaigns');
+        
+        // Create a new campaign if requested
+        if (message.toLowerCase().includes('create') || message.toLowerCase().includes('new')) {
+          const newCampaign = await governanceService.createGovernanceCampaign(
+            `AI Generated Campaign - ${new Date().toISOString().split('T')[0]}`,
+            'Automated governance review created by AI assistant',
+            userContext?.accessToken
+          );
+          
+          return {
+            success: true,
+            type: 'governance_campaign_created',
+            data: { campaigns, newCampaign },
+            message: 'Governance campaign created successfully'
+          };
+        } else {
+          // Just show existing campaigns
+          return {
+            success: true,
+            type: 'governance_campaigns_listed',
+            data: { campaigns },
+            message: 'Retrieved governance campaigns'
+          };
+        }
+      } catch (error) {
+        console.error('❌ MCP: Governance workflow failed:', error);
+        return {
+          success: false,
+          type: 'governance_error',
+          error: error.message,
+          message: 'Failed to process governance request'
+        };
+      }
+    }
+    
     // Determine which steps to execute based on the message
     const lowerMessage = message.toLowerCase();
     let stepsToExecute = [];

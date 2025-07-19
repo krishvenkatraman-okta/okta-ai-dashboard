@@ -35,6 +35,48 @@ export interface ErrorHandling {
 
 export const OKTA_IGA_WORKFLOWS: ApiWorkflow[] = [
   {
+    name: 'governance_campaign_creation',
+    description: 'Create and manage governance campaigns for access reviews',
+    steps: [
+      {
+        stepId: 'list_governance_campaigns',
+        endpoint: '/api/v1/governance/campaigns',
+        method: 'GET',
+        description: 'List existing governance campaigns',
+        optionalParams: ['expand=items'],
+        successConditions: ['response.items'],
+        errorHandling: [
+          { errorCode: 401, action: 'request_auth_token' },
+          { errorCode: 403, action: 'insufficient_permissions' },
+          { errorCode: 404, action: 'campaigns_not_available' }
+        ]
+      },
+      {
+        stepId: 'create_governance_campaign',
+        endpoint: '/api/v1/governance/campaigns',
+        method: 'POST',
+        description: 'Create new governance campaign for access review',
+        requiredParams: ['name', 'description'],
+        bodySchema: {
+          name: 'Campaign name',
+          description: 'Campaign description',
+          campaignType: 'ACCESS_CERTIFICATION',
+          schedule: { type: 'IMMEDIATE' }
+        },
+        successConditions: ['response.id'],
+        errorHandling: [
+          { errorCode: 400, action: 'invalid_campaign_data' },
+          { errorCode: 403, action: 'creation_not_allowed' }
+        ]
+      }
+    ],
+    conditions: [
+      { condition: 'user_message.includes("governance")', action: 'execute' },
+      { condition: 'user_message.includes("campaign")', action: 'execute' },
+      { condition: 'user_message.includes("review")', action: 'execute' }
+    ]
+  },
+  {
     name: 'access_request_complete_flow',
     description: 'Complete access request flow from app selection to submission',
     steps: [
@@ -206,16 +248,22 @@ export class OktaApiDocumentationService {
   static findWorkflowForIntent(userMessage: string): ApiWorkflow | null {
     const message = userMessage.toLowerCase();
     
+    // Check for governance campaign patterns
+    if (message.includes('governance review') || 
+        message.includes('governance campaign') ||
+        (message.includes('governance') && (message.includes('review') || message.includes('campaign')))) {
+      return OKTA_IGA_WORKFLOWS.find(w => w.name === 'governance_campaign_creation');
+    }
+    
     // Check for access request workflow patterns
     if (message.includes('request access to') || 
         message.match(/I want (.+)/i)) {
       return OKTA_IGA_WORKFLOWS.find(w => w.name === 'access_request_complete_flow');
     }
     
-    // Check for governance review patterns
-    if (message.includes('governance') || message.includes('30') || 
-        (message.includes('review') && message.includes('access'))) {
-      return OKTA_IGA_WORKFLOWS.find(w => w.name === 'governance_30day_review');
+    // Check for 30-day review patterns (handled differently)
+    if (message.includes('30') && (message.includes('day') || message.includes('review'))) {
+      return OKTA_IGA_WORKFLOWS.find(w => w.name === '30_day_review');
     }
     
     return null;

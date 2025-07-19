@@ -398,4 +398,76 @@ export class OktaGovernanceService {
       throw error;
     }
   }
+
+  async getGovernanceCampaigns(accessToken?: string): Promise<any[]> {
+    try {
+      const url = `https://${this.domain}/api/v1/governance/campaigns`;
+      
+      console.log('🏛️ Fetching governance campaigns...');
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `SSWS ${this.apiToken}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        console.log('⚠️ Governance campaigns API failed, returning empty list');
+        return [];
+      }
+
+      const data = await response.json();
+      console.log('✅ Governance campaigns response:', JSON.stringify(data, null, 2));
+      
+      // Handle different response formats
+      const campaigns = data.items || data.campaigns || data || [];
+      console.log('📊 Found', campaigns.length, 'governance campaigns');
+      
+      return campaigns;
+    } catch (error) {
+      console.error('❌ Error fetching governance campaigns:', error);
+      return [];
+    }
+  }
+
+  async createGovernanceCampaign(name: string, description: string, accessToken?: string): Promise<any> {
+    try {
+      const url = `https://${this.domain}/api/v1/governance/campaigns`;
+      
+      console.log('🏗️ Creating governance campaign:', name);
+      
+      const requestBody = {
+        name: name,
+        description: description,
+        campaignType: 'ACCESS_CERTIFICATION',
+        schedule: {
+          type: 'IMMEDIATE'
+        }
+      };
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `SSWS ${this.apiToken}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to create governance campaign: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ Governance campaign created:', data.id);
+      
+      return data;
+    } catch (error) {
+      console.error('❌ Error creating governance campaign:', error);
+      throw error;
+    }
+  }
 }

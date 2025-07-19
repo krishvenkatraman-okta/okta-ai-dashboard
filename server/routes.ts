@@ -795,6 +795,29 @@ Response (be natural and concise):`;
             }
             break;
 
+          case 'governance_campaigns_listed':
+            // Display existing governance campaigns
+            const governanceCampaignsData = mcpResult.data.campaigns;
+            finalResponse = `**🏛️ Governance Campaigns**\n\n✅ **Found ${governanceCampaignsData.length} Active Campaigns:**\n\n${
+              governanceCampaignsData.length > 0 
+                ? governanceCampaignsData.map((campaign: any, idx: number) => 
+                    `${idx + 1}. **${campaign.name || campaign.displayName}**\n   Status: ${campaign.status || 'Active'}\n   Created: ${campaign.createdDate ? new Date(campaign.createdDate).toLocaleDateString() : 'Unknown'}\n   Type: ${campaign.campaignType || 'Access Review'}`
+                  ).join('\n\n')
+                : '📋 No campaigns found - you can create one by saying "create governance campaign"'
+            }\n\n**Available Actions:**\n• "Create new governance campaign"\n• "Start governance review"\n• "View campaign details [campaign name]"\n\n*🤖 AI retrieved real governance data from Okta*\n\n**Feedback:** 👍 👎`;
+            break;
+
+          case 'governance_campaign_created':
+            // Show newly created campaign
+            const newCampaignData = mcpResult.data;
+            finalResponse = `**✅ Governance Campaign Created Successfully!**\n\nCampaign ID: ${newCampaignData.newCampaign.id || 'Generated'}\nName: ${newCampaignData.newCampaign.name}\nType: ${newCampaignData.newCampaign.campaignType || 'Access Review'}\nStatus: ${newCampaignData.newCampaign.status || 'Active'}\nCreated: ${new Date().toISOString()}\n\n**Existing Campaigns:** ${newCampaignData.campaigns.length}\n\n*🤖 AI successfully created governance campaign using Okta API*\n\n**Feedback:** 👍 👎`;
+            break;
+
+          case 'governance_error':
+            // Handle governance-related errors
+            finalResponse = `**❌ Governance Request Failed**\n\nError: ${mcpResult.error}\n\nThis could be due to:\n• Insufficient permissions for governance operations\n• Governance module not enabled in your Okta org\n• API endpoint temporarily unavailable\n\nPlease contact your Okta administrator for governance access.\n\n**Feedback:** 👍 👎`;
+            break;
+
           case 'entitlement_request_processing':
             // Show what additional information might be needed
             const processingData = mcpResult.data;

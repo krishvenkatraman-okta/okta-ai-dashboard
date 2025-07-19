@@ -248,11 +248,16 @@ export class OktaAuthService {
       return 'super_admin';
     }
 
+    // Group Membership Admin gets special group_admin role
+    const groupAdminGroups = ['Group Membership Admins', 'Group Admins'];
+    if (groups.some(group => groupAdminGroups.includes(group))) {
+      console.log('👥 User has group admin access via assigned roles:', groups.filter(g => groupAdminGroups.includes(g)));
+      return 'group_admin';
+    }
+
     // App Admin and other admin roles get app_owner privileges
     const adminGroups = [
       'App Admins', 
-      'Group Admins',
-      'Group Membership Admins',
       'User Admins',
       'API Access Management Admins',
       'Report Admins'

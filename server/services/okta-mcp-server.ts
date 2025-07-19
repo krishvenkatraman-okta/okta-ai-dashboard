@@ -316,9 +316,9 @@ export class OktaMCPServer {
       requests.push({
         endpoint: this.endpoints.find(e => e.name === 'get_system_logs')!,
         params: {
-          filter: `eventType eq "user.authentication.sso"`,
-          since: thirtyDaysAgo.toISOString(),
-          limit: 500
+          filter: `eventType eq "user.authentication.sso" and published gt "${thirtyDaysAgo.toISOString()}"`,
+          limit: 1000,
+          sortOrder: 'DESCENDING'
         }
       });
     }

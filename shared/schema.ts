@@ -78,7 +78,7 @@ export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type PamSession = typeof pamSessions.$inferSelect;
 export type InsertPamSession = z.infer<typeof insertPamSessionSchema>;
 
-export type UserRole = 'super_admin' | 'app_owner' | 'regular_user';
+export type UserRole = 'super_admin' | 'group_admin' | 'app_owner' | 'regular_user';
 
 export interface OktaUser {
   id: string;

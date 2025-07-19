@@ -484,10 +484,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Chat routes
   app.post('/api/chat/message', async (req, res) => {
     try {
+      console.log('💬 Chat request received');
+      console.log('Cookies:', req.cookies);
+      
       const sessionId = req.cookies.session_id;
       if (!sessionId) {
-        return res.status(401).json({ error: 'Not authenticated' });
+        console.log('❌ No session ID found in cookies');
+        return res.status(401).json({ error: 'Not authenticated - no session cookie' });
       }
+
+      console.log('🔍 Session ID found:', sessionId.substring(0, 8) + '...');
 
       const session = await storage.getSession(sessionId);
       if (!session || session.expiresAt < new Date()) {

@@ -210,6 +210,7 @@ function OktaAssistantChat({ user }: { user: User }) {
     setLoading(true);
 
     try {
+      console.log('Sending chat message:', userMessage);
       const response = await fetch('/api/chat/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -217,13 +218,22 @@ function OktaAssistantChat({ user }: { user: User }) {
         body: JSON.stringify({ message: userMessage })
       });
 
+      console.log('Chat response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Chat response data:', data);
         setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
       } else {
-        setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
+        const errorData = await response.text();
+        console.error('Chat error response:', response.status, errorData);
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: `Error ${response.status}: ${errorData}. Please try signing in again or refreshing the page.` 
+        }]);
       }
     } catch (error) {
+      console.error('Chat request failed:', error);
       setMessages(prev => [...prev, { role: 'assistant', content: 'Connection error. Please check your network and try again.' }]);
     } finally {
       setLoading(false);

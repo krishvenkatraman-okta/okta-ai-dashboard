@@ -540,6 +540,19 @@ Response (be natural and concise):`;
       const mcpServer = new OktaMCPServer();
       
       console.log('🤖 Attempting MCP processing for:', message);
+      
+      // Direct catalog test for "access request" queries
+      if (message.toLowerCase().includes('access request')) {
+        console.log('🔍 Direct catalog API test...');
+        const { OktaGovernanceService } = await import('./services/okta-governance-api.ts');
+        const directTest = new OktaGovernanceService();
+        const testData = await directTest.getCatalogEntries();
+        console.log('🧪 Direct test result:', testData?.length, 'entries');
+        if (testData && testData.length > 0) {
+          console.log('🧪 Direct test sample:', testData[0]);
+        }
+      }
+      
       const mcpResult = await mcpServer.processRequest(message, {
         accessToken: session.oktaTokens.accessToken,
         userId: user.oktaId,

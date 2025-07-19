@@ -342,7 +342,11 @@ export class OktaMCPServer {
       }
 
       const data = await response.json();
-      console.log(`✅ MCP: ${request.endpoint.name} executed successfully with ${Array.isArray(data) ? data.length + ' items' : 'data'}`);
+      console.log(`✅ MCP: ${request.endpoint.name} executed successfully`);
+      console.log(`📊 MCP: Data received:`, Array.isArray(data) ? `${data.length} items` : typeof data);
+      if (Array.isArray(data) && data.length > 0) {
+        console.log(`🔍 MCP: Sample data:`, data[0]);
+      }
       
       // Record successful interaction for training
       if (this.trainingService) {
@@ -405,12 +409,16 @@ export class OktaMCPServer {
     }
 
     // Execute API requests
+    console.log(`🚀 MCP: Executing ${apiRequests.length} API requests`);
     const results = await Promise.all(
       apiRequests.map(request => this.executeRequest(request, userContext?.accessToken))
     );
+    console.log(`📋 MCP: Received ${results.length} results:`, results.map(r => ({ endpoint: r.endpoint, success: r.success, dataCount: Array.isArray(r.data) ? r.data.length : 'N/A' })));
 
     // Format response based on results
+    console.log(`🎨 MCP: Formatting response for: "${userMessage}"`);
     const response = this.formatResponse(userMessage, results);
+    console.log(`✨ MCP: Formatted response:`, response.type, response.success);
     
     // Record training data for successful requests
     if (this.trainingService && response.success && response.type) {

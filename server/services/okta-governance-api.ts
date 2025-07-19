@@ -67,7 +67,7 @@ export class OktaGovernanceService {
   async getCatalogEntries(accessToken?: string): Promise<CatalogEntry[]> {
     try {
       // Use proper IGA catalog API endpoint
-      const url = `https://${this.domain}/governance/api/v2/my/catalogs/default/entries?filter=not%28parent+pr%29&limit=20`;
+      const url = `https://${this.domain}/governance/api/v2/my/catalogs/default/entries?filter=status eq "ACTIVE"&limit=50`;
       
       console.log('🏪 Fetching real IGA catalog from:', url);
       console.log('🔑 Using API token:', this.apiToken ? 'Present' : 'Missing');
@@ -108,9 +108,9 @@ export class OktaGovernanceService {
         url: url
       });
       
-      // Try alternative endpoint if main one fails
+      // Try alternative endpoint with different path
       console.log('🔄 Trying alternative IGA endpoint...');
-      const altUrl = `https://${this.domain}/api/v2/governance/catalogs`;
+      const altUrl = `https://${this.domain}/governance/api/v2/my/catalogs?filter=status eq "ACTIVE"&limit=50`;
       const altResponse = await fetch(altUrl, {
         headers: {
           'Authorization': `SSWS ${this.apiToken}`,
@@ -121,13 +121,17 @@ export class OktaGovernanceService {
       if (altResponse.ok) {
         const altData = await altResponse.json();
         console.log('✅ Alternative catalog endpoint worked:', altData?.length || 0, 'entries');
-        return altData?.map((item: any) => ({
-          id: item.id,
-          displayName: item.displayName || item.name,
+        
+        // Handle different response structures
+        const items = Array.isArray(altData) ? altData : (altData.catalogs || altData.entries || altData.items || []);
+        
+        return items.map((item: any) => ({
+          id: item.id || item.catalogId,
+          displayName: item.displayName || item.name || item.label,
           description: item.description,
           type: item.type || 'application',
           status: item.status || 'AVAILABLE'
-        })) || [];
+        }));
       }
 
       // If both endpoints fail, throw error to indicate real API failure

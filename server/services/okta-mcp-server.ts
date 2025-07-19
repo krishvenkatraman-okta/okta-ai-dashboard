@@ -31,7 +31,8 @@ export class OktaMCPServer {
       name: 'list_catalog_entries',
       method: 'GET',
       endpoint: '/governance/api/v2/my/catalogs/default/entries',
-      description: 'Get available applications in IGA catalog for access requests'
+      description: 'Get available applications in IGA catalog for access requests',
+      optionalParams: ['filter', 'limit', 'after']
     },
     {
       name: 'get_catalog_entry',
@@ -144,7 +145,10 @@ export class OktaMCPServer {
         message.includes('catalog') || message.includes('available apps')) {
       requests.push({
         endpoint: this.endpoints.find(e => e.name === 'list_catalog_entries')!,
-        params: {}
+        params: {
+          filter: 'status eq "ACTIVE"',
+          limit: 50
+        }
       });
     }
 
@@ -267,7 +271,7 @@ export class OktaMCPServer {
           request.endpoint.name,
           true,
           'user',
-          url
+          url || 'unknown'
         );
       }
       
@@ -288,7 +292,7 @@ export class OktaMCPServer {
           request.endpoint.name,
           false,
           'user',
-          url,
+          url || 'unknown',
           error.message
         );
       }

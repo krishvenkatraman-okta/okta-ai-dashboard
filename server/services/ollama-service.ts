@@ -145,7 +145,8 @@ export class OllamaService {
     
     // Detect catalog browsing intent
     if (lowerPrompt.includes('catalog') || lowerPrompt.includes('available apps') || 
-        lowerPrompt.includes('browse applications') || lowerPrompt.includes('what can I request')) {
+        lowerPrompt.includes('browse applications') || lowerPrompt.includes('what can I request') ||
+        lowerPrompt.includes('access request') || lowerPrompt.includes('request access')) {
       return {
         type: 'function_call',
         function: 'fetch_catalog',

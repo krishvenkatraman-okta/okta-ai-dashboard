@@ -813,6 +813,21 @@ Response (be natural and concise):`;
             finalResponse = `**✅ Governance Campaign Created Successfully!**\n\nCampaign ID: ${newCampaignData.newCampaign.id || 'Generated'}\nName: ${newCampaignData.newCampaign.name}\nType: ${newCampaignData.newCampaign.campaignType || 'Access Review'}\nStatus: ${newCampaignData.newCampaign.status || 'Active'}\nCreated: ${new Date().toISOString()}\n\n**Existing Campaigns:** ${newCampaignData.campaigns.length}\n\n*🤖 AI successfully created governance campaign using Okta API*\n\n**Feedback:** 👍 👎`;
             break;
 
+          case 'group_management':
+            // Handle group management requests for GROUP_MEMBERSHIP_ADMIN
+            const groupsResult = mcpResult.data.find((r: any) => r.endpoint === 'list_groups');
+            if (groupsResult && groupsResult.success && groupsResult.data) {
+              const groups = groupsResult.data;
+              finalResponse = `**👥 Groups You Can Manage**\n\n✅ **Found ${groups.length} Groups:**\n\n${
+                groups.slice(0, 10).map((group: any, idx: number) => 
+                  `${idx + 1}. **${group.profile?.name || group.name}**\n   Members: ${group.profile?.stats?.memberCount || 'Unknown'}\n   Description: ${group.profile?.description || 'No description'}\n   Type: ${group.type || 'USER'}`
+                ).join('\n\n')
+              }${groups.length > 10 ? `\n\n... and ${groups.length - 10} more groups` : ''}\n\n**Available Actions:**\n• "List users in [group name]" - Show group members with pagination\n• "Add user to [group name]" - Add user to group\n• "Remove user from [group name]" - Remove user from group\n\n*🤖 AI retrieved groups from Okta API based on your GROUP_MEMBERSHIP_ADMIN role*\n\n**Feedback:** 👍 👎`;
+            } else {
+              finalResponse = `**❌ Group Management Failed**\n\nUnable to retrieve groups you can manage.\n\nPossible issues:\n• Insufficient GROUP_MEMBERSHIP_ADMIN permissions\n• Groups API not accessible\n• No groups assigned to manage\n\nPlease contact your Okta administrator to verify your group management permissions.\n\n**Feedback:** 👍 👎`;
+            }
+            break;
+
           case 'governance_error':
             // Handle governance-related errors
             finalResponse = `**❌ Governance Request Failed**\n\nError: ${mcpResult.error}\n\nThis could be due to:\n• Insufficient permissions for governance operations\n• Governance module not enabled in your Okta org\n• API endpoint temporarily unavailable\n\nPlease contact your Okta administrator for governance access.\n\n**Feedback:** 👍 👎`;

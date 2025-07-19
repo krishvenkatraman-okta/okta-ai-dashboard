@@ -99,6 +99,21 @@ export class OktaMCPServer {
       endpoint: '/api/v1/apps',
       description: 'List applications owned or managed by the current user',
       optionalParams: ['filter', 'limit', 'after']
+    },
+    {
+      name: 'list_groups',
+      method: 'GET',
+      endpoint: '/api/v1/groups',
+      description: 'List groups that user can manage',
+      optionalParams: ['q', 'filter', 'limit', 'expand']
+    },
+    {
+      name: 'get_group_members',
+      method: 'GET',
+      endpoint: '/api/v1/groups/{groupId}/users',
+      description: 'List members of a specific group',
+      requiredParams: ['groupId'],
+      optionalParams: ['limit', 'after']
     }
   ];
 
@@ -262,6 +277,27 @@ export class OktaMCPServer {
       requests.push({
         endpoint: this.endpoints.find(e => e.name === 'list_catalog_entries')!,
         params: { filter: 'status eq "ACTIVE"', limit: 50, appName: appName }
+      });
+    }
+
+    // Group management intents for GROUP_MEMBERSHIP_ADMIN
+    if (message.includes('groups i can manage') || message.includes('show my groups') || 
+        message.includes('list groups') || message.includes('managed groups')) {
+      console.log('👥 MCP: Group management request detected');
+      requests.push({
+        endpoint: this.endpoints.find(e => e.name === 'list_groups')!,
+        params: { limit: 50, expand: 'stats' }
+      });
+    }
+
+    // Group member management
+    const groupMemberMatch = message.match(/(?:list|show|add|remove) (?:users?|members?) (?:in|from|to) (.+)/i);
+    if (groupMemberMatch) {
+      const groupName = groupMemberMatch[1].trim();
+      console.log('👤 MCP: Group member management for:', groupName);
+      requests.push({
+        endpoint: this.endpoints.find(e => e.name === 'list_groups')!,
+        params: { q: groupName, limit: 10, expand: 'stats', operation: 'list_members' }
       });
     }
 
@@ -881,6 +917,26 @@ export class OktaMCPServer {
           type: 'catalog',
           data: [],
           message: `Catalog API failed: ${catalogResult?.error || 'Unknown error'}`
+        };
+      }
+    }
+
+    // Handle group management responses
+    if (message.includes('groups') && (message.includes('manage') || message.includes('list') || message.includes('show'))) {
+      const groupResult = results.find(r => r.endpoint === 'list_groups');
+      if (groupResult?.success) {
+        return {
+          success: true,
+          type: 'group_management',
+          data: results,
+          message: 'Retrieved manageable groups successfully'
+        };
+      } else {
+        return {
+          success: false,
+          type: 'group_management_error',
+          error: groupResult?.error || 'Failed to retrieve groups',
+          message: `Groups API failed: ${groupResult?.error || 'Unknown error'}`
         };
       }
     }

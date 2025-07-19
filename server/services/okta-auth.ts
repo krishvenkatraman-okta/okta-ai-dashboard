@@ -204,6 +204,9 @@ export class OktaAuthService {
             case 'GROUP_ADMIN':
               groups.push('Group Admins');
               break;
+            case 'GROUP_MEMBERSHIP_ADMIN':
+              groups.push('Group Membership Admins');
+              break;
             case 'USER_ADMIN':
               groups.push('User Admins');
               break;
@@ -248,7 +251,8 @@ export class OktaAuthService {
     // App Admin and other admin roles get app_owner privileges
     const adminGroups = [
       'App Admins', 
-      'Group Admins', 
+      'Group Admins',
+      'Group Membership Admins',
       'User Admins',
       'API Access Management Admins',
       'Report Admins'

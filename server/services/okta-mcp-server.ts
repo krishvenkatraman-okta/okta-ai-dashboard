@@ -813,19 +813,7 @@ export class OktaMCPServer {
       }
     }
 
-    // Handle entitlement request processing
-    if (message.includes('I want')) {
-      const hasJustification = message.includes(' for ');
-      console.log('🎯 MCP: Processing entitlement', hasJustification ? 'request' : 'field lookup');
-      return {
-        success: true,
-        type: hasJustification ? 'entitlement_request_processing' : 'entitlement_fields_lookup',
-        data: { message },
-        message: hasJustification ? 
-          `**🔄 Processing Entitlement Request**\n\nFinding the specific entitlement and submitting your request...\n\n*Please wait while I process your access request.*` :
-          `**📋 Getting Required Fields**\n\nLooking up the specific form fields required for this entitlement...\n\n*Please wait while I fetch the request requirements.*`
-      };
-    }
+    // Remove duplicate - this is now handled by workflow-based processing
 
     // Handle access request submissions - first get available entitlements
     if (message.includes('request access to')) {

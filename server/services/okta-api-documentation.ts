@@ -206,13 +206,18 @@ export class OktaApiDocumentationService {
   static findWorkflowForIntent(userMessage: string): ApiWorkflow | null {
     const message = userMessage.toLowerCase();
     
-    for (const workflow of OKTA_IGA_WORKFLOWS) {
-      for (const condition of workflow.conditions) {
-        if (this.matchesCondition(message, condition.condition)) {
-          return workflow;
-        }
-      }
+    // Check for access request workflow patterns
+    if (message.includes('request access to') || 
+        message.match(/I want (.+)/i)) {
+      return OKTA_IGA_WORKFLOWS.find(w => w.name === 'access_request_complete_flow');
     }
+    
+    // Check for governance review patterns
+    if (message.includes('governance') || message.includes('30') || 
+        (message.includes('review') && message.includes('access'))) {
+      return OKTA_IGA_WORKFLOWS.find(w => w.name === 'governance_30day_review');
+    }
+    
     return null;
   }
   

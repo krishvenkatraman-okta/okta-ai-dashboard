@@ -654,11 +654,12 @@ Response (be natural and concise):`;
             console.log('🔍 Entitlement name extracted:', entitlementName);
             
             // Find the entitlement ID first
-            const allCatalogEntries = await legacyGovernanceService.getCatalogEntries(session.oktaTokens.accessToken);
+            const fieldGovernanceService = new OktaGovernanceService();
+            const allCatalogEntries = await fieldGovernanceService.getCatalogEntries(session.oktaTokens.accessToken);
             let targetEntitlementForFields = null;
             
             for (const app of allCatalogEntries) {
-              const parentEntries = await legacyGovernanceService.getCatalogEntryRolesViaParent(app.id, session.oktaTokens.accessToken);
+              const parentEntries = await fieldGovernanceService.getCatalogEntryRolesViaParent(app.id, session.oktaTokens.accessToken);
               targetEntitlementForFields = parentEntries.find(ent => 
                 ent.name?.toLowerCase().includes(entitlementName?.toLowerCase()) ||
                 entitlementName?.toLowerCase().includes(ent.name?.toLowerCase())
@@ -667,7 +668,7 @@ Response (be natural and concise):`;
             }
             
             if (targetEntitlementForFields) {
-              const requestFields = await legacyGovernanceService.getEntitlementRequestFields(targetEntitlementForFields.id, session.oktaTokens.accessToken);
+              const requestFields = await fieldGovernanceService.getEntitlementRequestFields(targetEntitlementForFields.id, session.oktaTokens.accessToken);
               
               finalResponse = `**📋 Request Fields for "${targetEntitlementForFields.name}"**\n\n✅ **Required Information:**\n\n${
                 requestFields.map((field, idx) => 

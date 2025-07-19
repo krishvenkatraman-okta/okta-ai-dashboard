@@ -23,7 +23,14 @@ export class OktaAuthService {
   constructor() {
     this.oktaDomain = process.env.OKTA_DOMAIN || 'fcxdemo.okta.com';
     this.clientId = process.env.OKTA_CLIENT_ID || '';
-    this.redirectUri = process.env.OKTA_REDIRECT_URI || `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000'}/api/auth/callback`;
+    
+    // For production deployment, use the correct Replit app domain
+    this.redirectUri = 'https://okta-identity-portal-krrishjey.replit.app/api/auth/callback';
+    
+    console.log('🔧 Okta Auth Service initialized:');
+    console.log('  Domain:', this.oktaDomain);
+    console.log('  Client ID:', this.clientId ? '✓ Configured' : '✗ Missing');
+    console.log('  Redirect URI:', this.redirectUri);
 
     if (!this.clientId) {
       console.warn('Okta client ID not configured. Set OKTA_CLIENT_ID environment variable.');

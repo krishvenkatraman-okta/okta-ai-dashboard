@@ -20,9 +20,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/auth/callback', async (req, res) => {
     try {
-      const { code, state } = req.query;
+      console.log('🔄 Auth callback received:');
+      console.log('  Query params:', req.query);
+      console.log('  URL:', req.url);
+      console.log('  Headers:', JSON.stringify(req.headers, null, 2));
+      
+      const { code, state, error, error_description } = req.query;
+      
+      // Check for OAuth error
+      if (error) {
+        console.error('OAuth error:', error, error_description);
+        return res.status(400).json({ 
+          error: 'OAuth error', 
+          details: error_description || error 
+        });
+      }
       
       if (!code || typeof code !== 'string') {
+        console.error('Missing or invalid authorization code:', code);
         return res.status(400).json({ error: 'Missing authorization code' });
       }
       

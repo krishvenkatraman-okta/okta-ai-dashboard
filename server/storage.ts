@@ -55,6 +55,7 @@ export class MemStorage implements IStorage {
     const user: User = {
       ...insertUser,
       id,
+      groups: Array.isArray(insertUser.groups) ? insertUser.groups : null,
       createdAt: new Date(),
       lastLogin: new Date()
     };
@@ -103,6 +104,8 @@ export class MemStorage implements IStorage {
     const message: ChatMessage = {
       ...insertMessage,
       id,
+      response: insertMessage.response || null,
+      command: insertMessage.command || null,
       createdAt: new Date()
     };
     this.chatMessages.set(id, message);
@@ -122,6 +125,7 @@ export class MemStorage implements IStorage {
     const pamSession: PamSession = {
       ...insertPamSession,
       id,
+      endTime: insertPamSession.endTime || null,
       startTime: new Date()
     };
     this.pamSessions.set(id, pamSession);

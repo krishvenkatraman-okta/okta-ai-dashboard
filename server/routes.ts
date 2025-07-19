@@ -51,7 +51,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.createSession({
         sessionId,
         userId: user.id,
-        oktaTokens: tokens,
+        oktaTokens: {
+          accessToken: tokens.accessToken,
+          idToken: tokens.idToken,
+          refreshToken: tokens.refreshToken,
+          expiresAt: Date.now() + tokens.expiresIn * 1000
+        },
         expiresAt: new Date(Date.now() + tokens.expiresIn * 1000)
       });
 
@@ -162,7 +167,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Process message through MCP server
-      const mcpResponse = await mcpServer.processMessage(message, user, session.oktaTokens);
+      const mcpResponse = await mcpServer.processMessage(message, user, {
+        accessToken: session.oktaTokens.accessToken,
+        idToken: session.oktaTokens.idToken,
+        refreshToken: session.oktaTokens.refreshToken,
+        expiresIn: Math.floor((session.oktaTokens.expiresAt - Date.now()) / 1000)
+      });
 
       // Save assistant response
       await storage.createChatMessage({

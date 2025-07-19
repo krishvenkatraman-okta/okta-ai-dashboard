@@ -5,6 +5,10 @@ export class OllamaService {
     this.baseUrl = 'http://localhost:11434';
   }
 
+  async detectFunction(prompt: string, userRole?: string): Promise<any> {
+    return this.detectFunctionCall(prompt, userRole);
+  }
+
   async initialize(): Promise<void> {
     try {
       // Check if Ollama is running

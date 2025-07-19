@@ -18,33 +18,115 @@ export class OpenAIService {
         messages: [
           {
             role: "system",
-            content: `You are an expert Okta Assistant helping enterprise users with identity and access management. You have deep knowledge of:
+            content: `You are an expert Okta Assistant that can actually perform tasks, not just provide guidance. You have access to:
 
-- Okta administration and user management
-- Access request processes and application catalog
-- Governance, compliance, and access reviews
-- Privileged Access Management (PAM)
-- Enterprise security best practices
+- Okta Governance API for catalog browsing and access requests
+- Real application catalog with role-based access
+- Ability to submit actual access requests with justification
+- User request management and tracking
 
-Based on the user's role, provide appropriate responses:
-- SUPER ADMIN / ORG ADMIN: Full administrative capabilities, governance workflows, user management, advanced operations
-- APP OWNER / APP ADMIN: Application management, user assignments, moderate admin tasks
-- REGULAR USER: Basic access requests, self-service tasks, application usage
+When users ask about access requests or applications:
+1. ACTUALLY fetch and show available catalog entries
+2. Display specific roles/permissions for each application  
+3. Guide users through real access request submission
+4. Show request status and tracking information
 
-Respond conversationally and helpfully. Keep responses concise but informative. Focus on actionable guidance rather than theoretical explanations.`
+Available actions you can perform:
+- "show catalog" - fetch and display available applications
+- "show [app name] roles" - display available roles for specific app
+- "request access to [app]" - start access request process
+- "show my requests" - display current request status
+
+Based on the user's role:
+- SUPER ADMIN: Can browse full catalog, submit requests, and manage others' requests
+- APP OWNER: Can manage assigned applications and submit requests
+- REGULAR USER: Can browse catalog and submit access requests
+
+Always try to perform the actual task rather than just explaining how to do it. Use the governance API to provide real, current data.`
           },
           {
-            role: "user",
+            role: "user", 
             content: prompt
           }
         ],
-        max_tokens: 500,
-        temperature: 0.7,
+        max_tokens: 800,
+        temperature: 0.3,
+        functions: [
+          {
+            name: "fetch_catalog",
+            description: "Fetch available applications from Okta catalog",
+            parameters: {
+              type: "object",
+              properties: {},
+              required: []
+            }
+          },
+          {
+            name: "fetch_app_details",
+            description: "Get details and available roles for a specific application",
+            parameters: {
+              type: "object",
+              properties: {
+                entryId: {
+                  type: "string",
+                  description: "The catalog entry ID of the application"
+                }
+              },
+              required: ["entryId"]
+            }
+          },
+          {
+            name: "submit_access_request",
+            description: "Submit an access request for an application",
+            parameters: {
+              type: "object",
+              properties: {
+                catalogId: {
+                  type: "string",
+                  description: "The catalog entry ID"
+                },
+                roleId: {
+                  type: "string", 
+                  description: "The role ID to request (optional)"
+                },
+                justification: {
+                  type: "string",
+                  description: "Business justification for the request"
+                },
+                duration: {
+                  type: "string",
+                  description: "Duration amount (optional)"
+                },
+                durationUnit: {
+                  type: "string",
+                  enum: ["hours", "days", "weeks"],
+                  description: "Duration unit (optional)"
+                }
+              },
+              required: ["catalogId", "justification"]
+            }
+          }
+        ]
       });
 
-      const response = completion.choices[0]?.message?.content || "I apologize, but I couldn't generate a response. Please try again.";
+      const response = completion.choices[0]?.message;
+      
+      // Check if ChatGPT wants to call a function
+      if (response?.function_call) {
+        console.log('🔧 ChatGPT requesting function call:', response.function_call.name);
+        
+        // Return a structured response indicating function call needed
+        return JSON.stringify({
+          type: 'function_call',
+          function: response.function_call.name,
+          arguments: JSON.parse(response.function_call.arguments || '{}'),
+          message: `Let me ${response.function_call.name.replace('_', ' ')} for you...`
+        });
+      }
+
+      const content = response?.content || "I apologize, but I couldn't generate a response. Please try again.";
       console.log('✅ ChatGPT response generated successfully');
-      return response;
+      return content;
       
     } catch (error) {
       console.error('❌ OpenAI API error:', error);

@@ -246,6 +246,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Governance API routes
+  app.get('/api/governance/catalog', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const { OktaGovernanceService } = await import('./services/okta-governance-api.ts');
+      const governanceService = new OktaGovernanceService();
+      
+      const catalogEntries = await governanceService.getCatalogEntries(session.oktaTokens.accessToken);
+      res.json(catalogEntries);
+    } catch (error) {
+      console.error('Catalog fetch error:', error);
+      res.status(500).json({ error: 'Failed to fetch catalog' });
+    }
+  });
+
+  app.get('/api/governance/catalog/:entryId', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const { OktaGovernanceService } = await import('./services/okta-governance-api.ts');
+      const governanceService = new OktaGovernanceService();
+      
+      const entryDetails = await governanceService.getCatalogEntryDetails(req.params.entryId, session.oktaTokens.accessToken);
+      res.json(entryDetails);
+    } catch (error) {
+      console.error('Catalog entry fetch error:', error);
+      res.status(500).json({ error: 'Failed to fetch catalog entry details' });
+    }
+  });
+
+  app.post('/api/governance/request', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const { catalogId, roleId, justification, duration, durationUnit } = req.body;
+      
+      if (!catalogId || !justification) {
+        return res.status(400).json({ error: 'catalogId and justification are required' });
+      }
+
+      const { OktaGovernanceService } = await import('./services/okta-governance-api.ts');
+      const governanceService = new OktaGovernanceService();
+      
+      const requestResponse = await governanceService.submitAccessRequest(
+        { catalogId, roleId, justification, duration, durationUnit },
+        session.oktaTokens.accessToken
+      );
+      
+      res.json(requestResponse);
+    } catch (error) {
+      console.error('Access request error:', error);
+      res.status(500).json({ error: 'Failed to submit access request' });
+    }
+  });
+
+  app.get('/api/governance/my-requests', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const { OktaGovernanceService } = await import('./services/okta-governance-api.ts');
+      const governanceService = new OktaGovernanceService();
+      
+      const requests = await governanceService.getMyRequests(session.oktaTokens.accessToken);
+      res.json(requests);
+    } catch (error) {
+      console.error('My requests fetch error:', error);
+      res.status(500).json({ error: 'Failed to fetch requests' });
+    }
+  });
+
   // Chat routes
   app.post('/api/chat/message', async (req, res) => {
     try {
@@ -296,16 +399,65 @@ Response (be natural and concise):`;
 
       const aiResponse = await openaiService.generateResponse(contextualPrompt);
 
+      // Check if AI wants to call a function
+      let finalResponse = aiResponse;
+      try {
+        const parsedResponse = JSON.parse(aiResponse);
+        if (parsedResponse.type === 'function_call') {
+          console.log('🔧 Executing function:', parsedResponse.function);
+          
+          const { OktaGovernanceService } = await import('./services/okta-governance-api.ts');
+          const governanceService = new OktaGovernanceService();
+          
+          switch (parsedResponse.function) {
+            case 'fetch_catalog':
+              const catalog = await governanceService.getCatalogEntries(session.oktaTokens.accessToken);
+              finalResponse = `Here are the available applications you can request access to:\n\n${
+                catalog.map((entry, index) => 
+                  `${index + 1}. **${entry.displayName}**\n   ID: ${entry.id}\n   Status: ${entry.status}\n   ${entry.description ? `Description: ${entry.description}` : ''}`
+                ).join('\n\n')
+              }\n\nTo see available roles for any application, just ask "show roles for [app name]" or provide the app ID.`;
+              break;
+              
+            case 'fetch_app_details':
+              const entryDetails = await governanceService.getCatalogEntryDetails(
+                parsedResponse.arguments.entryId, 
+                session.oktaTokens.accessToken
+              );
+              finalResponse = `**${entryDetails.displayName}** - Available Access Levels:\n\n${
+                entryDetails.availableRoles?.map((role, index) => 
+                  `${index + 1}. **${role.displayName}**\n   ID: ${role.id}\n   ${role.description ? `Description: ${role.description}` : ''}`
+                ).join('\n\n') || 'No specific roles available - you can request general access.'
+              }\n\nTo request access, say "request access to ${entryDetails.displayName}" and I'll guide you through the process.`;
+              break;
+              
+            case 'submit_access_request':
+              const requestResult = await governanceService.submitAccessRequest(
+                parsedResponse.arguments,
+                session.oktaTokens.accessToken
+              );
+              finalResponse = `✅ **Access Request Submitted Successfully!**\n\nRequest ID: ${requestResult.id}\nApplication: ${requestResult.catalogEntryDisplayName}\nStatus: ${requestResult.status}\nSubmitted: ${requestResult.requestedOn}\n\nYour request has been submitted for approval. You'll be notified when it's processed.`;
+              break;
+              
+            default:
+              finalResponse = aiResponse;
+          }
+        }
+      } catch (e) {
+        // Not a function call, use original response
+        finalResponse = aiResponse;
+      }
+
       // Save assistant response
       await storage.createChatMessage({
         userId: user.id,
-        message: aiResponse,
-        response: JSON.stringify({ response: aiResponse, source: 'openai' }),
+        message: finalResponse,
+        response: JSON.stringify({ response: finalResponse, source: 'openai' }),
         messageType: 'assistant',
         command: 'chat'
       });
 
-      res.json({ response: aiResponse });
+      res.json({ response: finalResponse });
     } catch (error) {
       console.error('Chat message error:', error);
       res.status(500).json({ error: 'Failed to process message' });

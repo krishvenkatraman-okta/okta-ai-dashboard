@@ -517,9 +517,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         messageType: 'user'
       });
 
-      // Import OpenAI service
-      const { OpenAIService } = await import('./services/openai-service.ts');
-      const openaiService = new OpenAIService();
+      // Import Ollama service instead of OpenAI due to quota issues
+      const { OllamaService } = await import('./services/ollama-service.ts');
+      const ollamaService = new OllamaService();
 
       // Create contextual prompt for natural language processing
       let contextualPrompt = `You are an expert Okta Assistant helping ${user.name} with role: ${user.role}.
@@ -535,7 +535,7 @@ Instructions:
 
 Response (be natural and concise):`;
 
-      const aiResponse = await openaiService.generateResponse(contextualPrompt);
+      const aiResponse = await ollamaService.generateResponse(contextualPrompt, user.role);
 
       // Check if AI wants to call a function
       let finalResponse = aiResponse;

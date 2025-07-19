@@ -190,9 +190,62 @@ Always try to perform the actual task rather than just explaining how to do it. 
     } catch (error) {
       console.error('❌ OpenAI API error:', error);
       
+      // Handle quota exceeded error specifically
+      if (error.code === 'insufficient_quota' || error.type === 'insufficient_quota') {
+        console.log('🔄 OpenAI quota exceeded, using smart fallback');
+        return this.getSmartFallbackResponse(prompt);
+      }
+      
       // Provide a helpful fallback response
       return this.getFallbackResponse(prompt);
     }
+  }
+
+  private getSmartFallbackResponse(prompt: string): string {
+    const lowerPrompt = prompt.toLowerCase();
+    
+    // Detect intent and return function calls for direct execution
+    if (lowerPrompt.includes('show my apps') || lowerPrompt.includes('owned applications')) {
+      return JSON.stringify({
+        type: 'function_call',
+        function: 'fetch_owned_apps',
+        arguments: {},
+        message: 'Let me fetch your owned applications...'
+      });
+    }
+    
+    if (lowerPrompt.includes('30-day') || lowerPrompt.includes('unused') || lowerPrompt.includes('cleanup')) {
+      return JSON.stringify({
+        type: 'function_call',
+        function: 'fetch_30_day_review',
+        arguments: {},
+        message: 'Let me check your unused applications from the last 30 days...'
+      });
+    }
+    
+    if (lowerPrompt.includes('catalog') || lowerPrompt.includes('available apps') || lowerPrompt.includes('request access')) {
+      return JSON.stringify({
+        type: 'function_call',
+        function: 'fetch_catalog',
+        arguments: {},
+        message: 'Let me fetch the available applications catalog...'
+      });
+    }
+    
+    if (lowerPrompt.includes('create campaign') || lowerPrompt.includes('governance campaign')) {
+      return `To create a governance campaign, I need some information:
+
+**Campaign Details:**
+• Campaign name (e.g., "Q1 Access Review")
+• Description (optional)
+• Applications to review (provide app IDs)
+• Duration (default: 14 days)
+
+Please provide these details, or if you have specific apps in mind, say "create campaign for [app names]" and I'll help collect the required information.`;
+    }
+    
+    // Default helpful response
+    return this.getFallbackResponse(prompt);
   }
 
   private getFallbackResponse(prompt: string): string {

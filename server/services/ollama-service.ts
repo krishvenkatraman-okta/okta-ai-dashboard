@@ -62,27 +62,30 @@ export class OllamaService {
     }
   }
 
-  async generateResponse(prompt: string, context?: string): Promise<string> {
+  async generateResponse(prompt: string, userRole?: string): Promise<string> {
+    // First check if this should trigger a direct function call
+    const functionCall = this.detectFunctionCall(prompt, userRole);
+    if (functionCall) {
+      return JSON.stringify(functionCall);
+    }
+
     try {
-      const systemPrompt = `You are an expert Okta governance and identity management assistant. You help users with:
+      const systemPrompt = `You are an expert Okta governance and identity management assistant that can perform actual tasks. You help users with:
 
-1. **Access Reviews**: Analyzing user access patterns and recommending access revocation for unused applications
-2. **Governance Campaigns**: Creating and managing automated access review campaigns 
-3. **Access Requests**: Helping users request access to applications through proper channels
-4. **Compliance**: Ensuring access follows organizational policies
+**Available Actions:**
+1. **Access Reviews**: Check which applications haven't been used in 30+ days
+2. **Governance Campaigns**: Create automated access review campaigns for app owners
+3. **Application Catalog**: Browse and request access to available applications
+4. **Owned Applications**: Show applications you own (for app owners)
 
-**Response Guidelines:**
-- Be concise and professional
-- Provide actionable recommendations
-- Use structured responses with clear next steps
-- Ask clarifying questions when needed
-- Focus on governance, compliance, and access management
+**User Role:** ${userRole || 'user'}
+**Request:** ${prompt}
 
-**Context:** You have access to Okta APIs for real governance operations.
-
-${context ? `**Current Context:**\n${context}\n\n` : ''}
-
-**User Request:** ${prompt}
+**Instructions:**
+- Be concise and helpful
+- When users ask about specific actions, perform them rather than just explaining
+- For app owners: Focus on governance and application management
+- For regular users: Focus on access requests and self-service
 
 **Response:**`;
 
@@ -112,11 +115,55 @@ ${context ? `**Current Context:**\n${context}\n\n` : ''}
     } catch (error) {
       console.error('Ollama generation error:', error);
       // Fallback to rule-based responses when Ollama is unavailable
-      return this.generateFallbackResponse(prompt, context);
+      return this.generateFallbackResponse(prompt, userRole);
     }
   }
 
-  private generateFallbackResponse(prompt: string, context?: string): string {
+  private detectFunctionCall(prompt: string, userRole?: string): any {
+    const lowerPrompt = prompt.toLowerCase();
+    
+    // Detect "show my apps" or "owned applications" intent
+    if (lowerPrompt.includes('show my apps') || lowerPrompt.includes('owned applications') || lowerPrompt.includes('my applications')) {
+      return {
+        type: 'function_call',
+        function: 'fetch_owned_apps',
+        arguments: {},
+        message: 'Let me fetch your owned applications...'
+      };
+    }
+    
+    // Detect 30-day review intent
+    if (lowerPrompt.includes('30-day') || lowerPrompt.includes('unused') || lowerPrompt.includes('cleanup') || 
+        (lowerPrompt.includes('review') && lowerPrompt.includes('access'))) {
+      return {
+        type: 'function_call',
+        function: 'fetch_30_day_review',
+        arguments: {},
+        message: 'Let me check your unused applications from the last 30 days...'
+      };
+    }
+    
+    // Detect catalog browsing intent
+    if (lowerPrompt.includes('catalog') || lowerPrompt.includes('available apps') || 
+        lowerPrompt.includes('browse applications') || lowerPrompt.includes('what can I request')) {
+      return {
+        type: 'function_call',
+        function: 'fetch_catalog',
+        arguments: {},
+        message: 'Let me fetch the available applications catalog...'
+      };
+    }
+    
+    // Detect governance campaign creation
+    if (lowerPrompt.includes('create campaign') || lowerPrompt.includes('governance campaign') || 
+        lowerPrompt.includes('start campaign')) {
+      return null; // Let the regular response handle this with guidance
+    }
+    
+    return null;
+  }
+
+  private generateFallbackResponse(prompt: string, userRole?: string): string {
     const lowerPrompt = prompt.toLowerCase();
     
     if (lowerPrompt.includes('30 days') || (lowerPrompt.includes('access') && lowerPrompt.includes('review'))) {
@@ -132,7 +179,7 @@ Would you like me to show your recent application access?`;
     }
 
     if (lowerPrompt.includes('governance') || lowerPrompt.includes('campaign')) {
-      if (context?.includes('regular_user')) {
+      if (userRole === 'regular_user') {
         return `**Access Level: Regular User**
 
 Governance campaigns require administrative privileges. Here's what you can do instead:
@@ -176,7 +223,7 @@ Would you like to see available applications you can request access to?`;
 • **Access Requests**: Request new application access
 • **Compliance**: Ensure proper access management
 
-${context ? `\n**Your Access Level**: ${context.split('User Access Level: ')[1]?.split('\n')[0] || 'Standard User'}` : ''}
+${userRole ? `\n**Your Access Level**: ${userRole === 'super_admin' ? 'Super Admin' : userRole === 'app_owner' ? 'App Owner' : 'Standard User'}` : ''}
 
 What would you like to do today?`;
   }

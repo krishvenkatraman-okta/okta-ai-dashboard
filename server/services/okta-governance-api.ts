@@ -433,10 +433,21 @@ export class OktaGovernanceService {
                   const lastEventDate = new Date(lastAccessData[0].published);
                   daysSinceAccess = Math.floor((Date.now() - lastEventDate.getTime()) / (1000 * 60 * 60 * 24));
                   lastAccessedDate = lastEventDate.toISOString().split('T')[0];
+                  console.log(`📅 Found last access for ${appName}: ${lastAccessedDate} (${daysSinceAccess} days ago)`);
+                } else {
+                  console.log(`📅 No SSO events found for ${appName} - never accessed`);
+                  lastAccessedDate = 'Never accessed';
+                  daysSinceAccess = 365; // More realistic than 999
                 }
+              } else {
+                console.warn(`⚠️ System Log API failed for last access check: ${lastAccessResponse.status}`);
+                lastAccessedDate = 'Unable to determine';
+                daysSinceAccess = 60; // Conservative estimate
               }
             } catch (lastAccessError) {
               console.warn(`⚠️ Could not fetch last access for app ${appId}:`, lastAccessError);
+              lastAccessedDate = 'Unable to determine';
+              daysSinceAccess = 60;
             }
             
             accessReview.push({

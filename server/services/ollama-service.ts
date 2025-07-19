@@ -143,10 +143,20 @@ export class OllamaService {
       };
     }
     
+    // Detect access request intent first (more specific than other patterns)
+    if (lowerPrompt.includes('access request') || lowerPrompt.includes('request access') || 
+        lowerPrompt.includes('apply for') || lowerPrompt.includes('need access to')) {
+      return {
+        type: 'function_call',
+        function: 'fetch_catalog',
+        arguments: {},
+        message: 'Let me fetch the available applications catalog...'
+      };
+    }
+    
     // Detect catalog browsing intent
     if (lowerPrompt.includes('catalog') || lowerPrompt.includes('available apps') || 
-        lowerPrompt.includes('browse applications') || lowerPrompt.includes('what can I request') ||
-        lowerPrompt.includes('access request') || lowerPrompt.includes('request access')) {
+        lowerPrompt.includes('browse applications') || lowerPrompt.includes('what can I request')) {
       return {
         type: 'function_call',
         function: 'fetch_catalog',

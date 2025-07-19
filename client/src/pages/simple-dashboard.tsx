@@ -201,6 +201,41 @@ function OktaAssistantChat({ user }: { user: User }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Auto-load 30-day review on component mount
+  useEffect(() => {
+    const autoLoad30DayReview = async () => {
+      console.log('Auto-loading 30-day access review...');
+      setLoading(true);
+      
+      try {
+        const response = await fetch('/api/chat/message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ message: '30-day review' })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setMessages(prev => [...prev, 
+            { role: 'user', content: '30-Day Access Review' },
+            { role: 'assistant', content: data.response }
+          ]);
+        } else {
+          console.error('Auto 30-day review failed:', response.status);
+        }
+      } catch (error) {
+        console.error('Auto 30-day review error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Delay to let the component mount completely
+    const timer = setTimeout(autoLoad30DayReview, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 

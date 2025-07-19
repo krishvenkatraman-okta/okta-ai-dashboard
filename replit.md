@@ -111,3 +111,14 @@ The application follows a modern full-stack architecture with clear separation b
 - **Security**: Environment-based configuration for sensitive credentials
 
 The application is architected for scalability and maintainability, with clear separation of concerns, comprehensive error handling, and modern development practices throughout the stack.
+
+## Recent Updates (July 19, 2025)
+
+**System Log API Integration & UX Improvements:**
+- ✅ **System Log API Implementation**: Proper 30-day usage tracking with exact filter format: `actor.id eq "userId" and target.id eq "appId" and eventType eq "user.authentication.sso"`
+- ✅ **Real Usage Data**: Now fetches actual SSO authentication events instead of generic app assignment dates  
+- ✅ **Enhanced Error Handling**: Improved System Log API calls with better fallback values (60 days vs 999 days)
+- ✅ **Auto-Load 30-Day Review**: Chat automatically displays access review on load instead of requiring manual trigger
+- ✅ **Fixed Access Request Intent**: Separated "access request" from "30-day review" detection for proper functionality
+- ✅ **Ollama Integration**: Successfully using local Llama 3.1 8B model instead of OpenAI to eliminate quota issues
+- ✅ **Enhanced Governance Functions**: Real API integration for catalog browsing, access requests, and governance campaigns

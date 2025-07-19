@@ -97,7 +97,8 @@ The application follows a modern full-stack architecture with clear separation b
 - **Okta OIDC Configuration (PKCE Flow)**: 
   - `OKTA_DOMAIN` (e.g., fcxdemo.okta.com)
   - `OKTA_CLIENT_ID` (OIDC application client ID - public client)
-  - `OKTA_REDIRECT_URI` (Auto-generated from Replit domain)
+  - `OKTA_REDIRECT_URI` (Fixed to production domain: https://okta-identity-portal-krrishjey.replit.app/api/auth/callback)
+  - OAuth scopes: `openid profile email` (groups fetched via Management API)
 - **Okta API & PAM Configuration**:
   - `OKTA_API_TOKEN` (Management API token for MCP server operations)
   - `OKTA_PAM_DOMAIN` (PAM-specific domain, defaults to OKTA_DOMAIN)

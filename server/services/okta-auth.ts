@@ -49,7 +49,7 @@ export class OktaAuthService {
     const params = new URLSearchParams({
       client_id: this.clientId,
       response_type: 'code',
-      scope: 'openid profile email groups',
+      scope: 'openid profile email',
       redirect_uri: this.redirectUri,
       state,
       code_challenge: pkceChallenge.codeChallenge,
@@ -155,11 +155,18 @@ export class OktaAuthService {
 
   private async getUserGroups(accessToken: string, userId: string): Promise<string[]> {
     try {
+      // Use the Management API token instead of the user's access token
+      const managementToken = process.env.OKTA_API_TOKEN;
+      if (!managementToken) {
+        console.warn('No management API token configured, cannot fetch user groups');
+        return [];
+      }
+
       const groupsUrl = `https://${this.oktaDomain}/api/v1/users/${userId}/groups`;
       
       const response = await fetch(groupsUrl, {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          'Authorization': `SSWS ${managementToken}`,
           'Accept': 'application/json'
         }
       });

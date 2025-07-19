@@ -808,8 +808,9 @@ Response (be natural and concise):`;
 
       res.json({ response: finalResponse });
     } catch (error) {
-      console.error('Chat message error:', error);
-      res.status(500).json({ error: 'Failed to process message' });
+      console.error('💥 Chat message error:', error);
+      console.error('💥 Stack trace:', error.stack);
+      res.status(500).json({ error: `Failed to process message: ${error.message}` });
     }
   });
 

@@ -87,15 +87,20 @@ export class OktaGovernanceService {
       if (response.ok) {
         const data = await response.json();
         console.log('✅ Real catalog fetched:', data?.length || 0, 'entries');
+        console.log('📋 Sample catalog entry:', JSON.stringify(data?.[0], null, 2));
         
         if (data && Array.isArray(data) && data.length > 0) {
-          return data.map((item: any) => ({
+          const processedEntries = data.map((item: any) => ({
             id: item.id,
-            displayName: item.displayName || item.name,
+            displayName: item.displayName || item.name || item.label,
             description: item.description,
             type: item.type || 'application',
-            status: item.status || 'AVAILABLE'
+            status: item.status || 'AVAILABLE',
+            requestable: item.requestable !== false // Default to true unless explicitly false
           }));
+          
+          console.log('📊 Processed entries:', processedEntries.length, 'total');
+          return processedEntries;
         }
       }
 

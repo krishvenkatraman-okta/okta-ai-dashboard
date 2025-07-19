@@ -561,12 +561,15 @@ Response (be natural and concise):`;
         switch (mcpResult.type) {
           case 'catalog':
             const catalogData = mcpResult.data;
+            console.log('🎯 Catalog data received in routes:', catalogData?.length, 'entries');
+            
             if (catalogData && catalogData.length > 0) {
-              finalResponse = `**🏪 Real Okta IGA Catalog - AI Enhanced**\n\n✅ **Found ${catalogData.length} applications via intelligent API mapping:**\n\n${
-                catalogData.map((entry: any, index: number) => 
-                  `${index + 1}. **${entry.displayName || entry.name}**\n   App ID: ${entry.id}\n   Status: ${entry.status || 'AVAILABLE'}${entry.description ? `\n   Description: ${entry.description}` : ''}`
+              const requestableApps = catalogData.filter((app: any) => app.requestable !== false);
+              finalResponse = `**🏪 Real Okta IGA Catalog - AI Enhanced**\n\n✅ **Found ${catalogData.length} applications (${requestableApps.length} requestable):**\n\n${
+                catalogData.slice(0, 15).map((entry: any, index: number) => 
+                  `${index + 1}. **${entry.displayName || entry.name || 'Unknown App'}**\n   ${entry.requestable === false ? '🔒 Not Requestable' : '✅ Available for Request'}\n   Type: ${entry.type || 'Application'}${entry.description ? `\n   Description: ${entry.description}` : ''}`
                 ).join('\n\n')
-              }\n\n**Next Steps:**\n• Say "request access to [app name]" to submit a request\n• Ask "show roles for [app name]" for permissions\n\n*📊 AI is learning from your interactions to improve responses*\n\n**Feedback:** 👍 👎 (React to help AI learn)`;
+              }${catalogData.length > 15 ? `\n\n... and ${catalogData.length - 15} more applications` : ''}\n\n**Next Steps:**\n• Say "request access to [app name]" to submit a request\n• All applications above are from your real Okta IGA catalog\n\n*📊 AI successfully retrieved your actual catalog via intelligent API mapping*\n\n**Feedback:** 👍 👎 (Rate this response)`;
             } else {
               finalResponse = `**📋 Empty Catalog**\n\nThe IGA catalog API returned no applications. This may indicate:\n• No apps are published to the catalog\n• Access permissions need configuration\n• IGA may not be fully enabled\n\nContact your Okta administrator for catalog setup.`;
             }

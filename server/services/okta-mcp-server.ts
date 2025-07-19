@@ -342,7 +342,7 @@ export class OktaMCPServer {
       }
 
       const data = await response.json();
-      console.log(`✅ MCP: ${request.endpoint.name} executed successfully`);
+      console.log(`✅ MCP: ${request.endpoint.name} executed successfully with ${Array.isArray(data) ? data.length + ' items' : 'data'}`);
       
       // Record successful interaction for training
       if (this.trainingService) {
@@ -457,13 +457,16 @@ export class OktaMCPServer {
     // Handle catalog requests
     if (message.includes('catalog') || message.includes('access request')) {
       const catalogResult = results.find(r => r.endpoint === 'list_catalog_entries');
-      if (catalogResult?.success) {
+      if (catalogResult?.success && catalogResult.data) {
+        console.log('📊 MCP: Catalog result found with', catalogResult.data.length, 'entries');
         return {
           success: true,
           type: 'catalog',
           data: catalogResult.data,
           message: `Found ${catalogResult.data?.length || 0} applications available for request`
         };
+      } else {
+        console.log('⚠️ MCP: Catalog result failed or no data:', catalogResult);
       }
     }
 

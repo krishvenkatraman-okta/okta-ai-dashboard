@@ -105,6 +105,65 @@ Always try to perform the actual task rather than just explaining how to do it. 
               },
               required: ["catalogId", "justification"]
             }
+          },
+          {
+            name: "fetch_owned_apps",
+            description: "Fetch applications owned by the current user (app owners only)",
+            parameters: {
+              type: "object",
+              properties: {},
+              required: []
+            }
+          },
+          {
+            name: "create_governance_campaign",
+            description: "Create a governance campaign for access reviews (app owners only)",
+            parameters: {
+              type: "object",
+              properties: {
+                name: {
+                  type: "string",
+                  description: "Campaign name"
+                },
+                description: {
+                  type: "string",
+                  description: "Campaign description"
+                },
+                applicationIds: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "List of application IDs to review"
+                },
+                duration: {
+                  type: "number",
+                  description: "Review duration in days"
+                }
+              },
+              required: ["name", "applicationIds"]
+            }
+          },
+          {
+            name: "fetch_30_day_review",
+            description: "Fetch applications not accessed in the last 30 days for cleanup review",
+            parameters: {
+              type: "object",
+              properties: {},
+              required: []
+            }
+          },
+          {
+            name: "revoke_access",
+            description: "Revoke access to an application",
+            parameters: {
+              type: "object",
+              properties: {
+                applicationId: {
+                  type: "string",
+                  description: "The application ID to revoke access from"
+                }
+              },
+              required: ["applicationId"]
+            }
           }
         ]
       });

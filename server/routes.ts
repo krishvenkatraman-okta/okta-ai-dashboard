@@ -349,6 +349,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/governance/owned-apps', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const user = await storage.getUser(session.userId);
+      if (!user || (user.role !== 'app_owner' && user.role !== 'super_admin')) {
+        return res.status(403).json({ error: 'App owner access required' });
+      }
+
+      const { OktaGovernanceService } = await import('./services/okta-governance-api.ts');
+      const governanceService = new OktaGovernanceService();
+      
+      const ownedApps = await governanceService.getOwnedApplications(user.oktaId, session.oktaTokens.accessToken);
+      res.json(ownedApps);
+    } catch (error) {
+      console.error('Owned apps fetch error:', error);
+      res.status(500).json({ error: 'Failed to fetch owned applications' });
+    }
+  });
+
+  app.post('/api/governance/campaign', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const user = await storage.getUser(session.userId);
+      if (!user || (user.role !== 'app_owner' && user.role !== 'super_admin')) {
+        return res.status(403).json({ error: 'App owner access required' });
+      }
+
+      const { name, description, applicationIds, reviewers, duration, durationUnit } = req.body;
+      
+      if (!name || !applicationIds?.length) {
+        return res.status(400).json({ error: 'name and applicationIds are required' });
+      }
+
+      const { OktaGovernanceService } = await import('./services/okta-governance-api.ts');
+      const governanceService = new OktaGovernanceService();
+      
+      const campaign = await governanceService.createGovernanceCampaign({
+        id: '',
+        name,
+        description: description || `Access review campaign for ${applicationIds.length} applications`,
+        applicationIds,
+        reviewers: reviewers || [user.email],
+        duration: duration || 14,
+        durationUnit: durationUnit || 'days'
+      }, session.oktaTokens.accessToken);
+      
+      res.json(campaign);
+    } catch (error) {
+      console.error('Campaign creation error:', error);
+      res.status(500).json({ error: 'Failed to create governance campaign' });
+    }
+  });
+
+  app.get('/api/governance/30-day-review', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      const { OktaGovernanceService } = await import('./services/okta-governance-api.ts');
+      const governanceService = new OktaGovernanceService();
+      
+      const unusedAccess = await governanceService.getUserApplicationAccess(user.oktaId, session.oktaTokens.accessToken);
+      res.json(unusedAccess);
+    } catch (error) {
+      console.error('30-day review error:', error);
+      res.status(500).json({ error: 'Failed to fetch 30-day access review' });
+    }
+  });
+
+  app.post('/api/governance/revoke-access', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      const { applicationId } = req.body;
+      if (!applicationId) {
+        return res.status(400).json({ error: 'applicationId is required' });
+      }
+
+      const { OktaGovernanceService } = await import('./services/okta-governance-api.ts');
+      const governanceService = new OktaGovernanceService();
+      
+      const result = await governanceService.revokeUserAccess(user.oktaId, applicationId, session.oktaTokens.accessToken);
+      res.json(result);
+    } catch (error) {
+      console.error('Access revocation error:', error);
+      res.status(500).json({ error: 'Failed to revoke access' });
+    }
+  });
+
   // Chat routes
   app.post('/api/chat/message', async (req, res) => {
     try {
@@ -437,6 +569,45 @@ Response (be natural and concise):`;
                 session.oktaTokens.accessToken
               );
               finalResponse = `✅ **Access Request Submitted Successfully!**\n\nRequest ID: ${requestResult.id}\nApplication: ${requestResult.catalogEntryDisplayName}\nStatus: ${requestResult.status}\nSubmitted: ${requestResult.requestedOn}\n\nYour request has been submitted for approval. You'll be notified when it's processed.`;
+              break;
+              
+            case 'fetch_owned_apps':
+              const ownedApps = await governanceService.getOwnedApplications(user.oktaId, session.oktaTokens.accessToken);
+              finalResponse = `**Your Owned Applications:**\n\n${
+                ownedApps.length > 0 ? 
+                  ownedApps.map((app, index) => 
+                    `${index + 1}. **${app.name}**\n   ID: ${app.id}\n   Status: ${app.status}\n   Assigned Users: ${app.assignedUsers}\n   Last Updated: ${app.lastAccessed ? new Date(app.lastAccessed).toLocaleDateString() : 'Unknown'}`
+                  ).join('\n\n') :
+                  'No owned applications found.'
+              }\n\n${ownedApps.length > 0 ? 'Would you like to create a governance campaign for access reviews on any of these applications?' : ''}`;
+              break;
+              
+            case 'create_governance_campaign':
+              const campaign = await governanceService.createGovernanceCampaign({
+                id: '',
+                ...parsedResponse.arguments,
+                reviewers: [user.email],
+                durationUnit: 'days' as const
+              }, session.oktaTokens.accessToken);
+              finalResponse = `✅ **Governance Campaign Created Successfully!**\n\nCampaign ID: ${campaign.id}\nStatus: ${campaign.status}\nName: ${parsedResponse.arguments.name}\nApplications: ${parsedResponse.arguments.applicationIds?.length || 0} apps\nDuration: ${parsedResponse.arguments.duration || 14} days\n\nThe access review campaign has been started. Reviewers will be notified to review user access for the selected applications.`;
+              break;
+              
+            case 'fetch_30_day_review':
+              const unusedAccess = await governanceService.getUserApplicationAccess(user.oktaId, session.oktaTokens.accessToken);
+              finalResponse = `**30-Day Access Review:**\n\n${
+                unusedAccess.length > 0 ?
+                  `Found ${unusedAccess.length} applications you haven't accessed in over 30 days:\n\n${
+                    unusedAccess.map((access, index) => 
+                      `${index + 1}. **${access.applicationName}**\n   Last accessed: ${access.lastAccessed}\n   Days since access: ${access.daysSinceAccess}\n   App ID: ${access.applicationId}`
+                    ).join('\n\n')
+                  }\n\n**Recommendations:**\n• Review if you still need access to these applications\n• I can revoke access to applications you no longer need\n• This helps maintain security and compliance\n\nWould you like me to revoke access to any of these applications? Just say "revoke access to [app name]".` :
+                  'Great news! All your application access has been used within the last 30 days. No cleanup needed.'
+              }`;
+              break;
+              
+            case 'revoke_access':
+              const revokeResult = await governanceService.revokeUserAccess(user.oktaId, parsedResponse.arguments.applicationId, session.oktaTokens.accessToken);
+              finalResponse = `✅ **Access Revoked Successfully!**\n\nApplication ID: ${parsedResponse.arguments.applicationId}\nStatus: ${revokeResult.success ? 'Revoked' : 'Failed'}\n\nYour access to this application has been removed. This helps maintain security compliance and reduces your attack surface.`;
               break;
               
             default:

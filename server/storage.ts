@@ -56,6 +56,7 @@ export class MemStorage implements IStorage {
       ...insertUser,
       id,
       groups: Array.isArray(insertUser.groups) ? insertUser.groups : insertUser.groups ? [insertUser.groups as any].flat() : null,
+      allRoles: insertUser.allRoles || [], // Support multiple roles for display
       createdAt: new Date(),
       lastLogin: new Date()
     };

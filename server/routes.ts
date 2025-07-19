@@ -52,12 +52,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let user = await storage.getUserByOktaId(oktaUser.id);
       if (!user) {
         const userRole = oktaAuth.determineUserRole(oktaUser.groups || []);
+        const allRoles = authService.getAllUserRoles(oktaUser.groups || []);
         user = await storage.createUser({
           oktaId: oktaUser.id,
           username: oktaUser.profile.login,
           email: oktaUser.profile.email,
           name: `${oktaUser.profile.firstName} ${oktaUser.profile.lastName}`,
           role: userRole,
+          allRoles: allRoles,
           groups: oktaUser.groups || []
         });
       } else {
@@ -67,11 +69,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('🔄 Fetched Okta groups:', oktaUser.groups);
         
         const userRole = oktaAuth.determineUserRole(oktaUser.groups || []);
+        const allRoles = oktaAuth.getAllUserRoles(oktaUser.groups || []);
         console.log('🔄 Determined new role:', userRole);
+        console.log('🔄 All roles:', allRoles);
         
         await storage.updateUser(user.id, { 
           lastLogin: new Date(),
           role: userRole,
+          allRoles: allRoles,
           groups: oktaUser.groups || []
         });
         user.role = userRole; // Update in-memory user object
@@ -224,8 +229,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('🔄 Determined role:', newRole);
       
       // Update user in database
+      const allRoles = oktaAuth.getAllUserRoles(oktaUser.groups || []);
       await storage.updateUser(user.id, {
         role: newRole,
+        allRoles: allRoles,
         groups: oktaUser.groups || [],
         lastLogin: new Date()
       });

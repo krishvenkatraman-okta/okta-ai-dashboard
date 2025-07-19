@@ -104,8 +104,8 @@ export class OktaGovernanceService {
         }
       }
 
-      // Log the error details for debugging
-      const errorText = await response.text();
+      // Log the error details for debugging - Clone the response before reading
+      const errorText = await response.clone().text();
       console.error('❌ IGA Catalog API failed:', {
         status: response.status,
         statusText: response.statusText,

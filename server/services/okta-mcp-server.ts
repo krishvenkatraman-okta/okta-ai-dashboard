@@ -498,14 +498,20 @@ export class OktaMCPServer {
     // Handle catalog requests
     if (message.includes('catalog') || message.includes('access request')) {
       const catalogResult = results.find(r => r.endpoint === 'list_catalog_entries');
-      if (catalogResult?.success && catalogResult.data) {
-        console.log('📊 MCP: Catalog result found with', catalogResult.data.length, 'entries');
-        return {
-          success: true,
-          type: 'catalog',
-          data: catalogResult.data,
-          message: `Found ${catalogResult.data?.length || 0} applications available for request`
-        };
+      if (catalogResult?.success) {
+        const catalogData = catalogResult.data;
+        const dataLength = Array.isArray(catalogData) ? catalogData.length : (catalogData ? Object.keys(catalogData).length : 0);
+        console.log('📊 MCP: Catalog result found with', dataLength, 'entries, data type:', typeof catalogData);
+        console.log('📊 MCP: Raw catalog data:', JSON.stringify(catalogData).substring(0, 200) + '...');
+        
+        if (catalogData && ((Array.isArray(catalogData) && catalogData.length > 0) || (typeof catalogData === 'object' && Object.keys(catalogData).length > 0))) {
+          return {
+            success: true,
+            type: 'catalog',
+            data: catalogData,
+            message: `Found ${dataLength} applications available for request`
+          };
+        }
       } else {
         console.log('⚠️ MCP: Catalog result failed or no data:', catalogResult);
       }

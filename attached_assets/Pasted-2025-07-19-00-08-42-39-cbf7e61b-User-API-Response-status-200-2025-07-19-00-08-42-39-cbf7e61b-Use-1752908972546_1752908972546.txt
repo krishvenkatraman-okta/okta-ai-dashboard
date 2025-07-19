@@ -1,0 +1,132 @@
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+📡 API Response status: 200
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+✅ Real catalog fetched: 0 entries
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+📋 Sample catalog entry: undefined
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+❌ Fatal error accessing IGA catalog: TypeError: Body is unusable: Body has already been read
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+at consumeBody (node:internal/deps/undici/undici:5656:15)
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+at _Response.text (node:internal/deps/undici/undici:5606:18)
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+at OktaGovernanceService.getCatalogEntries (file:///home/runner/workspace/dist/index.js:451:44)
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+at async file:///home/runner/workspace/dist/index.js:3722:26
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+🧪 Direct test result: 1 entries
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+🧪 Direct test sample: {
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+id: 'api-error',
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+displayName: 'IGA Catalog API Error',
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+description: 'Failed to fetch real catalog: Body is unusable: Body has already been read. Please check your OKTA_API_TOKEN and ensure IGA is enabled.',
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+type: 'error',
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+status: 'UNAVAILABLE'
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+}
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+🤖 MCP: Processing request: "access request"
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+🤖 MCP: Using learned intent "fetch_catalog" (72.0% confidence)
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+🧠 Reasoning: Matched pattern "access request|request access|catalog|available apps" with 10 examples, 80.0% success rate
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+🚀 MCP: Executing 1 API requests
+2025-07-19 00:08:42.39
+cbf7e61b
+User
+🔧 MCP: Executing GET https://fcxdemo.okta.com/governance/api/v2/my/catalogs/default/entries?filter=status+eq+%22ACTIVE%22&limit=50
+2025-07-19 00:08:42.77
+cbf7e61b
+User
+✅ MCP: list_catalog_entries executed successfully
+2025-07-19 00:08:42.77
+cbf7e61b
+User
+📊 MCP: Data received: object
+2025-07-19 00:08:42.77
+cbf7e61b
+User
+📚 Training: Recorded interaction - Intent: list_catalog_entries, Success: true
+2025-07-19 00:08:42.77
+cbf7e61b
+User
+📋 MCP: Received 1 results: [
+2025-07-19 00:08:42.77
+cbf7e61b
+User
+{ endpoint: 'list_catalog_entries', success: true, dataCount: 'N/A' }
+2025-07-19 00:08:42.77
+cbf7e61b
+User
+]
+2025-07-19 00:08:42.77
+cbf7e61b
+User
+🎨 MCP: Formatting response for: "access request"
+2025-07-19 00:08:42.77
+cbf7e61b
+User
+📊 MCP: Catalog result found with undefined entries
+2025-07-19 00:08:42.77
+cbf7e61b
+User
+✨ MCP: Formatted response: catalog true
+2025-07-19 00:08:42.77
+cbf7e61b
+User
+📚 Training: Recorded interaction - Intent: catalog, Success: true
+2025-07-19 00:08:42.77
+cbf7e61b
+User
+✅ MCP handled request successfully: catalog

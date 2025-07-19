@@ -62,7 +62,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       } else {
         // Update last login AND refresh role from current Okta groups/roles
+        console.log('🔄 Updating existing user:', user.name);
+        console.log('🔄 Current user role:', user.role);
+        console.log('🔄 Fetched Okta groups:', oktaUser.groups);
+        
         const userRole = oktaAuth.determineUserRole(oktaUser.groups || []);
+        console.log('🔄 Determined new role:', userRole);
+        
         await storage.updateUser(user.id, { 
           lastLogin: new Date(),
           role: userRole,
@@ -70,6 +76,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         user.role = userRole; // Update in-memory user object
         user.groups = oktaUser.groups || [];
+        
+        console.log('✅ Updated user role in database to:', userRole);
       }
 
       // Create session
@@ -184,6 +192,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Logout error:', error);
       res.status(500).json({ error: 'Logout failed' });
+    }
+  });
+
+  // Force refresh user role from Okta
+  app.post('/api/auth/refresh-role', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      console.log('🔄 Force refreshing role for user:', user.name);
+
+      // Get fresh user info from Okta
+      const oktaUser = await oktaAuth.getUserInfo(session.oktaTokens.accessToken);
+      console.log('🔄 Fetched fresh Okta groups:', oktaUser.groups);
+      
+      // Determine new role
+      const newRole = oktaAuth.determineUserRole(oktaUser.groups || []);
+      console.log('🔄 Determined role:', newRole);
+      
+      // Update user in database
+      await storage.updateUser(user.id, {
+        role: newRole,
+        groups: oktaUser.groups || [],
+        lastLogin: new Date()
+      });
+
+      // Return updated user
+      const updatedUser = await storage.getUser(session.userId);
+      console.log('✅ Role refresh complete:', updatedUser?.role);
+      
+      res.json({ 
+        success: true, 
+        user: updatedUser,
+        oldRole: user.role,
+        newRole: newRole
+      });
+    } catch (error) {
+      console.error('Role refresh error:', error);
+      res.status(500).json({ error: 'Failed to refresh role' });
     }
   });
 

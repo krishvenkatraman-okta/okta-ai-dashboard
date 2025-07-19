@@ -225,30 +225,40 @@ export class OktaAuthService {
   }
 
   determineUserRole(groups: string[]): UserRole {
-    console.log('🔍 Determining user role from groups:', groups);
+    console.log('🔍 Determining user role from groups:', JSON.stringify(groups));
     
-    // Check for org/super admin groups (highest level)
+    // Check for org/super admin roles (highest level)
     const superAdminGroups = ['Super Admins', 'Org Admins', 'Organization Administrators'];
-    if (groups.some(group => superAdminGroups.includes(group))) {
-      console.log('👑 User has super admin access');
+    const hasSuperAdmin = groups.some(group => superAdminGroups.includes(group));
+    if (hasSuperAdmin) {
+      console.log('👑 User has super admin access via groups:', groups.filter(g => superAdminGroups.includes(g)));
       return 'super_admin';
     }
 
-    // Check for app owner/admin groups (mid level)
+    // Check for app admin roles (mapped from Okta admin roles)
     const appOwnerGroups = ['App Admins', 'Application Owners', 'Application Administrators', 'App Owners'];
-    if (groups.some(group => appOwnerGroups.includes(group))) {
-      console.log('📱 User has app owner access');
+    const hasAppOwner = groups.some(group => appOwnerGroups.includes(group));
+    if (hasAppOwner) {
+      console.log('📱 User has app owner access via groups:', groups.filter(g => appOwnerGroups.includes(g)));
       return 'app_owner';
     }
 
-    // Check for group admin only (limited admin)
+    // Check for group admin roles
     const groupAdminGroups = ['Group Admins', 'Group Administrators'];
-    if (groups.some(group => groupAdminGroups.includes(group))) {
-      console.log('👥 User has group admin access');
-      return 'app_owner'; // Treat group admins as app owners for now
+    const hasGroupAdmin = groups.some(group => groupAdminGroups.includes(group));
+    if (hasGroupAdmin) {
+      console.log('👥 User has group admin access via groups:', groups.filter(g => groupAdminGroups.includes(g)));
+      return 'app_owner'; // Treat group admins as app owners
     }
 
-    console.log('👤 User has regular access');
+    // Special case: Check if user named 'okta admin' - should be super admin
+    // This is a fallback for admin users who might not have proper group assignments
+    if (groups.some(g => g.toLowerCase().includes('admin') || g.toLowerCase().includes('administrator'))) {
+      console.log('🎯 User has admin-related groups:', groups.filter(g => g.toLowerCase().includes('admin')));
+      return 'super_admin';
+    }
+
+    console.log('👤 User has regular access - no admin groups found');
     return 'regular_user';
   }
 

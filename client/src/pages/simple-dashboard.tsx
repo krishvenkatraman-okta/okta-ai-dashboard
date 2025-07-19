@@ -334,6 +334,28 @@ export default function SimpleDashboard() {
     }
   };
 
+  const refreshRole = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/auth/refresh-role', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Role refreshed:', data.oldRole, '→', data.newRole);
+        setUser(data.user);
+      } else {
+        console.error('Role refresh failed');
+      }
+    } catch (error) {
+      console.error('Role refresh error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -394,6 +416,9 @@ export default function SimpleDashboard() {
                 <p className="text-sm font-medium text-gray-900">{user.name}</p>
                 <p className="text-xs text-blue-600 font-medium capitalize">{user.role.replace('_', ' ')}</p>
               </div>
+              <Button onClick={refreshRole} variant="outline" size="sm" className="mr-2">
+                Refresh Role
+              </Button>
               <Button onClick={handleSignOut} variant="outline" size="sm">
                 Sign Out
               </Button>

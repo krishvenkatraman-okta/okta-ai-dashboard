@@ -248,14 +248,7 @@ export class OktaAuthService {
       return 'super_admin';
     }
 
-    // Group Membership Admin gets special group_admin role
-    const groupAdminGroups = ['Group Membership Admins', 'Group Admins'];
-    if (groups.some(group => groupAdminGroups.includes(group))) {
-      console.log('👥 User has group admin access via assigned roles:', groups.filter(g => groupAdminGroups.includes(g)));
-      return 'group_admin';
-    }
-
-    // App Admin and other admin roles get app_owner privileges
+    // App Admin and other admin roles get app_owner privileges (highest priority for Steve Rogers with multiple roles)
     const adminGroups = [
       'App Admins', 
       'User Admins',
@@ -265,6 +258,13 @@ export class OktaAuthService {
     if (groups.some(group => adminGroups.includes(group))) {
       console.log('📱 User has admin access via assigned roles:', groups.filter(g => adminGroups.includes(g)));
       return 'app_owner';
+    }
+
+    // Group Membership Admin gets special group_admin role (only if no higher privileges)
+    const groupAdminGroups = ['Group Membership Admins', 'Group Admins'];
+    if (groups.some(group => groupAdminGroups.includes(group))) {
+      console.log('👥 User has group admin access via assigned roles:', groups.filter(g => groupAdminGroups.includes(g)));
+      return 'group_admin';
     }
 
     // Help Desk and Read Only admins get limited admin access
@@ -294,6 +294,7 @@ export class OktaAuthService {
       'Super Admins': 'Super Admin',
       'App Admins': 'App Admin', 
       'Group Admins': 'Group Admin',
+      'Group Membership Admins': 'Group Membership Admin',
       'User Admins': 'User Admin',
       'Help Desk Admins': 'Help Desk Admin',
       'Read Only Admins': 'Read Only Admin',

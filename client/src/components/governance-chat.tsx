@@ -241,7 +241,8 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
           ...baseActions,
           "Create a campaign for my applications", 
           "Show applications I own",
-          "List available resources for access requests"
+          "List available resources for access requests",
+          ...(user.allRoles?.some(role => role.includes('Group')) ? ["Show groups I can manage", "List groups"] : [])
         ];
       case 'regular_user':
         return [

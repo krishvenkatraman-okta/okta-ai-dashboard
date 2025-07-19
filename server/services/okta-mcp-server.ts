@@ -428,6 +428,21 @@ export class OktaMCPServer {
         console.log(`🔍 MCP: Sample data:`, data[0]);
       }
       
+      // Enhanced logging for System Log API
+      if (request.endpoint.name === 'get_system_logs') {
+        console.log(`🔍 System Log API Debug:`, {
+          url: url,
+          totalEvents: Array.isArray(data) ? data.length : 'Not an array',
+          firstEvent: Array.isArray(data) && data.length > 0 ? data[0] : 'No events',
+          eventTypes: Array.isArray(data) ? [...new Set(data.map(log => log.eventType))] : 'N/A',
+          params: request.params
+        });
+        
+        if (Array.isArray(data) && data.length === 0) {
+          console.log(`⚠️ System Log API returned 0 events - check filter parameters and permissions`);
+        }
+      }
+      
       // Record successful interaction for training
       if (this.trainingService) {
         await this.trainingService.recordInteraction(

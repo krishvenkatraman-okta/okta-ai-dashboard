@@ -114,7 +114,16 @@ The application is architected for scalability and maintainability, with clear s
 
 ## Recent Updates (July 19, 2025)
 
-**Latest Fixes (July 19, 2025 - Session 2):**
+**Latest Critical Fixes (July 19, 2025 - Session 3):**
+- ✅ **Fixed "url is not defined" Runtime Error**: Resolved MCP server reference error preventing API execution
+- ✅ **Fixed Governance Campaign API Error 405**: Updated endpoint from `/governance/api/v2/campaigns` to `/api/v1/governance/campaigns`
+- ✅ **Enhanced IGA Catalog API Processing**: Added multi-endpoint fallback strategy for catalog access
+- ✅ **Implemented Required Filter Parameter**: Fixed catalog API "filter parameter required" error
+- ✅ **Added Apps API Fallback**: When IGA catalog fails, system now falls back to Apps API for catalog simulation
+- ✅ **Comprehensive Error Handling**: All API failures now show helpful messages instead of generic errors
+- ✅ **Custom Governance Service Integration**: MCP server now uses governance service directly for improved catalog handling
+
+**Previous Fixes (Session 2):**
 - ✅ **Fixed OIDC Authentication Error**: Resolved "authService is not defined" reference error in routes
 - ✅ **Implemented Official Okta Role Assignment API**: Now uses `/api/v1/users/{userId}/roles` endpoint per Okta documentation
 - ✅ **Enhanced Role Detection**: Replaced group-based role detection with proper Okta assigned role types

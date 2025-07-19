@@ -298,6 +298,21 @@ export class OktaMCPServer {
   async executeRequest(request: ApiRequest, userToken?: string): Promise<any> {
     let url = '';
     try {
+      // Special handling for catalog entries - use governance service directly
+      if (request.endpoint.name === 'list_catalog_entries') {
+        const { OktaGovernanceService } = await import('./okta-governance-api.ts');
+        const governanceService = new OktaGovernanceService();
+        const catalogData = await governanceService.getCatalogEntries(userToken);
+        
+        console.log('📊 MCP: Using governance service for catalog, received:', catalogData.length, 'entries');
+        
+        return {
+          success: true,
+          data: catalogData,
+          endpoint: request.endpoint.name,
+          url: 'governance-service'
+        };
+      }
       // Build URL with path parameters
       url = `https://${this.domain}${request.endpoint.endpoint}`;
       

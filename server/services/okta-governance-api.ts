@@ -66,41 +66,72 @@ export class OktaGovernanceService {
 
   async getCatalogEntries(accessToken?: string): Promise<CatalogEntry[]> {
     try {
-      // Use proper IGA catalog API endpoint
-      const url = `https://${this.domain}/governance/api/v2/my/catalogs/default/entries?filter=status eq "ACTIVE"&limit=50`;
+      // Try multiple IGA catalog endpoints in order of preference
+      const endpoints = [
+        `/governance/api/v2/my/catalogs/default/entries?filter=status eq "ACTIVE"&limit=50`,
+        `/governance/api/v2/catalogs/default/entries?filter=status eq "ACTIVE"&limit=50`,
+        `/governance/api/v2/my/catalogs/default/entries?limit=50`,
+        `/governance/api/v2/catalogs/default/entries?limit=50`,
+        `/governance/api/v2/my/catalogs?limit=50`,
+        `/governance/api/v2/catalogs?limit=50`,
+        `/governance/api/v1/catalogs?limit=50`
+      ];
       
-      console.log('🏪 Fetching real IGA catalog from:', url);
-      console.log('🔑 Using API token:', this.apiToken ? 'Present' : 'Missing');
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `SSWS ${this.apiToken}`,
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'User-Agent': 'Okta-AI-Dashboard/1.0'
-        }
-      });
-
-      console.log('📡 API Response status:', response.status);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ Real catalog fetched:', data?.length || 0, 'entries');
-        console.log('📋 Sample catalog entry:', JSON.stringify(data?.[0], null, 2));
+      for (let i = 0; i < endpoints.length; i++) {
+        const endpoint = endpoints[i];
+        const url = `https://${this.domain}${endpoint}`;
         
-        if (data && Array.isArray(data) && data.length > 0) {
-          const processedEntries = data.map((item: any) => ({
-            id: item.id,
-            displayName: item.displayName || item.name || item.label,
-            description: item.description,
-            type: item.type || 'application',
-            status: item.status || 'AVAILABLE',
-            requestable: item.requestable !== false // Default to true unless explicitly false
-          }));
+        console.log(`🏪 Trying IGA catalog endpoint ${i + 1}/${endpoints.length}:`, url);
+        
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `SSWS ${this.apiToken}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'User-Agent': 'Okta-AI-Dashboard/1.0'
+          }
+        });
+
+        console.log('📡 API Response status:', response.status);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Raw catalog data received:', JSON.stringify(data, null, 2));
           
-          console.log('📊 Processed entries:', processedEntries.length, 'total');
-          return processedEntries;
+          // Handle different response structures
+          let entries = [];
+          if (Array.isArray(data)) {
+            entries = data;
+          } else if (data && typeof data === 'object') {
+            // Check various possible array locations in response
+            entries = data.entries || data.items || data.catalogs || data.applications || data.resources || [];
+            
+            // If it's still an object, check for nested structures
+            if (!Array.isArray(entries) && typeof entries === 'object') {
+              entries = Object.values(entries).find(val => Array.isArray(val)) || [];
+            }
+          }
+          
+          console.log('📊 Extracted entries:', entries.length, 'items');
+          
+          if (Array.isArray(entries) && entries.length > 0) {
+            const processedEntries = entries.map((item: any) => ({
+              id: item.id || item.catalogId || item.applicationId,
+              displayName: item.displayName || item.name || item.label || item.title,
+              description: item.description || item.summary,
+              type: item.type || 'application',
+              status: item.status || 'AVAILABLE',
+              requestable: item.requestable !== false // Default to true unless explicitly false
+            })).filter(entry => entry.id); // Filter out entries without valid IDs
+            
+            console.log('📊 Successfully processed:', processedEntries.length, 'catalog entries');
+            console.log('📋 Sample processed entry:', JSON.stringify(processedEntries[0], null, 2));
+            return processedEntries;
+          }
+        } else {
+          const errorText = await response.text();
+          console.log(`⚠️ Endpoint ${i + 1} failed:`, response.status, errorText);
         }
       }
 
@@ -139,10 +170,41 @@ export class OktaGovernanceService {
         }));
       }
 
-      // If both endpoints fail, throw error to indicate real API failure
-      throw new Error(`IGA Catalog API failed: ${response.status} - ${errorText}`);
+      // If all IGA endpoints fail, fallback to regular apps API as catalog alternative
+      console.log('🔄 All IGA catalog endpoints failed, trying apps API as fallback...');
+      const appsUrl = `https://${this.domain}/api/v1/apps?limit=50&expand=user/id`;
+      const appsResponse = await fetch(appsUrl, {
+        headers: {
+          'Authorization': `SSWS ${this.apiToken}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (appsResponse.ok) {
+        const appsData = await appsResponse.json();
+        console.log('✅ Apps API fallback worked:', appsData?.length || 0, 'applications');
+        
+        if (Array.isArray(appsData) && appsData.length > 0) {
+          const catalogEntries = appsData
+            .filter(app => app.status === 'ACTIVE' && app.signOnMode)
+            .map(app => ({
+              id: app.id,
+              displayName: app.label || app.name,
+              description: `${app.signOnMode} application`,
+              type: 'application',
+              status: 'AVAILABLE',
+              requestable: true
+            }));
+          
+          console.log('📊 Converted', catalogEntries.length, 'apps to catalog entries');
+          return catalogEntries;
+        }
+      }
+
+      // All endpoints failed
+      throw new Error(`All catalog APIs failed - IGA may not be configured`);
     } catch (error) {
-      console.error('❌ Fatal error accessing IGA catalog:', error);
+      console.error('❌ Fatal error accessing catalog:', error);
       
       // Return error indicator instead of mock data
       return [{

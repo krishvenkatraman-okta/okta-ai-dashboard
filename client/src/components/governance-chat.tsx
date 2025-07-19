@@ -259,7 +259,7 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Okta Assistant</h2>
-            <p className="text-sm text-gray-600">AI-powered with Llama 3.1</p>
+            <p className="text-sm text-gray-600">AI-powered with Llama 3.1 (Local)</p>
           </div>
           <div className="flex items-center space-x-2">
             <Badge 

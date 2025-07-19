@@ -1,5 +1,5 @@
 import type { User } from '@shared/schema';
-import { OllamaService } from './ollama-service';
+import { LocalOllamaService } from './local-ollama';
 
 interface OktaTokens {
   accessToken: string;
@@ -22,12 +22,12 @@ interface GovernanceAction {
 export class LLMAutomationService {
   private readonly oktaDomain: string;
   private readonly oktaApiToken: string;
-  private readonly ollama: OllamaService;
+  private readonly ollama: LocalOllamaService;
 
   constructor() {
     this.oktaDomain = process.env.OKTA_DOMAIN || 'fcxdemo.okta.com';
     this.oktaApiToken = process.env.OKTA_API_TOKEN || '';
-    this.ollama = new OllamaService();
+    this.ollama = new LocalOllamaService();
     
     // Initialize Ollama in background
     this.ollama.initialize().catch(console.warn);
@@ -41,7 +41,7 @@ export class LLMAutomationService {
     }
 
     // Use Ollama for intelligent intent analysis
-    const analysis = await this.ollama.analyzeGovernanceIntent(message);
+    const analysis = await this.ollama.analyzeIntent(message);
     
     switch (analysis.intent) {
       case 'access_review':

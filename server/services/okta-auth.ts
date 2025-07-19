@@ -1,4 +1,4 @@
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 import type { OktaUser, UserRole } from '@shared/schema';
 
 interface OktaTokens {
@@ -8,25 +8,35 @@ interface OktaTokens {
   expiresIn: number;
 }
 
+interface PkceChallenge {
+  codeVerifier: string;
+  codeChallenge: string;
+  state: string;
+}
+
 export class OktaAuthService {
   private readonly oktaDomain: string;
   private readonly clientId: string;
-  private readonly clientSecret: string;
   private readonly redirectUri: string;
+  private pkceStore: Map<string, PkceChallenge> = new Map();
 
   constructor() {
     this.oktaDomain = process.env.OKTA_DOMAIN || 'fcxdemo.okta.com';
     this.clientId = process.env.OKTA_CLIENT_ID || '';
-    this.clientSecret = process.env.OKTA_CLIENT_SECRET || '';
     this.redirectUri = process.env.OKTA_REDIRECT_URI || `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000'}/api/auth/callback`;
 
-    if (!this.clientId || !this.clientSecret) {
-      console.warn('Okta credentials not configured. Set OKTA_CLIENT_ID and OKTA_CLIENT_SECRET environment variables.');
+    if (!this.clientId) {
+      console.warn('Okta client ID not configured. Set OKTA_CLIENT_ID environment variable.');
     }
   }
 
   getAuthUrl(): string {
-    const state = this.generateState();
+    const pkceChallenge = this.generatePkceChallenge();
+    const state = pkceChallenge.state;
+    
+    // Store PKCE challenge for later verification
+    this.pkceStore.set(state, pkceChallenge);
+    
     const baseUrl = `https://${this.oktaDomain}/oauth2/default/v1/authorize`;
     
     const params = new URLSearchParams({
@@ -34,21 +44,51 @@ export class OktaAuthService {
       response_type: 'code',
       scope: 'openid profile email groups',
       redirect_uri: this.redirectUri,
-      state
+      state,
+      code_challenge: pkceChallenge.codeChallenge,
+      code_challenge_method: 'S256'
     });
 
     return `${baseUrl}?${params.toString()}`;
   }
 
-  async exchangeCode(code: string): Promise<OktaTokens> {
+  private generatePkceChallenge(): PkceChallenge {
+    const codeVerifier = this.base64URLEncode(randomBytes(32));
+    const codeChallenge = this.base64URLEncode(createHash('sha256').update(codeVerifier).digest());
+    const state = this.generateState();
+    
+    return {
+      codeVerifier,
+      codeChallenge,
+      state
+    };
+  }
+
+  private base64URLEncode(str: Buffer): string {
+    return str.toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+  }
+
+  async exchangeCode(code: string, state: string): Promise<OktaTokens> {
     const tokenUrl = `https://${this.oktaDomain}/oauth2/default/v1/token`;
+    
+    // Retrieve PKCE challenge using state
+    const pkceChallenge = this.pkceStore.get(state);
+    if (!pkceChallenge) {
+      throw new Error('Invalid state parameter or PKCE challenge not found');
+    }
+    
+    // Clean up the PKCE challenge
+    this.pkceStore.delete(state);
     
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       client_id: this.clientId,
-      client_secret: this.clientSecret,
       code,
-      redirect_uri: this.redirectUri
+      redirect_uri: this.redirectUri,
+      code_verifier: pkceChallenge.codeVerifier
     });
 
     const response = await fetch(tokenUrl, {

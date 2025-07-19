@@ -25,8 +25,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!code || typeof code !== 'string') {
         return res.status(400).json({ error: 'Missing authorization code' });
       }
+      
+      if (!state || typeof state !== 'string') {
+        return res.status(400).json({ error: 'Missing state parameter' });
+      }
 
-      const tokens = await oktaAuth.exchangeCode(code);
+      const tokens = await oktaAuth.exchangeCode(code, state);
       const oktaUser = await oktaAuth.getUserInfo(tokens.accessToken);
       
       // Get or create user

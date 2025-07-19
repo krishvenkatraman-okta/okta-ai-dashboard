@@ -114,6 +114,77 @@ export class OktaMCPServer {
     }
   }
 
+  private process30DayReview(results: any[]): string {
+    try {
+      // Find the user apps and system logs results
+      const userAppsResult = results.find(r => r.endpoint === 'list_user_apps');
+      const systemLogsResult = results.find(r => r.endpoint === 'get_system_logs');
+
+      if (!userAppsResult?.data && !systemLogsResult?.data) {
+        return `**📊 30-Day Access Review - AI Enhanced**\n\n❌ Unable to retrieve application data. Please check your API permissions.\n\n**Feedback:** 👍 👎 (Help AI improve accuracy)`;
+      }
+
+      const userApps = userAppsResult?.data || [];
+      const systemLogs = systemLogsResult?.data || [];
+      
+      // Process system logs to find recent access patterns
+      const recentAccess = new Set();
+      if (Array.isArray(systemLogs)) {
+        systemLogs.forEach((log: any) => {
+          if (log.target?.[0]?.id) {
+            recentAccess.add(log.target[0].id);
+          }
+        });
+      }
+
+      // Find unused applications
+      const unusedApps = [];
+      const usedApps = [];
+      
+      if (Array.isArray(userApps)) {
+        userApps.forEach((app: any) => {
+          if (recentAccess.has(app.id)) {
+            usedApps.push(app);
+          } else {
+            unusedApps.push(app);
+          }
+        });
+      }
+
+      let responseText = `**📊 30-Day Access Review - AI Enhanced**\n\n`;
+      responseText += `✅ Retrieved ${userApps.length} applications and ${systemLogs.length} access events\n\n`;
+
+      if (unusedApps.length > 0) {
+        responseText += `**🔍 Applications Not Used (Last 30 Days):**\n`;
+        unusedApps.slice(0, 10).forEach((app: any) => {
+          responseText += `• ${app.label || app.name || 'Unknown App'}\n`;
+        });
+        
+        if (unusedApps.length > 10) {
+          responseText += `• ... and ${unusedApps.length - 10} more applications\n`;
+        }
+        
+        responseText += `\n**Recommendation:** Consider reviewing access to these ${unusedApps.length} unused applications.\n\n`;
+      } else {
+        responseText += `**✅ All Applications Active**\nAll your applications show recent usage in the last 30 days.\n\n`;
+      }
+
+      responseText += `**Usage Summary:**\n`;
+      responseText += `• Active Apps: ${usedApps.length}\n`;
+      responseText += `• Unused Apps: ${unusedApps.length}\n`;
+      responseText += `• Total Access Events: ${systemLogs.length}\n\n`;
+      
+      responseText += `*📊 AI continuously learns from usage patterns*\n\n`;
+      responseText += `**Feedback:** 👍 👎 (Help AI improve accuracy)`;
+
+      return responseText;
+
+    } catch (error) {
+      console.error('Error processing 30-day review:', error);
+      return `**📊 30-Day Access Review - AI Enhanced**\n\n❌ Error processing review data: ${error.message}\n\n**Feedback:** 👍 👎 (Help AI improve accuracy)`;
+    }
+  }
+
   /**
    * Analyze natural language intent and map to API calls with continuous learning
    */
@@ -173,12 +244,18 @@ export class OktaMCPServer {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
+      // Get both user apps and system logs for comprehensive analysis
+      requests.push({
+        endpoint: this.endpoints.find(e => e.name === 'list_user_apps')!,
+        params: {}
+      });
+      
       requests.push({
         endpoint: this.endpoints.find(e => e.name === 'get_system_logs')!,
         params: {
           filter: `eventType eq "user.authentication.sso"`,
           since: thirtyDaysAgo.toISOString(),
-          limit: 200
+          limit: 500
         }
       });
     }
@@ -389,13 +466,17 @@ export class OktaMCPServer {
 
     // Handle 30-day reviews
     if (message.includes('30-day') || message.includes('review')) {
-      const logsResult = results.find(r => r.endpoint === 'get_system_logs');
-      if (logsResult?.success) {
+      const hasRelevantData = results.some(r => 
+        (r.endpoint === 'get_system_logs' || r.endpoint === 'list_user_apps') && r.success
+      );
+      
+      if (hasRelevantData) {
+        const processedReview = this.process30DayReview(results);
         return {
           success: true,
           type: '30_day_review',
-          data: logsResult.data,
-          message: 'Retrieved system logs for 30-day access review'
+          data: results,
+          message: processedReview
         };
       }
     }

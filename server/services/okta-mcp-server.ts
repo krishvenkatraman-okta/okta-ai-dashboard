@@ -448,15 +448,45 @@ export class OktaMCPServer {
       const hasJustification = userMessage.includes(' for ');
       console.log('🚀 MCP: Priority handling for "I want" message, hasJustification:', hasJustification);
       
-      return {
-        success: true,
-        type: hasJustification ? 'entitlement_request_processing' : 'entitlement_fields_lookup',
-        data: { message: userMessage },
-        message: hasJustification ? 
-          `Processing your entitlement request...` :
-          `Looking up required fields for this entitlement...`,
-        interactionId
-      };
+      // Parse duration if present (1 hour, 2 days, etc.)
+      const durationMatch = userMessage.match(/(\d+)\s*(hour|day|week|month)s?/i);
+      const hasDuration = !!durationMatch;
+      
+      console.log('🕒 Duration parsing:', { durationMatch, hasDuration });
+      
+      if (hasJustification && hasDuration) {
+        // Full submission with both justification and duration
+        return {
+          success: true,
+          type: 'entitlement_request_submission',
+          data: { 
+            message: userMessage,
+            duration: durationMatch,
+            hasJustification: true,
+            hasDuration: true
+          },
+          message: `Submitting access request with justification and duration...`,
+          interactionId
+        };
+      } else if (hasJustification) {
+        // Has justification but no duration - show what's needed
+        return {
+          success: true,
+          type: 'entitlement_request_processing',
+          data: { message: userMessage, hasJustification: true, hasDuration: false },
+          message: `Processing your entitlement request - duration may be required...`,
+          interactionId
+        };
+      } else {
+        // No justification - show fields needed
+        return {
+          success: true,
+          type: 'entitlement_fields_lookup',
+          data: { message: userMessage },
+          message: `Looking up required fields for this entitlement...`,
+          interactionId
+        };
+      }
     }
 
     // Try to find a documented workflow for this intent
@@ -673,9 +703,16 @@ export class OktaMCPServer {
     const appsResult = results.find(r => r.stepId === 'get_user_apps');
     const logsResult = results.find(r => r.stepId === 'get_authentication_logs');
     
+    console.log('🔄 Processing governance review results:', { 
+      appsFound: !!appsResult?.data, 
+      appsCount: appsResult?.data?.length,
+      logsFound: !!logsResult?.data,
+      logsCount: logsResult?.data?.length 
+    });
+    
     return {
       success: true,
-      type: 'governance_review_data',
+      type: '30_day_review', // Match the route processing case
       data: {
         apps: appsResult?.data || [],
         logs: logsResult?.data || []

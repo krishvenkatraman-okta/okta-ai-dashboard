@@ -703,14 +703,102 @@ Response (be natural and concise):`;
             if (targetEntitlementForFields) {
               const requestFields = await fieldGovernanceService.getEntitlementRequestFields(targetEntitlementForFields.id, session.oktaTokens.accessToken);
               
+              // Process and clean up field labels
+              const cleanedFields = requestFields.map((field, idx) => {
+                let label = field.label || field.key || field.name || 'Field';
+                if (label === 'undefined' || !label.trim()) {
+                  // Infer label from type
+                  if (field.type?.toLowerCase() === 'duration') {
+                    label = 'Access Duration';
+                  } else if (field.key?.includes('justification') || field.type?.toLowerCase() === 'text') {
+                    label = 'Business Justification';
+                  } else {
+                    label = `Field ${idx + 1}`;
+                  }
+                }
+                
+                return {
+                  ...field,
+                  label: label,
+                  displayType: field.type?.toLowerCase() === 'duration' ? 'DURATION (e.g., "1 hour", "2 days")' : field.type?.toUpperCase() || 'TEXT'
+                };
+              });
+              
+              const hasDurationField = cleanedFields.some(f => f.type?.toLowerCase() === 'duration');
+              
               finalResponse = `**📋 Request Fields for "${targetEntitlementForFields.name}"**\n\n✅ **Required Information:**\n\n${
-                requestFields.map((field, idx) => 
-                  `${idx + 1}. **${field.label}** ${field.required ? '(Required)' : '(Optional)'}\n   Type: ${field.type}\n   ${field.placeholder || field.description || 'Please provide this information'}`
+                cleanedFields.map((field, idx) => 
+                  `${idx + 1}. **${field.label}** ${field.required ? '(Required)' : '(Optional)'}\n   Type: ${field.displayType}\n   ${field.placeholder || field.description || 'Please provide this information'}`
                 ).join('\n\n')
-              }\n\n**To Submit Request:**\nProvide all required information in this format:\n*"I want ${targetEntitlementForFields.name} for [your business justification]"*\n\n**Example:**\n*"I want ${targetEntitlementForFields.name} for creating marketing materials for Q1 campaign"*\n\n**Feedback:** 👍 👎`;
+              }\n\n**To Submit Request:**\n${hasDurationField 
+                ? `*"I want ${targetEntitlementForFields.name} for [your business justification] and need access for [duration]"*\n\n**Example:**\n*"I want ${targetEntitlementForFields.name} for creating marketing materials for Q1 campaign and need access for 1 hour"*` 
+                : `*"I want ${targetEntitlementForFields.name} for [your business justification]"*\n\n**Example:**\n*"I want ${targetEntitlementForFields.name} for creating marketing materials for Q1 campaign"*`
+              }\n\n**Feedback:** 👍 👎`;
             } else {
               finalResponse = `**❌ Entitlement Not Found**\n\nCould not locate "${entitlementName}" in the available catalog.\n\nPlease use the exact entitlement name from the previous list.\n\n**Feedback:** 👍 👎`;
             }
+            break;
+
+          case 'entitlement_request_submission':
+            // Handle the final submission with both justification and duration
+            console.log('🚀 Processing entitlement submission:', mcpResult.data.message);
+            
+            // Extract entitlement name, justification, and duration
+            const fullMessage = mcpResult.data.message;
+            const entitlementMatch = fullMessage.match(/I want (.+?) for/i);
+            const justificationMatch = fullMessage.match(/for (.+?) and need access/i) || fullMessage.match(/for (.+)$/i);
+            const durationMatch = fullMessage.match(/(\d+)\s*(hour|day|week|month)s?/i);
+            
+            const submissionEntitlementName = entitlementMatch?.[1]?.trim();
+            const justification = justificationMatch?.[1]?.trim();
+            const duration = durationMatch ? `${durationMatch[1]} ${durationMatch[2]}${durationMatch[1] !== '1' ? 's' : ''}` : null;
+            
+            console.log('📋 Parsed submission:', { submissionEntitlementName, justification, duration });
+            
+            if (submissionEntitlementName && justification) {
+              // Submit the actual request using governance service
+              const { OktaGovernanceService: SubmissionService } = await import('./services/okta-governance-api.ts');
+              const submissionService = new SubmissionService();
+              
+              try {
+                // Find the entitlement ID first
+                const allApps = await submissionService.getCatalogEntries(session.oktaTokens.accessToken);
+                let targetEntitlement = null;
+                
+                for (const app of allApps) {
+                  const entitlements = await submissionService.getCatalogEntryRolesViaParent(app.id, session.oktaTokens.accessToken);
+                  targetEntitlement = entitlements.find(ent => 
+                    ent.name?.toLowerCase().includes(submissionEntitlementName?.toLowerCase()) ||
+                    submissionEntitlementName?.toLowerCase().includes(ent.name?.toLowerCase())
+                  );
+                  if (targetEntitlement) break;
+                }
+                
+                if (targetEntitlement) {
+                  const submissionResult = await submissionService.submitEntitlementRequest(
+                    targetEntitlement.id,
+                    justification,
+                    session.oktaTokens.accessToken,
+                    duration
+                  );
+                  
+                  finalResponse = `**✅ Access Request Submitted Successfully!**\n\nRequest ID: ${submissionResult.id || 'Generated'}\nEntitlement: ${submissionEntitlementName}\nJustification: ${justification}\n${duration ? `Duration: ${duration}\n` : ''}Status: ${submissionResult.status || 'Pending'}\nSubmitted: ${new Date().toISOString()}\n\n*🤖 AI successfully processed your complete request with all required fields*\n\n**Feedback:** 👍 👎 (Rate this response)`;
+                } else {
+                  finalResponse = `**❌ Entitlement Not Found**\n\nCould not locate "${submissionEntitlementName}" for submission.\n\nPlease verify the exact entitlement name and try again.\n\n**Feedback:** 👍 👎`;
+                }
+              } catch (error) {
+                console.error('Submission error:', error);
+                finalResponse = `**❌ Submission Failed**\n\nError: ${error.message}\n\nPlease try again or contact your administrator.\n\n**Feedback:** 👍 👎`;
+              }
+            } else {
+              finalResponse = `**❌ Incomplete Request**\n\nMissing required information:\n${!submissionEntitlementName ? '• Entitlement name\n' : ''}${!justification ? '• Business justification\n' : ''}\n\nPlease provide both the entitlement name and justification.\n\n**Feedback:** 👍 👎`;
+            }
+            break;
+
+          case 'entitlement_request_processing':
+            // Show what additional information might be needed
+            const processingData = mcpResult.data;
+            finalResponse = `**⏳ Processing Access Request**\n\nAnalyzing your request: "${processingData.message}"\n\n${!processingData.hasDuration ? '⚠️ **Duration may be required** - consider specifying access duration (e.g., "for 1 hour", "for 2 days")\n\n' : ''}Please wait while I process your complete request...\n\n**Feedback:** 👍 👎`;
             break;
 
           case 'access_request_submitted':

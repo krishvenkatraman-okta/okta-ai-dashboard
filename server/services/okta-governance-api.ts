@@ -253,16 +253,40 @@ export class OktaGovernanceService {
     }
   }
 
-  async submitEntitlementRequest(entitlementId: string, justification: string, accessToken?: string): Promise<any> {
+  async submitEntitlementRequest(entitlementId: string, justification: string, accessToken?: string, duration?: string): Promise<any> {
     try {
       const url = `https://${this.domain}/governance/api/v2/my/catalogs/default/entries/${entitlementId}/requests`;
       
       console.log('📝 Submitting entitlement request for:', entitlementId);
       
-      const requestBody = {
+      const requestBody: any = {
         justification: justification,
         requestType: 'GRANT_ACCESS'
       };
+      
+      // Add duration if provided
+      if (duration) {
+        const durationMatch = duration.match(/(\d+)\s*(hour|day|week|month)s?/i);
+        if (durationMatch) {
+          const value = parseInt(durationMatch[1]);
+          const unit = durationMatch[2].toLowerCase();
+          
+          // Convert to standard Okta duration format
+          if (unit === 'hour') {
+            requestBody.duration = value;
+            requestBody.durationUnit = 'HOURS';
+          } else if (unit === 'day') {
+            requestBody.duration = value;
+            requestBody.durationUnit = 'DAYS';
+          } else if (unit === 'week') {
+            requestBody.duration = value * 7;
+            requestBody.durationUnit = 'DAYS';
+          } else if (unit === 'month') {
+            requestBody.duration = value * 30;
+            requestBody.durationUnit = 'DAYS';
+          }
+        }
+      }
 
       const response = await fetch(url, {
         method: 'POST',

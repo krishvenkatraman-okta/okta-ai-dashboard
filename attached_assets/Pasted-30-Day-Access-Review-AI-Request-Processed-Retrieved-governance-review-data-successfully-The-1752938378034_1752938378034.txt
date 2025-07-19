@@ -1,0 +1,118 @@
+30-Day Access Review
+**🤖 AI Request Processed**
+
+Retrieved governance review data successfully
+
+The system used intelligent API mapping to handle your request.
+
+**Feedback:** 👍 👎 (Help AI learn)
+Helpful?
+👍
+👎
+access request
+**🏪 Real Okta IGA Catalog - AI Enhanced**
+
+✅ **Found 6 applications (6 requestable):**
+
+1. **Adobe**
+   ✅ Available for Request
+   Type: Application
+   Description: Application - Available for access request
+
+2. **Business Applications**
+   ✅ Available for Request
+   Type: Collection
+   Description: Collection - Available for access request
+
+3. **IBM Maximo**
+   ✅ Available for Request
+   Type: Application
+   Description: Application - Available for access request
+
+4. **Microsoft Office 365**
+   ✅ Available for Request
+   Type: Application
+   Description: Application - Available for access request
+
+5. **Salesforce.com**
+   ✅ Available for Request
+   Type: Application
+   Description: Application - Available for access request
+
+6. **ServiceNow UD**
+   ✅ Available for Request
+   Type: Application
+   Description: Application - Available for access request
+
+**Next Steps:**
+• Say "request access to [app name]" to submit a request
+• All applications above are from your real Okta IGA catalog
+
+*📊 AI successfully retrieved your actual catalog via intelligent API mapping*
+
+**Feedback:** 👍 👎 (Rate this response)
+Helpful?
+👍
+👎
+request access to Adobe
+**🎯 Available Entitlements for Adobe**
+
+✅ **Found 3 access options:**
+
+1. **Adobe Express Bundle**
+   Adobe Express Bundle
+
+   To select: "I want Adobe Express Bundle"
+
+2. **Adobe Pro bundle**
+   Adobe Pro bundle
+
+
+   To select: "I want Adobe Pro bundle"
+
+3. **Creative Cloud Bundle**
+   Creative Cloud Bundle
+   To select: "I want Creative Cloud Bundle"
+
+**Next Step:**
+Choose an entitlement by saying: *"I want [entitlement name]"*
+
+I'll then show you the required fields for that specific access request.
+
+**Feedback:** 👍 👎
+Helpful?
+👍
+👎
+I want Adobe Express Bundle
+**📋 Request Fields for "Adobe Express Bundle"**
+
+✅ **Required Information:**
+
+1. **Provide business justification for this request** (Required)
+   Type: TEXT
+   Please provide this information
+
+2. **undefined** (Required)
+   Type: DURATION
+   Please provide this information
+
+**To Submit Request:**
+Provide all required information in this format:
+*"I want Adobe Express Bundle for [your business justification]"*
+
+**Example:**
+*"I want Adobe Express Bundle for creating marketing materials for Q1 campaign"*
+
+**Feedback:** 👍 👎
+Helpful?
+👍
+👎
+I want Adobe Express Bundle for creating marketing materials for Q1 campaign and need access for 1 hour
+**🤖 AI Request Processed**
+
+Processing your entitlement request...
+
+The system used intelligent API mapping to handle your request.
+
+**Feedback:** 👍 👎 (Help AI learn)
+Helpful?

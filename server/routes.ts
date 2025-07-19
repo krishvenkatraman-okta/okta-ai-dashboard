@@ -214,23 +214,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { LocalOllamaService } = await import('./services/local-ollama.ts');
       const ollamaService = new LocalOllamaService();
 
-      // Generate AI response using Ollama with specific context
-      let prompt = `You are the Okta Assistant helping ${user.name} (Role: ${user.role}).
+      // Create contextual prompt for natural language processing
+      let contextualPrompt = `You are an expert Okta Assistant helping ${user.name} with role: ${user.role}.
 
-User message: "${message}"
+User asks: "${message}"
 
-Context: You are an expert in Okta identity and access management. Respond appropriately based on the user's request:
+Instructions:
+- Respond conversationally and helpfully
+- For "access request": Guide them through requesting application access (NOT governance campaigns)
+- For "governance/campaigns": Help with compliance and access reviews
+- For general questions: Provide relevant Okta administration help
+- Role level: ${user.role === 'super_admin' ? 'Full admin access' : user.role === 'app_owner' ? 'App management access' : 'Standard user access'}
 
-- If asking about "access request" or requesting access to applications: Help them understand how to request access to specific applications through Okta's access request process. Do NOT mention governance campaigns.
-- If asking about governance: Help with governance campaigns, access reviews, and compliance workflows.
-- If asking about applications: Help them find, access, or manage their applications.
-- If asking about user management: Help with user provisioning, deprovisioning, and administration.
+Response (be natural and concise):`;
 
-${user.role === 'super_admin' ? 'You have full administrative capabilities including user management, application configuration, and governance operations.' : user.role === 'app_owner' ? 'You can manage applications and approve user access requests.' : 'You can view your applications and request access to new ones.'}
-
-Be specific and actionable. Keep responses concise and professional.`;
-
-      const aiResponse = await ollamaService.generateResponse(prompt);
+      const aiResponse = await ollamaService.generateResponse(contextualPrompt);
 
       // Save assistant response
       await storage.createChatMessage({

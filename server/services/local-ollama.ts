@@ -109,47 +109,44 @@ export class LocalOllamaService {
 
   async generateResponse(prompt: string, context?: string): Promise<string> {
     try {
-      const systemPrompt = `You are an expert Okta governance assistant specializing in identity and access management.
-
-**Your Role:**
-- Help users with access reviews, governance campaigns, and compliance
-- Provide actionable recommendations for access management
-- Be concise, professional, and security-focused
-
-**Context:** ${context || 'General Okta assistance'}
-
-**User Query:** ${prompt}
-
-**Response (be concise and actionable):**`;
+      console.log('🤖 Generating AI response for prompt:', prompt);
+      
+      // Check if Ollama is available
+      const healthCheck = await fetch(`${this.baseUrl}/api/tags`);
+      if (!healthCheck.ok) {
+        console.log('❌ Ollama not available, using fallback response');
+        return this.getFallbackResponse(prompt);
+      }
 
       const response = await fetch(`${this.baseUrl}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'llama3.1:8b',
-          prompt: systemPrompt,
+          prompt: prompt,
           stream: false,
           options: {
-            temperature: 0.2,
-            top_p: 0.9,
-            max_tokens: 400
+            temperature: 0.7,
+            num_predict: 300
           }
         })
       });
 
       if (response.ok) {
-        const result = await response.json();
-        return result.response || this.generateFallback(prompt, context);
+        const data = await response.json();
+        console.log('✅ Ollama response received');
+        return data.response || 'I apologize, but I was unable to generate a response at this time.';
       } else {
-        return this.generateFallback(prompt, context);
+        console.log(`❌ Ollama API error: ${response.status}`);
+        throw new Error(`Ollama API error: ${response.status}`);
       }
     } catch (error) {
-      console.error('Ollama generation error:', error);
-      return this.generateFallback(prompt, context);
+      console.warn('⚠️ Ollama generation failed:', error);
+      return this.getFallbackResponse(prompt);
     }
   }
 
-  private generateFallback(prompt: string, context?: string): string {
+  private getFallbackResponse(prompt: string): string {
     const lowerPrompt = prompt.toLowerCase();
     
     if (lowerPrompt.includes('30 days') || (lowerPrompt.includes('access') && lowerPrompt.includes('review'))) {
@@ -166,55 +163,52 @@ Would you like me to show your recent application access?`;
     }
 
     if (lowerPrompt.includes('governance') || lowerPrompt.includes('campaign')) {
-      if (context?.includes('regular_user')) {
-        return `**Access Level: Regular User**
-
-Governance campaigns require admin privileges. You can:
-
-• Review your own application access
-• Request access to new applications  
-• View your access history
-
-Would you like to see available applications to request?`;
-      }
       
       return `**Governance Campaign Creation**
 
 I can help you create governance campaigns:
 
 • Set up automated access reviews
-• Configure approval workflows
+• Configure approval workflows  
 • Generate compliance reports
 • Schedule recurring audits
 
 What type of campaign would you like to create?`;
     }
+    
+    if (lowerPrompt.includes('access request') || lowerPrompt.includes('request access')) {
+      return `I can help you with access requests! Here are your options:
 
-    if (lowerPrompt.includes('catalog') || lowerPrompt.includes('request') || lowerPrompt.includes('available')) {
-      return `**Access Request Catalog**
+• **Request New Access**: Browse available applications and request access through Okta
+• **Check Request Status**: View pending access requests and their approval status  
+• **Application Catalog**: See all applications available for self-service access
 
-Available actions:
-
-• Browse requestable applications
-• Submit access requests with justification
-• Track request status
-• View approval workflows
-
-Would you like to see available applications?`;
+To request access to a specific application, I can guide you through the process. Which application would you like to access?`;
     }
+    
+    if (lowerPrompt.includes('hello') || lowerPrompt.includes('hi')) {
+      return `Hello! I'm your Okta Assistant powered by local AI. I can help you with:
 
-    return `**Okta Assistant**
+• Access requests and application provisioning
+• User and group management  
+• Governance and compliance tasks
+• General Okta administration
 
-I can help you with:
+What would you like to do today?`;
+    }
+    
+    if (lowerPrompt.includes('applications') || lowerPrompt.includes('apps')) {
+      return `I can help you manage applications! Here's what I can do:
 
-• **Access Reviews**: Review your application access
-• **Governance**: Manage access campaigns (admin users)  
-• **Access Requests**: Request new application access
-• **Compliance**: Ensure proper access management
+• **Show Available Apps**: View applications you can request access to
+• **Recent Access**: Display applications you've accessed recently
+• **Request Access**: Help you request access to new applications
+• **Manage Assignments**: Review your current application assignments
 
-${context ? `\n**Access Level**: ${context.split('Access Level: ')[1]?.split('\n')[0] || 'Standard'}` : ''}
-
-What would you like to do?`;
+What specific application help do you need?`;
+    }
+    
+    return `I'm your Okta Assistant. I can help with access requests, application management, governance tasks, and user administration. What specific help do you need today?`;
   }
 
   async analyzeIntent(message: string): Promise<{

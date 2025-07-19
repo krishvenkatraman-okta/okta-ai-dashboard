@@ -443,7 +443,24 @@ export class OktaMCPServer {
     // Record user input for training context
     const interactionId = Date.now().toString();
 
-    // First, try to find a documented workflow for this intent
+    // PRIORITY: Handle "I want" messages immediately before any other processing
+    if (userMessage.toLowerCase().includes('i want')) {
+      const hasJustification = userMessage.includes(' for ');
+      console.log('🚀 MCP: Priority handling for "I want" message, hasJustification:', hasJustification);
+      
+      return {
+        success: true,
+        type: hasJustification ? 'entitlement_request_processing' : 'entitlement_fields_lookup',
+        data: { message: userMessage },
+        message: hasJustification ? 
+          `Processing your entitlement request...` :
+          `Looking up required fields for this entitlement...`,
+        interactionId
+      };
+    }
+
+    // Try to find a documented workflow for this intent
+    const { OktaApiDocumentationService } = await import('./okta-api-documentation.ts');
     const workflow = OktaApiDocumentationService.findWorkflowForIntent(userMessage);
     if (workflow) {
       console.log('📋 MCP: Found documented workflow:', workflow.name);
@@ -471,7 +488,7 @@ export class OktaMCPServer {
     console.log('⚠️ MCP: Using legacy pattern matching');
     
     // Analyze intent and get API requests
-    const apiRequests = await this.analyzeIntent(userMessage, userContext);
+    const apiRequests = this.analyzeRequest(userMessage, userContext);
     
     if (apiRequests.length === 0) {
       return {

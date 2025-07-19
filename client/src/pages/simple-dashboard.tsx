@@ -188,8 +188,9 @@ function OktaApplicationTile({ app }: { app: OktaApp }) {
 function OktaAssistantChat({ user }: { user: User }) {
   const [messages, setMessages] = useState([
     {
+      id: 'welcome',
       role: 'assistant',
-      content: `Hello ${user.name}! I'm your Okta Assistant. ${
+      content: `Hello ${user.name}! I'm your AI-powered Okta Assistant with continuous learning. ${
         user.role === 'super_admin' ? 
           `As a Super Admin, I can help you with:\n\n• **User Management**: Create, modify, and deactivate users\n• **Application Management**: Configure apps and assignments\n• **Governance Workflows**: Set up access reviews and campaigns\n• **Policy Administration**: Configure authentication and authorization policies\n• **Bulk Operations**: Mass user updates and group management\n• **Compliance Reporting**: Generate detailed audit reports\n• **API Integration**: Manage Okta APIs and integrations\n• **Advanced Admin Operations**: System-wide configurations\n• **30-Day Access Review**: Review and clean up unused application access\n\nWhat administrative task would you like to work on?` :
         user.role === 'app_owner' ? 
@@ -200,6 +201,7 @@ function OktaAssistantChat({ user }: { user: User }) {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [feedbackStatus, setFeedbackStatus] = useState<Record<string, string>>({});
 
   // Auto-load 30-day review on component mount
   useEffect(() => {
@@ -258,18 +260,20 @@ function OktaAssistantChat({ user }: { user: User }) {
       if (response.ok) {
         const data = await response.json();
         console.log('Chat response data:', data);
-        setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+        const responseId = `assistant-${Date.now()}`;
+        setMessages(prev => [...prev, { id: responseId, role: 'assistant', content: data.response }]);
       } else {
         const errorData = await response.text();
         console.error('Chat error response:', response.status, errorData);
         setMessages(prev => [...prev, { 
+          id: `error-${Date.now()}`,
           role: 'assistant', 
           content: `Error ${response.status}: ${errorData}. Please try signing in again or refreshing the page.` 
         }]);
       }
     } catch (error) {
       console.error('Chat request failed:', error);
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Connection error. Please check your network and try again.' }]);
+      setMessages(prev => [...prev, { id: `connection-error-${Date.now()}`, role: 'assistant', content: 'Connection error. Please check your network and try again.' }]);
     } finally {
       setLoading(false);
     }
@@ -282,18 +286,79 @@ function OktaAssistantChat({ user }: { user: User }) {
     }
   };
 
+  const handleFeedback = async (messageId: string, feedback: 'positive' | 'negative') => {
+    try {
+      const interactionId = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('last_interaction_id='))
+        ?.split('=')[1];
+
+      if (!interactionId) {
+        console.warn('No interaction ID found for feedback');
+        return;
+      }
+
+      const response = await fetch('/api/chat/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          interactionId, 
+          feedback, 
+          messageId 
+        })
+      });
+
+      if (response.ok) {
+        setFeedbackStatus(prev => ({ ...prev, [messageId]: feedback }));
+        console.log(`✅ Feedback recorded: ${feedback}`);
+      }
+    } catch (error) {
+      console.error('Failed to record feedback:', error);
+    }
+  };
+
   return (
     <>
       {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message, index) => (
-          <div key={index} className={`${message.role === 'user' ? 'ml-4' : 'mr-4'}`}>
+          <div key={message.id || index} className={`${message.role === 'user' ? 'ml-4' : 'mr-4'}`}>
             <div className={`p-3 rounded-lg ${
               message.role === 'user' 
                 ? 'bg-blue-600 text-white ml-auto max-w-[80%]' 
                 : 'bg-gray-100 text-gray-900'
             }`}>
               <pre className="whitespace-pre-wrap text-sm font-sans">{message.content}</pre>
+              
+              {/* Feedback buttons for assistant messages */}
+              {message.role === 'assistant' && message.id !== 'welcome' && (
+                <div className="flex items-center gap-2 mt-3 pt-2 border-t border-gray-200">
+                  <span className="text-xs text-gray-500">Helpful?</span>
+                  <button 
+                    onClick={() => handleFeedback(message.id!, 'positive')}
+                    className={`text-xs px-2 py-1 rounded transition-colors ${
+                      feedbackStatus[message.id!] === 'positive' 
+                        ? 'bg-green-200 text-green-800' 
+                        : 'bg-green-100 hover:bg-green-200 text-green-700'
+                    }`}
+                    title="Good response"
+                  >
+                    👍 {feedbackStatus[message.id!] === 'positive' ? 'Thanks!' : ''}
+                  </button>
+                  <button 
+                    onClick={() => handleFeedback(message.id!, 'negative')}
+                    className={`text-xs px-2 py-1 rounded transition-colors ${
+                      feedbackStatus[message.id!] === 'negative' 
+                        ? 'bg-red-200 text-red-800' 
+                        : 'bg-red-100 hover:bg-red-200 text-red-700'
+                    }`}
+                    title="Needs improvement"
+                  >
+                    👎 {feedbackStatus[message.id!] === 'negative' ? 'Noted!' : ''}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ))}

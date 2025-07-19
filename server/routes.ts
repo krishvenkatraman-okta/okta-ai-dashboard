@@ -551,16 +551,22 @@ Response (be natural and concise):`;
       if (mcpResult.success) {
         console.log('✅ MCP handled request successfully:', mcpResult.type);
         
+        // Store interaction ID for potential feedback
+        res.cookie('last_interaction_id', mcpResult.interactionId, { 
+          httpOnly: false, 
+          maxAge: 10 * 60 * 1000 // 10 minutes
+        });
+        
         // Format MCP results into user-friendly responses
         switch (mcpResult.type) {
           case 'catalog':
             const catalogData = mcpResult.data;
             if (catalogData && catalogData.length > 0) {
-              finalResponse = `**🏪 Real Okta IGA Catalog - MCP Enhanced**\n\n✅ **Found ${catalogData.length} applications via intelligent API mapping:**\n\n${
+              finalResponse = `**🏪 Real Okta IGA Catalog - AI Enhanced**\n\n✅ **Found ${catalogData.length} applications via intelligent API mapping:**\n\n${
                 catalogData.map((entry: any, index: number) => 
                   `${index + 1}. **${entry.displayName || entry.name}**\n   App ID: ${entry.id}\n   Status: ${entry.status || 'AVAILABLE'}${entry.description ? `\n   Description: ${entry.description}` : ''}`
                 ).join('\n\n')
-              }\n\n**Next Steps:**\n• Say "request access to [app name]" to submit a request\n• Ask "show roles for [app name]" for permissions\n\n*Data fetched via intelligent MCP server*`;
+              }\n\n**Next Steps:**\n• Say "request access to [app name]" to submit a request\n• Ask "show roles for [app name]" for permissions\n\n*📊 AI is learning from your interactions to improve responses*\n\n**Feedback:** 👍 👎 (React to help AI learn)`;
             } else {
               finalResponse = `**📋 Empty Catalog**\n\nThe IGA catalog API returned no applications. This may indicate:\n• No apps are published to the catalog\n• Access permissions need configuration\n• IGA may not be fully enabled\n\nContact your Okta administrator for catalog setup.`;
             }
@@ -568,16 +574,16 @@ Response (be natural and concise):`;
 
           case '30_day_review':
             // Process system logs for unused applications
-            finalResponse = `**📊 30-Day Access Review - MCP Enhanced**\n\n✅ Retrieved system logs via intelligent API mapping.\n\nAnalyzing authentication patterns...\n\n*Real-time data from Okta System Log API*`;
+            finalResponse = `**📊 30-Day Access Review - AI Enhanced**\n\n✅ Retrieved system logs via intelligent API mapping.\n\nAnalyzing authentication patterns...\n\n*📊 AI continuously learns from usage patterns*\n\n**Feedback:** 👍 👎 (Help AI improve accuracy)`;
             break;
 
           case 'access_request_submitted':
             const requestData = mcpResult.data;
-            finalResponse = `**✅ Access Request Submitted via MCP**\n\nRequest ID: ${requestData.id || 'Generated'}\nStatus: ${requestData.status || 'Pending'}\nSubmitted: ${new Date().toISOString()}\n\n*Request processed through intelligent API routing*`;
+            finalResponse = `**✅ Access Request Submitted**\n\nRequest ID: ${requestData.id || 'Generated'}\nStatus: ${requestData.status || 'Pending'}\nSubmitted: ${new Date().toISOString()}\n\n*🤖 AI successfully mapped your request to the correct API*\n\n**Feedback:** 👍 👎 (Rate this response)`;
             break;
 
           default:
-            finalResponse = `**🤖 MCP Request Processed**\n\n${mcpResult.message}\n\nThe system used intelligent API mapping to handle your request.`;
+            finalResponse = `**🤖 AI Request Processed**\n\n${mcpResult.message}\n\nThe system used intelligent API mapping to handle your request.\n\n**Feedback:** 👍 👎 (Help AI learn)`;
         }
       } else {
         console.log('⚠️ MCP failed, falling back to function detection');
@@ -866,6 +872,50 @@ Response (be natural and concise):`;
     } catch (error) {
       console.error('Submit access request error:', error);
       res.status(500).json({ error: 'Failed to submit access request' });
+    }
+  });
+
+  // Feedback route for continuous learning
+  app.post('/api/chat/feedback', async (req, res) => {
+    try {
+      const { interactionId, feedback, correctIntent } = req.body;
+
+      if (!interactionId || !feedback) {
+        return res.status(400).json({ error: 'Missing required feedback parameters' });
+      }
+
+      console.log(`💬 Received feedback: ${feedback} for interaction ${interactionId}`);
+
+      // Get MCP server instance and record feedback
+      const { OktaMCPServer } = await import('./services/okta-mcp-server.ts');
+      const mcpServer = new OktaMCPServer();
+      
+      await mcpServer.recordFeedback(interactionId, feedback, correctIntent);
+
+      res.json({ 
+        success: true, 
+        message: `Feedback recorded: ${feedback}`,
+        learningEnabled: true
+      });
+
+    } catch (error) {
+      console.error('Feedback recording error:', error);
+      res.status(500).json({ error: 'Failed to record feedback' });
+    }
+  });
+
+  // Training statistics route
+  app.get('/api/chat/training-stats', async (req, res) => {
+    try {
+      const { OktaMCPServer } = await import('./services/okta-mcp-server.ts');
+      const mcpServer = new OktaMCPServer();
+      
+      const stats = mcpServer.getTrainingStats();
+      res.json(stats);
+
+    } catch (error) {
+      console.error('Training stats error:', error);
+      res.status(500).json({ error: 'Failed to get training statistics' });
     }
   });
 

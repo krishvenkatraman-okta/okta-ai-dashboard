@@ -22,6 +22,7 @@ interface ApiRequest {
 export class OktaMCPServer {
   private domain: string;
   private apiToken: string;
+  private trainingService: any; // Will be imported dynamically
   
   // Okta API endpoint registry
   private endpoints: ApiEndpoint[] = [
@@ -100,14 +101,43 @@ export class OktaMCPServer {
   constructor() {
     this.domain = process.env.OKTA_DOMAIN || 'fcxdemo.okta.com';
     this.apiToken = process.env.OKTA_API_TOKEN || '';
+    this.initializeTraining();
+  }
+
+  private async initializeTraining(): Promise<void> {
+    try {
+      const { LLMTrainingService } = await import('./llm-training-service.ts');
+      this.trainingService = new LLMTrainingService();
+    } catch (error) {
+      console.warn('Training service unavailable:', error.message);
+    }
   }
 
   /**
-   * Analyze natural language intent and map to API calls
+   * Analyze natural language intent and map to API calls with continuous learning
    */
   async analyzeIntent(userMessage: string, userContext?: any): Promise<ApiRequest[]> {
     const message = userMessage.toLowerCase();
     const requests: ApiRequest[] = [];
+
+    // First try improved intent detection if training service is available
+    if (this.trainingService) {
+      const improvedIntent = await this.trainingService.improvedIntentDetection(
+        userMessage, 
+        userContext?.userRole || 'regular_user'
+      );
+      
+      if (improvedIntent && improvedIntent.confidence > 0.7) {
+        console.log(`🤖 MCP: Using learned intent "${improvedIntent.intent}" (${(improvedIntent.confidence * 100).toFixed(1)}% confidence)`);
+        console.log(`🧠 Reasoning: ${improvedIntent.reasoning}`);
+        
+        const endpoint = this.endpoints.find(e => e.name === improvedIntent.intent.replace('fetch_', 'list_'));
+        if (endpoint) {
+          requests.push({ endpoint, params: {} });
+          return requests;
+        }
+      }
+    }
 
     // Access request intent
     if (message.includes('access request') || message.includes('request access') || 
@@ -230,6 +260,17 @@ export class OktaMCPServer {
       const data = await response.json();
       console.log(`✅ MCP: ${request.endpoint.name} executed successfully`);
       
+      // Record successful interaction for training
+      if (this.trainingService) {
+        await this.trainingService.recordInteraction(
+          '', // Will be provided by caller
+          request.endpoint.name,
+          true,
+          'user',
+          url
+        );
+      }
+      
       return {
         success: true,
         data,
@@ -239,6 +280,19 @@ export class OktaMCPServer {
 
     } catch (error) {
       console.error(`❌ MCP: ${request.endpoint.name} failed:`, error);
+      
+      // Record failed interaction for training
+      if (this.trainingService) {
+        await this.trainingService.recordInteraction(
+          '', // Will be provided by caller
+          request.endpoint.name,
+          false,
+          'user',
+          url,
+          error.message
+        );
+      }
+      
       return {
         success: false,
         error: error.message,
@@ -248,10 +302,13 @@ export class OktaMCPServer {
   }
 
   /**
-   * Process natural language and execute appropriate API calls
+   * Process natural language and execute appropriate API calls with learning
    */
   async processRequest(userMessage: string, userContext?: any): Promise<any> {
     console.log(`🤖 MCP: Processing request: "${userMessage}"`);
+
+    // Record user input for training context
+    const interactionId = Date.now().toString();
 
     // Analyze intent and get API requests
     const apiRequests = await this.analyzeIntent(userMessage, userContext);
@@ -269,7 +326,42 @@ export class OktaMCPServer {
     );
 
     // Format response based on results
-    return this.formatResponse(userMessage, results);
+    const response = this.formatResponse(userMessage, results);
+    
+    // Record training data for successful requests
+    if (this.trainingService && response.success && response.type) {
+      await this.trainingService.recordInteraction(
+        userMessage,
+        response.type,
+        response.success,
+        userContext?.userRole || 'regular_user'
+      );
+    }
+    
+    return { ...response, interactionId };
+  }
+
+  /**
+   * Record user feedback for continuous learning
+   */
+  async recordFeedback(
+    interactionId: string, 
+    feedback: 'positive' | 'negative' | 'neutral',
+    correctIntent?: string
+  ): Promise<void> {
+    if (this.trainingService) {
+      await this.trainingService.recordFeedback(interactionId, feedback, correctIntent);
+    }
+  }
+
+  /**
+   * Get training statistics
+   */
+  getTrainingStats(): any {
+    if (this.trainingService) {
+      return this.trainingService.getTrainingStats();
+    }
+    return { message: 'Training service not available' };
   }
 
   /**

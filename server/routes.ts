@@ -535,30 +535,71 @@ Instructions:
 
 Response (be natural and concise):`;
 
-      const aiResponse = await ollamaService.generateResponse(contextualPrompt, user.role);
+      // Use proper function detection BEFORE generating response
+      const functionCall = await ollamaService.detectFunction(message, user.role);
+      
+      let finalResponse = '';
+      if (functionCall) {
+        console.log('🎯 Function call detected:', functionCall.function, 'for message:', message);
+        
+        const { OktaGovernanceService } = await import('./services/okta-governance-api.ts');
+        const governanceService = new OktaGovernanceService();
+        
+        switch (functionCall.function) {
+          case 'fetch_catalog':
+            const catalog = await governanceService.getCatalogEntries(session.oktaTokens.accessToken);
+            finalResponse = `**🏪 Application Catalog - Access Request Portal**\n\nHere are the available applications you can request access to:\n\n${
+              catalog.map((entry, index) => 
+                `${index + 1}. **${entry.displayName}**\n   App ID: ${entry.id}\n   Status: ${entry.status}${entry.description ? `\n   Description: ${entry.description}` : ''}`
+              ).join('\n\n')
+            }\n\n**Next Steps:**\n• To request access, say "request access to [app name]"\n• To see roles/permissions for an app, say "show roles for [app name]"\n• Need help choosing? Ask "which app should I request?"`;
+            break;
+            
+          case 'fetch_30_day_review':
+            const unusedAccess = await governanceService.getUserApplicationAccess(user.oktaId, session.oktaTokens.accessToken);
+            finalResponse = `**30-Day Access Review:**\n\n${
+              unusedAccess.length > 0 ?
+                `Found ${unusedAccess.length} applications you haven't accessed in over 30 days:\n\n${
+                  unusedAccess.map((access, index) => 
+                    `${index + 1}. **${access.applicationName}**\n   Last accessed: ${access.lastAccessed}\n   Days since access: ${access.daysSinceAccess}\n   App ID: ${access.applicationId}`
+                  ).join('\n\n')
+                }\n\n**Recommendations:**\n• Review if you still need access to these applications\n• I can revoke access to applications you no longer need\n• This helps maintain security and compliance\n\nWould you like me to revoke access to any of these applications? Just say "revoke access to [app name]".` :
+                'Great news! All your application access has been used within the last 30 days. No cleanup needed.'
+            }`;
+            break;
+            
+          case 'fetch_owned_apps':
+            const ownedApps = await governanceService.getOwnedApplications(user.oktaId, session.oktaTokens.accessToken);
+            finalResponse = `**Your Owned Applications:**\n\n${
+              ownedApps.length > 0 ? 
+                ownedApps.map((app, index) => 
+                  `${index + 1}. **${app.name}**\n   ID: ${app.id}\n   Status: ${app.status}\n   Assigned Users: ${app.assignedUsers}\n   Last Updated: ${app.lastAccessed ? new Date(app.lastAccessed).toLocaleDateString() : 'Unknown'}`
+                ).join('\n\n') :
+                'No owned applications found.'
+            }\n\n${ownedApps.length > 0 ? 'Would you like to create a governance campaign for access reviews on any of these applications?' : ''}`;
+            break;
+            
+          default:
+            // Fallback to AI response
+            finalResponse = await ollamaService.generateResponse(contextualPrompt, user.role);
+        }
+      } else {
+        // No function call detected, generate normal AI response
+        finalResponse = await ollamaService.generateResponse(contextualPrompt, user.role);
+      }
 
-      // Check if AI wants to call a function
-      let finalResponse = aiResponse;
+      // Legacy function call support (for complex operations)
       try {
-        const parsedResponse = JSON.parse(aiResponse);
+        const parsedResponse = JSON.parse(finalResponse);
         if (parsedResponse.type === 'function_call') {
-          console.log('🔧 Executing function:', parsedResponse.function);
+          console.log('🔧 Executing legacy function:', parsedResponse.function);
           
           const { OktaGovernanceService } = await import('./services/okta-governance-api.ts');
-          const governanceService = new OktaGovernanceService();
+          const legacyGovernanceService = new OktaGovernanceService();
           
           switch (parsedResponse.function) {
-            case 'fetch_catalog':
-              const catalog = await governanceService.getCatalogEntries(session.oktaTokens.accessToken);
-              finalResponse = `Here are the available applications you can request access to:\n\n${
-                catalog.map((entry, index) => 
-                  `${index + 1}. **${entry.displayName}**\n   ID: ${entry.id}\n   Status: ${entry.status}\n   ${entry.description ? `Description: ${entry.description}` : ''}`
-                ).join('\n\n')
-              }\n\nTo see available roles for any application, just ask "show roles for [app name]" or provide the app ID.`;
-              break;
-              
             case 'fetch_app_details':
-              const entryDetails = await governanceService.getCatalogEntryDetails(
+              const entryDetails = await legacyGovernanceService.getCatalogEntryDetails(
                 parsedResponse.arguments.entryId, 
                 session.oktaTokens.accessToken
               );
@@ -570,26 +611,15 @@ Response (be natural and concise):`;
               break;
               
             case 'submit_access_request':
-              const requestResult = await governanceService.submitAccessRequest(
+              const requestResult = await legacyGovernanceService.submitAccessRequest(
                 parsedResponse.arguments,
                 session.oktaTokens.accessToken
               );
               finalResponse = `✅ **Access Request Submitted Successfully!**\n\nRequest ID: ${requestResult.id}\nApplication: ${requestResult.catalogEntryDisplayName}\nStatus: ${requestResult.status}\nSubmitted: ${requestResult.requestedOn}\n\nYour request has been submitted for approval. You'll be notified when it's processed.`;
               break;
               
-            case 'fetch_owned_apps':
-              const ownedApps = await governanceService.getOwnedApplications(user.oktaId, session.oktaTokens.accessToken);
-              finalResponse = `**Your Owned Applications:**\n\n${
-                ownedApps.length > 0 ? 
-                  ownedApps.map((app, index) => 
-                    `${index + 1}. **${app.name}**\n   ID: ${app.id}\n   Status: ${app.status}\n   Assigned Users: ${app.assignedUsers}\n   Last Updated: ${app.lastAccessed ? new Date(app.lastAccessed).toLocaleDateString() : 'Unknown'}`
-                  ).join('\n\n') :
-                  'No owned applications found.'
-              }\n\n${ownedApps.length > 0 ? 'Would you like to create a governance campaign for access reviews on any of these applications?' : ''}`;
-              break;
-              
             case 'create_governance_campaign':
-              const campaign = await governanceService.createGovernanceCampaign({
+              const campaign = await legacyGovernanceService.createGovernanceCampaign({
                 id: '',
                 ...parsedResponse.arguments,
                 reviewers: [user.email],
@@ -598,31 +628,18 @@ Response (be natural and concise):`;
               finalResponse = `✅ **Governance Campaign Created Successfully!**\n\nCampaign ID: ${campaign.id}\nStatus: ${campaign.status}\nName: ${parsedResponse.arguments.name}\nApplications: ${parsedResponse.arguments.applicationIds?.length || 0} apps\nDuration: ${parsedResponse.arguments.duration || 14} days\n\nThe access review campaign has been started. Reviewers will be notified to review user access for the selected applications.`;
               break;
               
-            case 'fetch_30_day_review':
-              const unusedAccess = await governanceService.getUserApplicationAccess(user.oktaId, session.oktaTokens.accessToken);
-              finalResponse = `**30-Day Access Review:**\n\n${
-                unusedAccess.length > 0 ?
-                  `Found ${unusedAccess.length} applications you haven't accessed in over 30 days:\n\n${
-                    unusedAccess.map((access, index) => 
-                      `${index + 1}. **${access.applicationName}**\n   Last accessed: ${access.lastAccessed}\n   Days since access: ${access.daysSinceAccess}\n   App ID: ${access.applicationId}`
-                    ).join('\n\n')
-                  }\n\n**Recommendations:**\n• Review if you still need access to these applications\n• I can revoke access to applications you no longer need\n• This helps maintain security and compliance\n\nWould you like me to revoke access to any of these applications? Just say "revoke access to [app name]".` :
-                  'Great news! All your application access has been used within the last 30 days. No cleanup needed.'
-              }`;
-              break;
-              
             case 'revoke_access':
-              const revokeResult = await governanceService.revokeUserAccess(user.oktaId, parsedResponse.arguments.applicationId, session.oktaTokens.accessToken);
+              const revokeResult = await legacyGovernanceService.revokeUserAccess(user.oktaId, parsedResponse.arguments.applicationId, session.oktaTokens.accessToken);
               finalResponse = `✅ **Access Revoked Successfully!**\n\nApplication ID: ${parsedResponse.arguments.applicationId}\nStatus: ${revokeResult.success ? 'Revoked' : 'Failed'}\n\nYour access to this application has been removed. This helps maintain security compliance and reduces your attack surface.`;
               break;
               
             default:
-              finalResponse = aiResponse;
+              // Keep original AI response if no function match
+              break;
           }
         }
       } catch (e) {
-        // Not a function call, use original response
-        finalResponse = aiResponse;
+        // Not a function call, keep the response as is
       }
 
       // Save assistant response

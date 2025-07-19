@@ -143,27 +143,20 @@ export class OllamaService {
       };
     }
     
-    // Detect access request intent first (more specific than other patterns)
+    // Detect access request intent FIRST (most specific pattern)
     if (lowerPrompt.includes('access request') || lowerPrompt.includes('request access') || 
-        lowerPrompt.includes('apply for') || lowerPrompt.includes('need access to')) {
-      return {
-        type: 'function_call',
-        function: 'fetch_catalog',
-        arguments: {},
-        message: 'Let me fetch the available applications catalog...'
-      };
-    }
-    
-    // Detect catalog browsing intent
-    if (lowerPrompt.includes('catalog') || lowerPrompt.includes('available apps') || 
+        lowerPrompt.includes('apply for') || lowerPrompt.includes('need access to') ||
+        lowerPrompt.includes('catalog') || lowerPrompt.includes('available apps') || 
         lowerPrompt.includes('browse applications') || lowerPrompt.includes('what can I request')) {
       return {
         type: 'function_call',
         function: 'fetch_catalog',
         arguments: {},
-        message: 'Let me fetch the available applications catalog...'
+        message: 'Let me fetch the available applications catalog for your access request...'
       };
     }
+    
+
     
     // Detect governance campaign creation
     if (lowerPrompt.includes('create campaign') || lowerPrompt.includes('governance campaign') || 

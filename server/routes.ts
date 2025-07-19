@@ -230,6 +230,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Applications API endpoint
+  app.get('/api/applications', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      // Get applications from Okta Management API using management token
+      const managementToken = process.env.OKTA_API_TOKEN;
+      if (!managementToken) {
+        return res.status(500).json({ error: 'Management API token not configured' });
+      }
+      
+      const apps = await oktaApi.getApplications(managementToken);
+      res.json(apps);
+    } catch (error) {
+      console.error('Get applications error:', error);
+      res.status(500).json({ error: 'Failed to fetch applications' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

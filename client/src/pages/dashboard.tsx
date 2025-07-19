@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Shield, Users, Dock, BarChart3, Settings, Key, Server, History, Bell, LogOut, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OktaAssistant from "@/components/okta-assistant";
-import DashboardIframe from "@/components/dashboard-iframe";
+import ApplicationsDashboard from "@/components/applications-dashboard";
 import type { User } from "@shared/schema";
 
 export default function Dashboard() {
@@ -171,9 +171,9 @@ export default function Dashboard() {
         {/* Main Content Area */}
         <main className="flex-1 overflow-hidden">
           <div className="h-full flex">
-            {/* Okta Dashboard Iframe */}
+            {/* Applications Dashboard */}
             <div className="flex-1 bg-white border-r border-gray-200">
-              <DashboardIframe />
+              <ApplicationsDashboard />
             </div>
 
             {/* Okta Assistant Chatbot */}

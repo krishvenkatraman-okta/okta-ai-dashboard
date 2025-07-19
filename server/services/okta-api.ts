@@ -75,11 +75,11 @@ export class OktaApiService {
     return '12';
   }
 
-  async getApplications(accessToken: string): Promise<any[]> {
+  async getApplications(apiToken: string): Promise<any[]> {
     try {
       const response = await fetch(`https://${this.oktaDomain}/api/v1/apps`, {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          'Authorization': `SSWS ${apiToken}`,
           'Accept': 'application/json'
         }
       });

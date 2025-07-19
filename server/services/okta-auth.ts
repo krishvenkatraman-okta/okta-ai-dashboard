@@ -156,48 +156,99 @@ export class OktaAuthService {
 
   private async getUserGroups(accessToken: string, userId: string): Promise<string[]> {
     try {
-      // Use the Management API token instead of the user's access token
+      // Use the Management API token to get both groups and admin roles
       const managementToken = process.env.OKTA_API_TOKEN;
       if (!managementToken) {
         console.warn('No management API token configured, cannot fetch user groups');
         return [];
       }
 
+      // Get user's groups
       const groupsUrl = `https://${this.oktaDomain}/api/v1/users/${userId}/groups`;
-      
-      const response = await fetch(groupsUrl, {
+      const groupsResponse = await fetch(groupsUrl, {
         headers: {
           'Authorization': `SSWS ${managementToken}`,
           'Accept': 'application/json'
         }
       });
 
-      if (!response.ok) {
-        console.warn('Failed to fetch user groups, using default role');
-        return [];
+      let groups: string[] = [];
+      if (groupsResponse.ok) {
+        const groupsData = await groupsResponse.json();
+        groups = groupsData.map((group: any) => group.profile.name);
       }
 
-      const groups = await response.json();
-      return groups.map((group: any) => group.profile.name);
+      // Get user's admin roles
+      const rolesUrl = `https://${this.oktaDomain}/api/v1/users/${userId}/roles`;
+      const rolesResponse = await fetch(rolesUrl, {
+        headers: {
+          'Authorization': `SSWS ${managementToken}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (rolesResponse.ok) {
+        const roles = await rolesResponse.json();
+        console.log('🎭 User admin roles:', roles.map((r: any) => r.type));
+        
+        // Map Okta admin role types to our group names
+        roles.forEach((role: any) => {
+          switch (role.type) {
+            case 'ORG_ADMIN':
+              groups.push('Super Admins');
+              break;
+            case 'APP_ADMIN':
+              groups.push('App Admins');
+              break;
+            case 'GROUP_ADMIN':
+              groups.push('Group Admins');
+              break;
+            case 'USER_ADMIN':
+              groups.push('User Admins');
+              break;
+            case 'HELP_DESK_ADMIN':
+              groups.push('Help Desk Admins');
+              break;
+            case 'READ_ONLY_ADMIN':
+              groups.push('Read Only Admins');
+              break;
+          }
+        });
+      }
+
+      console.log('👥 Final user groups and roles:', groups);
+      return groups;
     } catch (error) {
-      console.error('Error fetching user groups:', error);
+      console.error('Error fetching user groups and roles:', error);
       return [];
     }
   }
 
   determineUserRole(groups: string[]): UserRole {
-    // Check for super admin groups
-    const superAdminGroups = ['Everyone', 'Super Admins', 'Org Admins'];
+    console.log('🔍 Determining user role from groups:', groups);
+    
+    // Check for org/super admin groups (highest level)
+    const superAdminGroups = ['Super Admins', 'Org Admins', 'Organization Administrators'];
     if (groups.some(group => superAdminGroups.includes(group))) {
+      console.log('👑 User has super admin access');
       return 'super_admin';
     }
 
-    // Check for app owner groups
-    const appOwnerGroups = ['App Admins', 'Application Owners'];
+    // Check for app owner/admin groups (mid level)
+    const appOwnerGroups = ['App Admins', 'Application Owners', 'Application Administrators', 'App Owners'];
     if (groups.some(group => appOwnerGroups.includes(group))) {
+      console.log('📱 User has app owner access');
       return 'app_owner';
     }
 
+    // Check for group admin only (limited admin)
+    const groupAdminGroups = ['Group Admins', 'Group Administrators'];
+    if (groups.some(group => groupAdminGroups.includes(group))) {
+      console.log('👥 User has group admin access');
+      return 'app_owner'; // Treat group admins as app owners for now
+    }
+
+    console.log('👤 User has regular access');
     return 'regular_user';
   }
 

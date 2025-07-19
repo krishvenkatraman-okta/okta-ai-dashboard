@@ -1,0 +1,327 @@
+/**
+ * Okta Model Context Protocol (MCP) Server
+ * Intelligent API mapping and execution based on natural language
+ */
+
+interface ApiEndpoint {
+  name: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  endpoint: string;
+  description: string;
+  requiredParams?: string[];
+  optionalParams?: string[];
+  bodySchema?: any;
+}
+
+interface ApiRequest {
+  endpoint: ApiEndpoint;
+  params: Record<string, any>;
+  body?: any;
+}
+
+export class OktaMCPServer {
+  private domain: string;
+  private apiToken: string;
+  
+  // Okta API endpoint registry
+  private endpoints: ApiEndpoint[] = [
+    // IGA Catalog APIs
+    {
+      name: 'list_catalog_entries',
+      method: 'GET',
+      endpoint: '/governance/api/v2/my/catalogs/default/entries',
+      description: 'Get available applications in IGA catalog for access requests'
+    },
+    {
+      name: 'get_catalog_entry',
+      method: 'GET', 
+      endpoint: '/governance/api/v2/my/catalogs/default/entries/{entryId}',
+      description: 'Get detailed information about a specific catalog entry',
+      requiredParams: ['entryId']
+    },
+    {
+      name: 'submit_access_request',
+      method: 'POST',
+      endpoint: '/governance/api/v2/my/requests',
+      description: 'Submit an access request for an application',
+      bodySchema: {
+        catalogId: 'string',
+        justification: 'string',
+        roleId: 'string (optional)',
+        duration: 'number (optional)',
+        durationUnit: 'string (optional)'
+      }
+    },
+    {
+      name: 'list_my_requests',
+      method: 'GET',
+      endpoint: '/governance/api/v2/my/requests',
+      description: 'Get user\'s submitted access requests'
+    },
+    // System Log API for usage tracking
+    {
+      name: 'get_system_logs',
+      method: 'GET',
+      endpoint: '/api/v1/logs',
+      description: 'Get system logs for usage tracking and access reviews',
+      optionalParams: ['filter', 'since', 'until', 'limit']
+    },
+    // User and App Management
+    {
+      name: 'list_user_apps',
+      method: 'GET',
+      endpoint: '/api/v1/apps',
+      description: 'List applications assigned to user or available in org'
+    },
+    {
+      name: 'get_user_profile',
+      method: 'GET',
+      endpoint: '/api/v1/users/{userId}',
+      description: 'Get user profile information',
+      requiredParams: ['userId']
+    },
+    // Governance Campaign APIs
+    {
+      name: 'create_governance_campaign',
+      method: 'POST',
+      endpoint: '/governance/api/v2/campaigns',
+      description: 'Create a governance campaign for access reviews',
+      bodySchema: {
+        name: 'string',
+        description: 'string',
+        applicationIds: 'array',
+        reviewers: 'array',
+        duration: 'number',
+        durationUnit: 'string'
+      }
+    }
+  ];
+
+  constructor() {
+    this.domain = process.env.OKTA_DOMAIN || 'fcxdemo.okta.com';
+    this.apiToken = process.env.OKTA_API_TOKEN || '';
+  }
+
+  /**
+   * Analyze natural language intent and map to API calls
+   */
+  async analyzeIntent(userMessage: string, userContext?: any): Promise<ApiRequest[]> {
+    const message = userMessage.toLowerCase();
+    const requests: ApiRequest[] = [];
+
+    // Access request intent
+    if (message.includes('access request') || message.includes('request access') || 
+        message.includes('catalog') || message.includes('available apps')) {
+      requests.push({
+        endpoint: this.endpoints.find(e => e.name === 'list_catalog_entries')!,
+        params: {}
+      });
+    }
+
+    // Specific app access request
+    const accessMatch = message.match(/request access to (.+)/i);
+    if (accessMatch) {
+      const appName = accessMatch[1].trim();
+      requests.push({
+        endpoint: this.endpoints.find(e => e.name === 'submit_access_request')!,
+        params: { appName },
+        body: {
+          justification: `Access needed for ${appName} - requested via AI assistant`,
+          duration: 90,
+          durationUnit: 'days'
+        }
+      });
+    }
+
+    // 30-day access review intent
+    if (message.includes('30-day') || message.includes('unused') || 
+        (message.includes('review') && message.includes('access'))) {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      requests.push({
+        endpoint: this.endpoints.find(e => e.name === 'get_system_logs')!,
+        params: {
+          filter: `eventType eq "user.authentication.sso"`,
+          since: thirtyDaysAgo.toISOString(),
+          limit: 200
+        }
+      });
+    }
+
+    // My requests status
+    if (message.includes('my requests') || message.includes('request status')) {
+      requests.push({
+        endpoint: this.endpoints.find(e => e.name === 'list_my_requests')!,
+        params: {}
+      });
+    }
+
+    // Governance campaign creation
+    if (message.includes('create campaign') || message.includes('governance campaign')) {
+      requests.push({
+        endpoint: this.endpoints.find(e => e.name === 'create_governance_campaign')!,
+        params: {},
+        body: {
+          name: 'AI-Generated Access Review Campaign',
+          description: 'Automated governance campaign created via AI assistant',
+          duration: 14,
+          durationUnit: 'days'
+        }
+      });
+    }
+
+    return requests;
+  }
+
+  /**
+   * Execute API request with proper authentication and error handling
+   */
+  async executeRequest(request: ApiRequest, userToken?: string): Promise<any> {
+    try {
+      // Build URL with path parameters
+      let url = `https://${this.domain}${request.endpoint.endpoint}`;
+      
+      // Replace path parameters
+      if (request.endpoint.requiredParams) {
+        for (const param of request.endpoint.requiredParams) {
+          if (request.params[param]) {
+            url = url.replace(`{${param}}`, request.params[param]);
+          }
+        }
+      }
+
+      // Add query parameters for GET requests
+      if (request.endpoint.method === 'GET' && Object.keys(request.params).length > 0) {
+        const queryParams = new URLSearchParams();
+        Object.entries(request.params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            queryParams.append(key, value.toString());
+          }
+        });
+        if (queryParams.toString()) {
+          url += `?${queryParams.toString()}`;
+        }
+      }
+
+      console.log(`🔧 MCP: Executing ${request.endpoint.method} ${url}`);
+
+      const headers: Record<string, string> = {
+        'Authorization': `SSWS ${this.apiToken}`,
+        'Accept': 'application/json',
+        'User-Agent': 'Okta-AI-Dashboard-MCP/1.0'
+      };
+
+      if (request.endpoint.method !== 'GET' && request.body) {
+        headers['Content-Type'] = 'application/json';
+      }
+
+      const response = await fetch(url, {
+        method: request.endpoint.method,
+        headers,
+        body: request.body ? JSON.stringify(request.body) : undefined
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API Error ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log(`✅ MCP: ${request.endpoint.name} executed successfully`);
+      
+      return {
+        success: true,
+        data,
+        endpoint: request.endpoint.name,
+        url
+      };
+
+    } catch (error) {
+      console.error(`❌ MCP: ${request.endpoint.name} failed:`, error);
+      return {
+        success: false,
+        error: error.message,
+        endpoint: request.endpoint.name
+      };
+    }
+  }
+
+  /**
+   * Process natural language and execute appropriate API calls
+   */
+  async processRequest(userMessage: string, userContext?: any): Promise<any> {
+    console.log(`🤖 MCP: Processing request: "${userMessage}"`);
+
+    // Analyze intent and get API requests
+    const apiRequests = await this.analyzeIntent(userMessage, userContext);
+    
+    if (apiRequests.length === 0) {
+      return {
+        success: false,
+        message: 'Could not determine appropriate API call for this request'
+      };
+    }
+
+    // Execute API requests
+    const results = await Promise.all(
+      apiRequests.map(request => this.executeRequest(request, userContext?.accessToken))
+    );
+
+    // Format response based on results
+    return this.formatResponse(userMessage, results);
+  }
+
+  /**
+   * Format API results into user-friendly response
+   */
+  private formatResponse(originalMessage: string, results: any[]): any {
+    const message = originalMessage.toLowerCase();
+    
+    // Handle catalog requests
+    if (message.includes('catalog') || message.includes('access request')) {
+      const catalogResult = results.find(r => r.endpoint === 'list_catalog_entries');
+      if (catalogResult?.success) {
+        return {
+          success: true,
+          type: 'catalog',
+          data: catalogResult.data,
+          message: `Found ${catalogResult.data?.length || 0} applications available for request`
+        };
+      }
+    }
+
+    // Handle 30-day reviews
+    if (message.includes('30-day') || message.includes('review')) {
+      const logsResult = results.find(r => r.endpoint === 'get_system_logs');
+      if (logsResult?.success) {
+        return {
+          success: true,
+          type: '30_day_review',
+          data: logsResult.data,
+          message: 'Retrieved system logs for 30-day access review'
+        };
+      }
+    }
+
+    // Handle access request submissions
+    if (message.includes('request access to')) {
+      const requestResult = results.find(r => r.endpoint === 'submit_access_request');
+      if (requestResult?.success) {
+        return {
+          success: true,
+          type: 'access_request_submitted',
+          data: requestResult.data,
+          message: 'Access request submitted successfully'
+        };
+      }
+    }
+
+    // Default response
+    return {
+      success: results.some(r => r.success),
+      results,
+      message: 'API requests completed'
+    };
+  }
+}

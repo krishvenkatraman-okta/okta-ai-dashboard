@@ -1,7 +1,10 @@
 /**
  * Okta Model Context Protocol (MCP) Server
  * Intelligent API mapping and execution based on natural language
+ * Enhanced with proper API documentation and workflow sequences
  */
+
+import { OktaApiDocumentationService, OKTA_IGA_WORKFLOWS, API_ENDPOINT_DOCUMENTATION } from './okta-api-documentation.ts';
 
 interface ApiEndpoint {
   name: string;
@@ -440,6 +443,33 @@ export class OktaMCPServer {
     // Record user input for training context
     const interactionId = Date.now().toString();
 
+    // First, try to find a documented workflow for this intent
+    const workflow = OktaApiDocumentationService.findWorkflowForIntent(userMessage);
+    if (workflow) {
+      console.log('📋 MCP: Found documented workflow:', workflow.name);
+      try {
+        const workflowResult = await this.executeWorkflow(workflow, userMessage, userContext);
+        
+        // Record training data for workflow execution
+        if (this.trainingService && workflowResult.success) {
+          await this.trainingService.recordInteraction(
+            userMessage,
+            workflowResult.type || workflow.name,
+            workflowResult.success,
+            userContext?.userRole || 'regular_user'
+          );
+        }
+        
+        return { ...workflowResult, interactionId };
+      } catch (error) {
+        console.error('❌ MCP: Workflow execution failed:', error);
+        // Fall back to legacy processing
+      }
+    }
+
+    // Fallback to legacy pattern matching
+    console.log('⚠️ MCP: Using legacy pattern matching');
+    
     // Analyze intent and get API requests
     const apiRequests = await this.analyzeIntent(userMessage, userContext);
     
@@ -473,6 +503,168 @@ export class OktaMCPServer {
     }
     
     return { ...response, interactionId };
+  }
+  
+  async executeWorkflow(workflow: any, message: string, userContext?: any): Promise<any> {
+    console.log('🔄 MCP: Executing workflow:', workflow.name);
+    
+    // Determine which steps to execute based on the message
+    const lowerMessage = message.toLowerCase();
+    let stepsToExecute = [];
+    
+    if (lowerMessage.includes('request access to')) {
+      // Access request flow: list apps -> get entitlements
+      stepsToExecute = ['list_applications', 'get_entitlements_for_app'];
+    } else if (lowerMessage.includes('i want') && !lowerMessage.includes(' for ')) {
+      // Show request fields
+      stepsToExecute = ['get_request_fields'];
+    } else if (lowerMessage.includes('i want') && lowerMessage.includes(' for ')) {
+      // Submit request
+      stepsToExecute = ['submit_entitlement_request'];
+    } else if (lowerMessage.includes('governance') || lowerMessage.includes('30') || lowerMessage.includes('review')) {
+      // 30-day review
+      stepsToExecute = ['get_user_apps', 'get_authentication_logs'];
+    }
+    
+    console.log('📋 MCP: Executing workflow steps:', stepsToExecute);
+    
+    const results = [];
+    for (const stepId of stepsToExecute) {
+      const step = workflow.steps.find(s => s.stepId === stepId);
+      if (step) {
+        try {
+          const result = await this.executeApiStep(step, message, userContext);
+          results.push({ stepId, success: true, data: result, endpoint: step.endpoint });
+        } catch (error) {
+          console.error(`❌ Step ${stepId} failed:`, error);
+          results.push({ stepId, success: false, error: error.message, endpoint: step.endpoint });
+        }
+      }
+    }
+    
+    return this.processWorkflowResults(workflow.name, results, message);
+  }
+  
+  private async executeApiStep(step: any, message: string, userContext?: any): Promise<any> {
+    // Extract dynamic values from the message
+    const appNameMatch = message.match(/request access to (.+)/i);
+    const entitlementMatch = message.match(/I want (.+?)(?:\s+for|$)/i);
+    const justificationMatch = message.match(/I want .+ for (.+)/i);
+    
+    let url = `https://${this.domain}${step.endpoint}`;
+    let params = new URLSearchParams();
+    let body: any = null;
+    
+    // Handle different step types
+    switch (step.stepId) {
+      case 'list_applications':
+        params.append('filter', 'not(parent pr)');
+        params.append('limit', '20');
+        break;
+        
+      case 'get_entitlements_for_app':
+        // This requires the app ID from previous step - will be handled in workflow results
+        return { deferred: 'needs_app_id' };
+        
+      case 'get_request_fields':
+        // This requires entitlement ID - will be handled in workflow results  
+        return { deferred: 'needs_entitlement_id' };
+        
+      case 'submit_entitlement_request':
+        // This requires entitlement ID and field values
+        return { deferred: 'needs_entitlement_and_fields' };
+        
+      case 'get_user_apps':
+        url = `https://${this.domain}/api/v1/apps`;
+        params.append('limit', '200');
+        break;
+        
+      case 'get_authentication_logs':
+        url = `https://${this.domain}/api/v1/logs`;
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        params.append('filter', `eventType eq "user.authentication.sso" and published gt "${thirtyDaysAgo}"`);
+        params.append('limit', '1000');
+        break;
+    }
+    
+    const finalUrl = params.toString() ? `${url}?${params}` : url;
+    
+    const response = await fetch(finalUrl, {
+      method: step.method,
+      headers: {
+        'Authorization': `SSWS ${this.apiToken}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+    }
+    
+    return await response.json();
+  }
+  
+  private processWorkflowResults(workflowName: string, results: any[], message: string): any {
+    console.log('🔄 Processing workflow results for:', workflowName);
+    
+    if (workflowName === 'access_request_complete_flow') {
+      return this.processAccessRequestFlow(results, message);
+    } else if (workflowName === 'governance_30day_review') {
+      return this.processGovernanceReview(results);
+    }
+    
+    return { success: false, message: 'Unknown workflow' };
+  }
+  
+  private processAccessRequestFlow(results: any[], message: string): any {
+    const listAppsResult = results.find(r => r.stepId === 'list_applications');
+    
+    if (listAppsResult?.success) {
+      const apps = listAppsResult.data.data || [];
+      const appNameMatch = message.match(/request access to (.+)/i);
+      const requestedAppName = appNameMatch?.[1]?.trim().toLowerCase();
+      
+      const matchingApp = apps.find(app => 
+        app.name?.toLowerCase().includes(requestedAppName) ||
+        app.displayName?.toLowerCase().includes(requestedAppName) ||
+        requestedAppName?.includes(app.name?.toLowerCase())
+      );
+      
+      if (matchingApp) {
+        return {
+          success: true,
+          type: 'access_request_entitlements',
+          data: { app: matchingApp, appId: matchingApp.id, appName: matchingApp.name || matchingApp.displayName },
+          message: `Found application ${matchingApp.name}, fetching available entitlements...`
+        };
+      } else {
+        return {
+          success: false,
+          type: 'app_not_found',
+          data: { requestedApp: requestedAppName, availableApps: apps.map(a => a.name || a.displayName) },
+          message: `Application "${requestedAppName}" not found`
+        };
+      }
+    }
+    
+    return { success: false, message: 'Failed to retrieve applications' };
+  }
+  
+  private processGovernanceReview(results: any[]): any {
+    const appsResult = results.find(r => r.stepId === 'get_user_apps');
+    const logsResult = results.find(r => r.stepId === 'get_authentication_logs');
+    
+    return {
+      success: true,
+      type: 'governance_review_data',
+      data: {
+        apps: appsResult?.data || [],
+        logs: logsResult?.data || []
+      },
+      message: 'Retrieved governance review data successfully'
+    };
   }
 
   /**

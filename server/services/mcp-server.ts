@@ -9,9 +9,22 @@ interface OktaTokens {
 
 export class McpServerService {
   private readonly oktaDomain: string;
+  private readonly oktaApiToken: string;
+  private readonly pamDomain: string;
+  private readonly pamTeamName: string;
 
   constructor() {
     this.oktaDomain = process.env.OKTA_DOMAIN || 'fcxdemo.okta.com';
+    this.oktaApiToken = process.env.OKTA_API_TOKEN || '';
+    this.pamDomain = process.env.OKTA_PAM_DOMAIN || `${this.oktaDomain}`;
+    this.pamTeamName = process.env.OKTA_PAM_TEAM || '';
+
+    if (!this.oktaApiToken) {
+      console.warn('Okta API token not configured. Set OKTA_API_TOKEN environment variable for MCP server operations.');
+    }
+    if (!this.pamTeamName) {
+      console.warn('Okta PAM team not configured. Set OKTA_PAM_TEAM environment variable for PAM operations.');
+    }
   }
 
   async processMessage(message: string, user: User, tokens: OktaTokens): Promise<McpResponse> {
@@ -116,7 +129,7 @@ export class McpServerService {
           success: true,
           toolName: 'enroll_pam_session',
           data: {
-            response: `I can help you enroll in a new PAM session. Available resources for your role:\n\n🖥️ **Servers:**\n• Production Database (db-prod-01)\n• Web Server Cluster (web-prod-*)\n• Application Server (app-prod-01)\n\n☁️ **Cloud Consoles:**\n• AWS Management Console\n• Azure Portal\n• Google Cloud Console\n\n🔧 **Admin Tools:**\n• Okta Admin Console\n• Network Management Interface\n\nWhich resource would you like to access?`
+            response: `I can help you enroll in a new PAM session for team "${this.pamTeamName}".\n\nAvailable resources for your role:\n\n🖥️ **Servers:**\n• Production Database (db-prod-01)\n• Web Server Cluster (web-prod-*)\n• Application Server (app-prod-01)\n\n☁️ **Cloud Consoles:**\n• AWS Management Console\n• Azure Portal\n• Google Cloud Console\n\n🔧 **Admin Tools:**\n• Okta Admin Console\n• Network Management Interface\n\nPAM Domain: ${this.pamDomain}\nTeam: ${this.pamTeamName}\n\nWhich resource would you like to access?`
           }
         };
 

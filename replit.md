@@ -94,7 +94,15 @@ The application follows a modern full-stack architecture with clear separation b
 - **Development**: Local development with Vite dev server and tsx for backend
 - **Production**: Node.js server serving both API and static files
 - **Database**: PostgreSQL with connection via `DATABASE_URL`
-- **Okta Configuration**: Requires `OKTA_DOMAIN`, `OKTA_CLIENT_ID`, `OKTA_CLIENT_SECRET`, and `OKTA_REDIRECT_URI`
+- **Okta OIDC Configuration**: 
+  - `OKTA_DOMAIN` (e.g., fcxdemo.okta.com)
+  - `OKTA_CLIENT_ID` (OIDC application client ID)
+  - `OKTA_CLIENT_SECRET` (Required for authorization code exchange)
+  - `OKTA_REDIRECT_URI` (Auto-generated from Replit domain)
+- **Okta API & PAM Configuration**:
+  - `OKTA_API_TOKEN` (Management API token for MCP server operations)
+  - `OKTA_PAM_DOMAIN` (PAM-specific domain, defaults to OKTA_DOMAIN)
+  - `OKTA_PAM_TEAM` (PAM team name for constructing API calls)
 
 ### Hosting Considerations
 - **Database**: Designed for Neon PostgreSQL (serverless PostgreSQL)

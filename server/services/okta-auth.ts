@@ -18,7 +18,7 @@ export class OktaAuthService {
     this.oktaDomain = process.env.OKTA_DOMAIN || 'fcxdemo.okta.com';
     this.clientId = process.env.OKTA_CLIENT_ID || '';
     this.clientSecret = process.env.OKTA_CLIENT_SECRET || '';
-    this.redirectUri = process.env.OKTA_REDIRECT_URI || 'http://localhost:5000/api/auth/callback';
+    this.redirectUri = process.env.OKTA_REDIRECT_URI || `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000'}/api/auth/callback`;
 
     if (!this.clientId || !this.clientSecret) {
       console.warn('Okta credentials not configured. Set OKTA_CLIENT_ID and OKTA_CLIENT_SECRET environment variables.');

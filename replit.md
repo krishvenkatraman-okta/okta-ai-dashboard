@@ -114,6 +114,14 @@ The application is architected for scalability and maintainability, with clear s
 
 ## Recent Updates (July 19, 2025)
 
+**Latest Fixes (July 19, 2025 - Session 2):**
+- ✅ **Fixed OIDC Authentication Error**: Resolved "authService is not defined" reference error in routes
+- ✅ **Implemented Official Okta Role Assignment API**: Now uses `/api/v1/users/{userId}/roles` endpoint per Okta documentation
+- ✅ **Enhanced Role Detection**: Replaced group-based role detection with proper Okta assigned role types
+- ✅ **Multiple Role Display Support**: Added comprehensive role mapping for all Okta admin role types
+- ✅ **Fixed MCP Server Errors**: Resolved catalog API "Body already read" error and data processing issues
+- ✅ **Updated Role Hierarchy**: Proper priority-based role determination (SUPER_ADMIN > APP_ADMIN > GROUP_ADMIN etc.)
+
 **Continuous Learning & MCP Server Implementation:**
 - ✅ **Intelligent MCP Server**: Model Context Protocol server that analyzes natural language and maps to appropriate Okta API calls
 - ✅ **Dynamic Request Construction**: System automatically builds proper API requests with authentication based on user intent

@@ -178,22 +178,23 @@ export class OktaAuthService {
         groups = groupsData.map((group: any) => group.profile.name);
       }
 
-      // Get user's admin roles
-      const rolesUrl = `https://${this.oktaDomain}/api/v1/users/${userId}/roles`;
-      const rolesResponse = await fetch(rolesUrl, {
+      // Get user's assigned admin roles using the correct API endpoint
+      const assignedRolesUrl = `https://${this.oktaDomain}/api/v1/users/${userId}/roles`;
+      const assignedRolesResponse = await fetch(assignedRolesUrl, {
         headers: {
           'Authorization': `SSWS ${managementToken}`,
           'Accept': 'application/json'
         }
       });
 
-      if (rolesResponse.ok) {
-        const roles = await rolesResponse.json();
-        console.log('🎭 User admin roles:', roles.map((r: any) => r.type));
+      if (assignedRolesResponse.ok) {
+        const assignedRoles = await assignedRolesResponse.json();
+        console.log('🎭 User assigned admin roles:', assignedRoles.map((r: any) => r.type));
         
-        // Map Okta admin role types to our group names
-        roles.forEach((role: any) => {
+        // Map Okta admin role types to our group names using the official API response
+        assignedRoles.forEach((role: any) => {
           switch (role.type) {
+            case 'SUPER_ADMIN':
             case 'ORG_ADMIN':
               groups.push('Super Admins');
               break;
@@ -212,6 +213,15 @@ export class OktaAuthService {
             case 'READ_ONLY_ADMIN':
               groups.push('Read Only Admins');
               break;
+            case 'MOBILE_ADMIN':
+              groups.push('Mobile Admins');
+              break;
+            case 'API_ACCESS_MANAGEMENT_ADMIN':
+              groups.push('API Access Management Admins');
+              break;
+            case 'REPORT_ADMIN':
+              groups.push('Report Admins');
+              break;
           }
         });
       }
@@ -225,71 +235,83 @@ export class OktaAuthService {
   }
 
   determineUserRole(groups: string[]): UserRole {
-    console.log('🔍 Determining user role from groups:', JSON.stringify(groups));
+    console.log('🔍 Determining user role from assigned roles:', JSON.stringify(groups));
     
-    // Check for org/super admin roles (highest level)
-    const superAdminGroups = ['Super Admins', 'Org Admins', 'Organization Administrators'];
-    const hasSuperAdmin = groups.some(group => superAdminGroups.includes(group));
-    if (hasSuperAdmin) {
-      console.log('👑 User has super admin access via groups:', groups.filter(g => superAdminGroups.includes(g)));
+    // Priority-based role determination using official Okta role assignments
+    // Super Admin has highest priority (org-wide access)
+    const superAdminGroups = ['Super Admins'];
+    if (groups.some(group => superAdminGroups.includes(group))) {
+      console.log('👑 User has super admin access via assigned roles:', groups.filter(g => superAdminGroups.includes(g)));
       return 'super_admin';
     }
 
-    // Check for app admin roles (mapped from Okta admin roles)
-    const appOwnerGroups = ['App Admins', 'Application Owners', 'Application Administrators', 'App Owners'];
-    const hasAppOwner = groups.some(group => appOwnerGroups.includes(group));
-    if (hasAppOwner) {
-      console.log('📱 User has app owner access via groups:', groups.filter(g => appOwnerGroups.includes(g)));
+    // App Admin and other admin roles get app_owner privileges
+    const adminGroups = [
+      'App Admins', 
+      'Group Admins', 
+      'User Admins',
+      'API Access Management Admins',
+      'Report Admins'
+    ];
+    if (groups.some(group => adminGroups.includes(group))) {
+      console.log('📱 User has admin access via assigned roles:', groups.filter(g => adminGroups.includes(g)));
       return 'app_owner';
     }
 
-    // Check for group admin roles
-    const groupAdminGroups = ['Group Admins', 'Group Administrators'];
-    const hasGroupAdmin = groups.some(group => groupAdminGroups.includes(group));
-    if (hasGroupAdmin) {
-      console.log('👥 User has group admin access via groups:', groups.filter(g => groupAdminGroups.includes(g)));
-      return 'app_owner'; // Treat group admins as app owners
+    // Help Desk and Read Only admins get limited admin access
+    const limitedAdminGroups = ['Help Desk Admins', 'Read Only Admins', 'Mobile Admins'];
+    if (groups.some(group => limitedAdminGroups.includes(group))) {
+      console.log('🛠️ User has limited admin access via assigned roles:', groups.filter(g => limitedAdminGroups.includes(g)));
+      return 'app_owner';
     }
 
-    // Special case: Check if user named 'okta admin' - should be super admin
-    // This is a fallback for admin users who might not have proper group assignments
-    if (groups.some(g => g.toLowerCase().includes('admin') || g.toLowerCase().includes('administrator'))) {
-      console.log('🎯 User has admin-related groups:', groups.filter(g => g.toLowerCase().includes('admin')));
-      return 'super_admin';
+    // Legacy support for group-based roles (for backward compatibility)
+    const legacyAdminGroups = ['Organization Administrators', 'Application Owners', 'Application Administrators'];
+    if (groups.some(group => legacyAdminGroups.includes(group))) {
+      console.log('🔄 User has legacy admin access via groups:', groups.filter(g => legacyAdminGroups.includes(g)));
+      return groups.includes('Organization Administrators') ? 'super_admin' : 'app_owner';
     }
 
-    console.log('👤 User has regular access - no admin groups found');
+    console.log('👤 User has regular access - no admin roles assigned');
     return 'regular_user';
   }
 
-  // Get all user roles for display purposes
+  // Get all user roles for display purposes based on official Okta role assignments
   getAllUserRoles(groups: string[]): string[] {
     const roles: string[] = [];
     
-    const superAdminGroups = ['Super Admins', 'Org Admins', 'Organization Administrators'];
-    if (groups.some(group => superAdminGroups.includes(group))) {
-      roles.push('Super Admin');
-    }
+    // Check for exact role mappings from Okta API response
+    const roleMapping = {
+      'Super Admins': 'Super Admin',
+      'App Admins': 'App Admin', 
+      'Group Admins': 'Group Admin',
+      'User Admins': 'User Admin',
+      'Help Desk Admins': 'Help Desk Admin',
+      'Read Only Admins': 'Read Only Admin',
+      'Mobile Admins': 'Mobile Admin',
+      'API Access Management Admins': 'API Access Management Admin',
+      'Report Admins': 'Report Admin'
+    };
 
-    const appOwnerGroups = ['App Admins', 'Application Owners', 'Application Administrators', 'App Owners'];
-    if (groups.some(group => appOwnerGroups.includes(group))) {
-      roles.push('App Owner');
-    }
+    // Map groups to display roles
+    groups.forEach(group => {
+      if (roleMapping[group]) {
+        roles.push(roleMapping[group]);
+      }
+    });
 
-    const groupAdminGroups = ['Group Admins', 'Group Administrators'];
-    if (groups.some(group => groupAdminGroups.includes(group))) {
-      roles.push('Group Admin');
-    }
+    // Legacy group support for backward compatibility
+    const legacyMappings = {
+      'Organization Administrators': 'Super Admin',
+      'Application Owners': 'App Owner',
+      'Application Administrators': 'App Owner'
+    };
 
-    const userAdminGroups = ['User Admins', 'User Administrators'];
-    if (groups.some(group => userAdminGroups.includes(group))) {
-      roles.push('User Admin');
-    }
-
-    const helpDeskGroups = ['Help Desk Admins', 'Help Desk'];
-    if (groups.some(group => helpDeskGroups.includes(group))) {
-      roles.push('Help Desk Admin');
-    }
+    groups.forEach(group => {
+      if (legacyMappings[group] && !roles.includes(legacyMappings[group])) {
+        roles.push(legacyMappings[group]);
+      }
+    });
 
     return roles.length > 0 ? roles : ['Regular User'];
   }

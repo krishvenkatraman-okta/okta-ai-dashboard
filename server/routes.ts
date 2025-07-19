@@ -52,7 +52,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let user = await storage.getUserByOktaId(oktaUser.id);
       if (!user) {
         const userRole = oktaAuth.determineUserRole(oktaUser.groups || []);
-        const allRoles = authService.getAllUserRoles(oktaUser.groups || []);
+        const allRoles = oktaAuth.getAllUserRoles(oktaUser.groups || []);
         user = await storage.createUser({
           oktaId: oktaUser.id,
           username: oktaUser.profile.login,

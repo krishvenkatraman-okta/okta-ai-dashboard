@@ -35,8 +35,8 @@ export default function Home() {
             <div className="bg-[hsl(199,100%,38%)] rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
               <Shield className="text-white text-2xl" size={32} />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Okta Enterprise Portal</h1>
-            <p className="text-gray-600">Secure access to your enterprise applications and governance tools</p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Okta AI Dashboard</h1>
+            <p className="text-gray-600">AI-powered identity management with intelligent governance and access control</p>
           </div>
           
           <div className="space-y-4">

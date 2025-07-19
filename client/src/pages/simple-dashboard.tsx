@@ -453,7 +453,7 @@ export default function SimpleDashboard() {
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-semibold">O</span>
               </div>
-              <h1 className="text-xl font-semibold text-gray-900">Okta Enterprise Portal</h1>
+              <h1 className="text-xl font-semibold text-gray-900">Okta AI Dashboard</h1>
             </div>
             
             <div className="flex items-center space-x-4">

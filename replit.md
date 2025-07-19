@@ -1,8 +1,8 @@
-# Okta Enterprise Portal
+# Okta AI Dashboard
 
 ## Overview
 
-This is a full-stack web application that provides an enterprise portal for Okta identity management with AI-powered assistance capabilities. The application features secure authentication through Okta OIDC, a comprehensive dashboard for managing users and applications, and an AI assistant powered by Model Context Protocol (MCP) for handling governance, privileged access management (PAM), and general Okta-related queries.
+This is a full-stack web application that provides an AI-powered dashboard for Okta identity management with intelligent governance capabilities. The application features secure authentication through Okta OIDC, a comprehensive dashboard for managing users and applications, and an AI assistant powered by local Ollama (Llama 3.1 8B) for handling governance, privileged access management (PAM), and real-time access reviews using System Log API integration.
 
 ## User Preferences
 

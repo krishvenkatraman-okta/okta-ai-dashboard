@@ -54,39 +54,42 @@ export default function Dashboard() {
     { id: 'assistant', label: 'Okta Assistant', icon: Shield },
   ];
 
+  const getRoleDisplayName = (role: string) => {
+    switch (role) {
+      case 'super_admin': return 'Super Admin';
+      case 'app_owner': return 'App Owner';
+      case 'regular_user': return 'User';
+      default: return 'User';
+    }
+  };
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex">
       {/* Clean Okta-style header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+      <div className="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-50">
+        <div className="px-6 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-[hsl(199,100%,38%)] rounded-lg flex items-center justify-center">
-                  <Shield className="text-white" size={20} />
-                </div>
-                <h1 className="text-xl font-semibold text-gray-900">Okta</h1>
+            <div className="flex items-center space-x-4">
+              <div className="w-8 h-8 bg-[hsl(199,100%,38%)] rounded-lg flex items-center justify-center">
+                <Shield className="text-white" size={20} />
               </div>
+              <h1 className="text-xl font-semibold text-gray-900">Okta</h1>
               
               {/* Navigation tabs */}
-              <nav className="flex space-x-8">
-                {navigationItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => setActiveNav(item.id)}
-                      className={`flex items-center space-x-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        activeNav === item.id
-                          ? 'text-[hsl(199,100%,38%)] bg-blue-50'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                      }`}
-                    >
-                      <Icon size={16} />
-                      <span>{item.label}</span>
-                    </button>
-                  );
-                })}
+              <nav className="flex space-x-6 ml-8">
+                <button
+                  onClick={() => setActiveNav('dashboard')}
+                  className={`flex items-center space-x-2 px-3 py-1 text-sm font-medium border-b-2 transition-colors ${
+                    activeNav === 'dashboard'
+                      ? 'text-[hsl(199,100%,38%)] border-[hsl(199,100%,38%)]'
+                      : 'text-gray-600 border-transparent hover:text-gray-900'
+                  }`}
+                >
+                  <Dock size={16} />
+                  <span>My Apps</span>
+                </button>
               </nav>
             </div>
 
@@ -99,7 +102,7 @@ export default function Dashboard() {
               <div className="flex items-center space-x-3">
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                  <p className="text-xs text-gray-500 capitalize">{user.role.replace('_', ' ')}</p>
+                  <p className="text-xs text-[hsl(199,100%,38%)] font-medium">{getRoleDisplayName(user.role)}</p>
                 </div>
                 <div className="w-8 h-8 bg-[hsl(199,100%,38%)] rounded-full flex items-center justify-center">
                   <span className="text-white font-medium text-sm">
@@ -119,14 +122,19 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto">
-        {activeNav === 'dashboard' && <ApplicationsDashboard />}
-        {activeNav === 'assistant' && (
-          <div className="h-[calc(100vh-80px)]">
+      {/* Main Content Area */}
+      <div className="flex-1 pt-16 flex">
+        {/* Applications Dashboard */}
+        <div className="flex-1">
+          <ApplicationsDashboard />
+        </div>
+
+        {/* AI Assistant Sidebar */}
+        <div className="w-96 bg-white border-l border-gray-200 shadow-lg">
+          <div className="h-full">
             <GovernanceChat user={{ name: user.name, role: user.role }} />
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -24,11 +24,33 @@ interface GovernanceChatProps {
 
 export default function GovernanceChat({ user }: GovernanceChatProps) {
   const [message, setMessage] = useState('');
+  const getRoleDisplayName = (role: string) => {
+    switch (role) {
+      case 'super_admin': return 'Super Administrator';
+      case 'app_owner': return 'Application Owner'; 
+      case 'regular_user': return 'User';
+      default: return 'User';
+    }
+  };
+
+  const getAccessLevelMessage = (role: string) => {
+    switch (role) {
+      case 'super_admin':
+        return `**Access Level: ${getRoleDisplayName(role)}**\n\nYou have full administrative access. I can help you with:\n• Create governance campaigns for any application\n• Review user access across all applications\n• Manage users and groups\n• Access all administrative features`;
+      case 'app_owner':
+        return `**Access Level: ${getRoleDisplayName(role)}**\n\nYou can manage applications you own. I can help you with:\n• Create governance campaigns for your applications\n• Review access to your applications\n• Request access to other applications`;
+      case 'regular_user':
+        return `**Access Level: ${getRoleDisplayName(role)}**\n\nI can help you with:\n• Review your own application access\n• Request access to new applications\n• View your access history`;
+      default:
+        return `**Access Level: Limited**\n\nI can help you request access to applications you need for your work.`;
+    }
+  };
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
       role: 'assistant',
-      content: `👋 Hi ${user.name}! I'm your Okta Governance Assistant. I can help you with:\n\n• **Access Reviews**: "Show me apps I've accessed in the last 30 days"\n• **Governance Campaigns**: "Create a campaign for Salesforce every 3 months"\n• **Access Requests**: "Show me available resources to request"\n• **Admin Operations**: Based on your ${user.role} permissions\n\nWhat would you like to do?`,
+      content: `Hi ${user.name}! I'm your Okta Assistant powered by AI.\n\n${getAccessLevelMessage(user.role)}\n\n**Quick Actions:**\n• "Show me apps I accessed in the last 30 days"\n• "List available applications to request"\n• "What can I do with my current access level?"\n\nHow can I help you today?`,
       timestamp: new Date(),
     }
   ]);
@@ -196,12 +218,39 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
     );
   };
 
-  const quickActions = [
-    "Show me apps I accessed in the last 30 days",
-    "List available resources for access requests", 
-    "Create a campaign for Salesforce every 3 months",
-    "Show governance enabled applications"
-  ];
+  const getQuickActions = (role: string) => {
+    const baseActions = ["Show me apps I accessed in the last 30 days"];
+    
+    switch (role) {
+      case 'super_admin':
+        return [
+          ...baseActions,
+          "Create a governance campaign",
+          "Show all governance enabled applications",
+          "List available resources for access requests"
+        ];
+      case 'app_owner':
+        return [
+          ...baseActions,
+          "Create a campaign for my applications", 
+          "Show applications I own",
+          "List available resources for access requests"
+        ];
+      case 'regular_user':
+        return [
+          ...baseActions,
+          "List available applications to request",
+          "What access do I currently have?"
+        ];
+      default:
+        return [
+          "List available applications to request",
+          "How do I get access to applications?"
+        ];
+    }
+  };
+
+  const quickActions = getQuickActions(user.role);
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
@@ -210,12 +259,15 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Okta Assistant</h2>
-            <p className="text-sm text-gray-600">AI-powered governance and access management</p>
+            <p className="text-sm text-gray-600">AI-powered with Llama 3.1</p>
           </div>
           <div className="flex items-center space-x-2">
-            <Badge variant="secondary">
-              <ShieldCheck size={14} className="mr-1" />
-              {user.role}
+            <Badge 
+              variant={user.role === 'super_admin' ? 'default' : user.role === 'app_owner' ? 'secondary' : 'outline'}
+              className="text-xs"
+            >
+              <ShieldCheck size={12} className="mr-1" />
+              {getRoleDisplayName(user.role)}
             </Badge>
           </div>
         </div>

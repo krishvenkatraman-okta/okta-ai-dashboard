@@ -87,12 +87,14 @@ export class OktaApiService {
 
       if (response.ok) {
         const appLinks = await response.json();
+        console.log('User app links fetched:', appLinks.length, 'applications');
         return appLinks;
       }
 
       // Fallback to Management API if user token doesn't work
       const managementToken = process.env.OKTA_API_TOKEN;
       if (managementToken) {
+        console.log('Falling back to Management API for app links');
         const meResponse = await fetch(`https://${this.oktaDomain}/api/v1/users/me`, {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -110,14 +112,48 @@ export class OktaApiService {
           });
 
           if (appLinksResponse.ok) {
-            return await appLinksResponse.json();
+            const appLinks = await appLinksResponse.json();
+            console.log('Management API app links fetched:', appLinks.length, 'applications');
+            return appLinks;
+          } else {
+            console.log('Management API app links failed:', appLinksResponse.status);
           }
+        } else {
+          console.log('User info fetch failed:', meResponse.status);
+        }
+      } else {
+        console.log('No management token available for app links fallback');
+      }
+
+      // If both fail, try getting assigned apps
+      if (managementToken) {
+        const appsResponse = await fetch(`https://${this.oktaDomain}/api/v1/apps?filter=user.id eq "me"&expand=user`, {
+          headers: {
+            'Authorization': `SSWS ${managementToken}`,
+            'Accept': 'application/json'
+          }
+        });
+
+        if (appsResponse.ok) {
+          const apps = await appsResponse.json();
+          console.log('Found assigned apps:', apps.length);
+          // Convert apps to app link format
+          return apps.map((app: any) => ({
+            id: app.id,
+            label: app.label,
+            linkUrl: app.settings?.signOn?.loginUrl || app.settings?.app?.url,
+            logoUrl: app._links?.logo?.[0]?.href,
+            appName: app.name,
+            appInstanceId: app.id,
+            sortOrder: 0
+          }));
         }
       }
     } catch (error) {
       console.error('Error fetching user app links:', error);
     }
     
+    console.log('No app links found, returning empty array');
     return [];
   }
 

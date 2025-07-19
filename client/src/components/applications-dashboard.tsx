@@ -111,7 +111,12 @@ export default function ApplicationsDashboard() {
         </div>
 
         {/* Applications Grid/List */}
-        {!appLinks || appLinks.length === 0 ? (
+        {appsLoading ? (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[hsl(199,100%,38%)] mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading applications...</p>
+          </div>
+        ) : !appLinks || appLinks.length === 0 ? (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
             <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
               <Grid3X3 className="text-gray-400" size={24} />

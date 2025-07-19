@@ -1,4 +1,5 @@
 import type { User } from '@shared/schema';
+import { OllamaService } from './ollama-service';
 
 interface OktaTokens {
   accessToken: string;
@@ -21,32 +22,49 @@ interface GovernanceAction {
 export class LLMAutomationService {
   private readonly oktaDomain: string;
   private readonly oktaApiToken: string;
+  private readonly ollama: OllamaService;
 
   constructor() {
     this.oktaDomain = process.env.OKTA_DOMAIN || 'fcxdemo.okta.com';
     this.oktaApiToken = process.env.OKTA_API_TOKEN || '';
+    this.ollama = new OllamaService();
+    
+    // Initialize Ollama in background
+    this.ollama.initialize().catch(console.warn);
   }
 
   async processGovernanceRequest(message: string, user: User, tokens: OktaTokens): Promise<any> {
-    const intent = this.parseGovernanceIntent(message);
+    // Check user access level first
+    const accessLevel = this.getUserAccessLevel(user);
+    if (accessLevel === 'no_access') {
+      return await this.handleNoAccessUser(message, user, tokens);
+    }
+
+    // Use Ollama for intelligent intent analysis
+    const analysis = await this.ollama.analyzeGovernanceIntent(message);
     
-    switch (intent.type) {
-      case 'campaign':
-        return await this.createGovernanceCampaign(intent, user, tokens);
+    switch (analysis.intent) {
       case 'access_review':
-        return await this.performAccessReview(intent, user, tokens);
-      case 'list_apps':
-        return await this.listGovernanceApps(user, tokens);
-      case 'list_catalog':
-        return await this.listCatalogEntries(user, tokens);
+        return await this.performAccessReview(analysis, user, tokens);
+      case 'governance_campaign':
+        if (accessLevel === 'regular_user') {
+          return await this.suggestAccessRequest(user, 'governance campaign creation');
+        }
+        return await this.createGovernanceCampaign(analysis, user, tokens);
       case 'access_request':
-        return await this.submitAccessRequest(intent, user, tokens);
-      case 'revoke_access':
-        return await this.revokeAccess(intent, user, tokens);
+        return await this.handleAccessRequest(analysis, user, tokens);
+      case 'user_management':
+        if (accessLevel === 'regular_user') {
+          return await this.suggestAccessRequest(user, 'user management');
+        }
+        return await this.handleUserManagement(analysis, user, tokens);
       default:
-        return { 
-          success: false, 
-          error: "I couldn't understand your governance request. Try asking about campaigns, access reviews, or access requests." 
+        // Use Ollama for general responses with access level context
+        const context = `User Access Level: ${accessLevel}\nAvailable Actions: ${this.getAvailableActions(accessLevel).join(', ')}`;
+        const response = await this.ollama.generateResponse(message, context);
+        return {
+          success: true,
+          data: { response }
         };
     }
   }
@@ -107,7 +125,7 @@ export class LLMAutomationService {
     return { type: 'list_apps' }; // Default fallback
   }
 
-  private async createGovernanceCampaign(intent: GovernanceAction, user: User, tokens: OktaTokens): Promise<any> {
+  private async createGovernanceCampaign(analysis: any, user: User, tokens: OktaTokens): Promise<any> {
     try {
       // Check user permissions
       if (!this.hasGovernancePermissions(user)) {
@@ -190,9 +208,9 @@ export class LLMAutomationService {
     }
   }
 
-  private async performAccessReview(intent: GovernanceAction, user: User, tokens: OktaTokens): Promise<any> {
+  private async performAccessReview(analysis: any, user: User, tokens: OktaTokens): Promise<any> {
     try {
-      const days = intent.days || 30;
+      const days = analysis.parameters?.timeframe ? 30 : 30;
       
       // Get user's access history
       const response = await this.getUserAccessHistory(user, tokens, days);
@@ -467,5 +485,69 @@ export class LLMAutomationService {
       return { type: 'quarterly', interval: 1 };
     }
     return { type: 'monthly', interval: 3 }; // Default to quarterly
+  }
+
+  private getUserAccessLevel(user: User): 'super_admin' | 'app_owner' | 'regular_user' | 'no_access' {
+    if (user.role === 'super_admin') return 'super_admin';
+    if (user.role === 'app_owner') return 'app_owner';
+    if (user.role === 'regular_user') return 'regular_user';
+    return 'no_access';
+  }
+
+  private getAvailableActions(accessLevel: string): string[] {
+    switch (accessLevel) {
+      case 'super_admin':
+        return ['governance campaigns', 'access reviews', 'user management', 'access requests', 'app management'];
+      case 'app_owner':
+        return ['governance campaigns (owned apps)', 'access reviews', 'access requests'];
+      case 'regular_user':
+        return ['access reviews (own access)', 'access requests'];
+      default:
+        return ['access requests'];
+    }
+  }
+
+  private async handleNoAccessUser(message: string, user: User, tokens: OktaTokens): Promise<any> {
+    const response = await this.ollama.generateResponse(
+      message,
+      `User has no admin access. They can only request access to applications. Suggest submitting an access request.`
+    );
+
+    return {
+      success: true,
+      data: {
+        response: `**Access Level: No Administrative Access**\n\n${response}\n\n**Available Actions:**\n• Request access to applications\n• View your current access\n\nWould you like me to show you available applications to request access to?`,
+        accessLevel: 'no_access',
+        suggestedActions: ['Show available applications', 'Request access to specific app']
+      }
+    };
+  }
+
+  private async suggestAccessRequest(user: User, feature: string): Promise<any> {
+    return {
+      success: true,
+      data: {
+        response: `**Access Level: Regular User**\n\nYou don't have permission for ${feature}. This feature requires administrative privileges.\n\n**What you can do:**\n• Request access to applications\n• Review your own application access\n• View your access history\n\n**To get administrative access:**\nContact your Okta administrator to request elevated permissions.\n\nWould you like me to help you with something else?`,
+        accessLevel: 'regular_user',
+        suggestedActions: ['Show my access', 'Request app access', 'Show available apps']
+      }
+    };
+  }
+
+  private async handleAccessRequest(analysis: any, user: User, tokens: OktaTokens): Promise<any> {
+    // All users can make access requests
+    return await this.listCatalogEntries(user, tokens);
+  }
+
+  private async handleUserManagement(analysis: any, user: User, tokens: OktaTokens): Promise<any> {
+    const response = await this.ollama.generateResponse(
+      'Help with user management tasks',
+      `User is ${user.role}. They want to manage users. Provide appropriate guidance based on their role.`
+    );
+
+    return {
+      success: true,
+      data: { response }
+    };
   }
 }

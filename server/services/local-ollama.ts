@@ -110,8 +110,14 @@ export class LocalOllamaService {
   async generateResponse(prompt: string, context?: string): Promise<string> {
     try {
       console.log('🤖 Generating AI response for prompt:', prompt);
+      console.log('🤖 Context:', context);
       
-      // Check if Ollama is available and has models
+      // For now, always use fallback responses since Ollama models aren't loading properly
+      console.log('🔄 Using intelligent fallback response system');
+      return this.getFallbackResponse(prompt);
+
+      // TODO: Re-enable when Ollama models are working properly
+      /*
       const healthCheck = await fetch(`${this.baseUrl}/api/tags`);
       if (!healthCheck.ok) {
         console.log('❌ Ollama not available, using fallback response');
@@ -122,7 +128,7 @@ export class LocalOllamaService {
       if (!modelsData.models || modelsData.models.length === 0) {
         console.log('❌ No models available in Ollama, using fallback response');
         return this.getFallbackResponse(prompt);
-      }
+      }*/
 
       console.log('✅ Ollama models available:', modelsData.models.map((m: any) => m.name));
 

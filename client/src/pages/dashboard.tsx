@@ -85,10 +85,18 @@ export default function Dashboard() {
   }
 
   if (!user) {
+    console.log('No user found, staying on dashboard to debug...');
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600">Redirecting to login...</p>
+      <div className="min-h-screen flex items-center justify-center bg-red-50">
+        <div className="text-center p-8 bg-white rounded-lg shadow">
+          <h2 className="text-xl font-semibold text-red-600 mb-4">Debug: No User</h2>
+          <p className="text-gray-600 mb-4">User object is null but should be authenticated</p>
+          <pre className="text-xs bg-gray-100 p-2 rounded">
+            {JSON.stringify({ user, isLoading, error: error?.message }, null, 2)}
+          </pre>
+          <Button onClick={() => window.location.reload()} className="mt-4">
+            Reload Page
+          </Button>
         </div>
       </div>
     );
@@ -110,6 +118,8 @@ export default function Dashboard() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  console.log('Dashboard rendering with user:', user);
+  
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Clean Okta-style header */}

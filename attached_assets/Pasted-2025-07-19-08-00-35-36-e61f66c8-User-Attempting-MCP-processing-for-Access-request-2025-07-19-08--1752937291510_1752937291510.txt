@@ -1,0 +1,148 @@
+2025-07-19 08:00:35.36
+e61f66c8
+User
+🤖 Attempting MCP processing for: Access request
+2025-07-19 08:00:35.36
+e61f66c8
+User
+🔍 Direct catalog API test...
+2025-07-19 08:00:35.36
+e61f66c8
+User
+🏪 Fetching real IGA catalog from: https://fcxdemo.okta.com/governance/api/v2/my/catalogs/default/entries?filter=status eq "ACTIVE"&limit=50
+2025-07-19 08:00:35.36
+e61f66c8
+User
+🔑 Using API token: Present
+2025-07-19 08:00:36.12
+e61f66c8
+User
+📡 IGA Catalog API Response status: 200
+2025-07-19 08:00:36.12
+e61f66c8
+User
+✅ Raw IGA catalog response received
+2025-07-19 08:00:36.12
+e61f66c8
+User
+📊 Extracted IGA catalog entries: 6 items
+2025-07-19 08:00:36.12
+e61f66c8
+User
+📊 Successfully processed: 6 real IGA catalog entries
+2025-07-19 08:00:36.12
+e61f66c8
+User
+📋 Sample processed entry: {
+2025-07-19 08:00:36.12
+e61f66c8
+User
+"id": "cenjz3zqypzyR312w696",
+2025-07-19 08:00:36.12
+e61f66c8
+User
+"displayName": "Adobe",
+2025-07-19 08:00:36.12
+e61f66c8
+User
+"description": "Application - Available for access request",
+2025-07-19 08:00:36.12
+e61f66c8
+User
+"type": "Application",
+2025-07-19 08:00:36.12
+e61f66c8
+User
+"status": "AVAILABLE",
+2025-07-19 08:00:36.12
+e61f66c8
+User
+"requestable": true
+2025-07-19 08:00:36.12
+e61f66c8
+User
+}
+2025-07-19 08:00:36.12
+e61f66c8
+User
+🧪 Direct test result: 6 entries
+2025-07-19 08:00:36.12
+e61f66c8
+User
+🧪 Direct test sample: {
+2025-07-19 08:00:36.12
+e61f66c8
+User
+id: 'cenjz3zqypzyR312w696',
+2025-07-19 08:00:36.12
+e61f66c8
+User
+displayName: 'Adobe',
+2025-07-19 08:00:36.12
+e61f66c8
+User
+description: 'Application - Available for access request',
+2025-07-19 08:00:36.12
+e61f66c8
+User
+type: 'Application',
+2025-07-19 08:00:36.12
+e61f66c8
+User
+status: 'AVAILABLE',
+2025-07-19 08:00:36.12
+e61f66c8
+User
+requestable: true
+2025-07-19 08:00:36.12
+e61f66c8
+User
+}
+2025-07-19 08:00:36.12
+e61f66c8
+User
+🤖 MCP: Processing request: "Access request"
+2025-07-19 08:00:36.12
+e61f66c8
+User
+⚠️ MCP: Using legacy pattern matching
+2025-07-19 08:00:36.13
+e61f66c8
+User
+💥 Chat message error: TypeError: this.analyzeRequest is not a function
+2025-07-19 08:00:36.13
+e61f66c8
+User
+at OktaMCPServer.processRequest (file:///home/runner/workspace/dist/index.js:1874:34)
+2025-07-19 08:00:36.13
+e61f66c8
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-07-19 08:00:36.13
+e61f66c8
+User
+at async file:///home/runner/workspace/dist/index.js:4163:25
+2025-07-19 08:00:36.13
+e61f66c8
+User
+💥 Stack trace: TypeError: this.analyzeRequest is not a function
+2025-07-19 08:00:36.13
+e61f66c8
+User
+at OktaMCPServer.processRequest (file:///home/runner/workspace/dist/index.js:1874:34)
+2025-07-19 08:00:36.13
+e61f66c8
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-07-19 08:00:36.13
+e61f66c8
+User
+at async file:///home/runner/workspace/dist/index.js:4163:25
+2025-07-19 08:00:36.13
+e61f66c8
+User
+3:00:36 PM [express] POST /api/chat/message 500 in 773ms :: {"error":"Failed to process message: thi…
+
+Wrap
+
+Colors

@@ -488,7 +488,7 @@ export class OktaMCPServer {
     console.log('⚠️ MCP: Using legacy pattern matching');
     
     // Analyze intent and get API requests
-    const apiRequests = this.analyzeRequest(userMessage, userContext);
+    const apiRequests = await this.analyzeIntent(userMessage, userContext);
     
     if (apiRequests.length === 0) {
       return {

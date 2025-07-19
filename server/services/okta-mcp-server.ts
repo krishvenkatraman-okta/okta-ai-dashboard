@@ -313,11 +313,18 @@ export class OktaMCPServer {
         params: {}
       });
       
+      // Simplified System Log API call with basic filter
+      console.log('🔍 30-day review: Requesting System Logs with date range:', {
+        from: thirtyDaysAgo.toISOString(),
+        to: new Date().toISOString()
+      });
+      
       requests.push({
         endpoint: this.endpoints.find(e => e.name === 'get_system_logs')!,
         params: {
-          filter: `eventType eq "user.authentication.sso" and published gt "${thirtyDaysAgo.toISOString()}"`,
-          limit: 1000,
+          filter: 'eventType eq "user.authentication.sso"',
+          since: thirtyDaysAgo.toISOString(),
+          limit: 100,
           sortOrder: 'DESCENDING'
         }
       });
@@ -435,11 +442,14 @@ export class OktaMCPServer {
           totalEvents: Array.isArray(data) ? data.length : 'Not an array',
           firstEvent: Array.isArray(data) && data.length > 0 ? data[0] : 'No events',
           eventTypes: Array.isArray(data) ? [...new Set(data.map(log => log.eventType))] : 'N/A',
-          params: request.params
+          params: request.params,
+          dataType: typeof data,
+          dataKeys: data && typeof data === 'object' ? Object.keys(data) : 'N/A'
         });
         
         if (Array.isArray(data) && data.length === 0) {
           console.log(`⚠️ System Log API returned 0 events - check filter parameters and permissions`);
+          console.log(`🔍 Full API response:`, JSON.stringify(data, null, 2));
         }
       }
       

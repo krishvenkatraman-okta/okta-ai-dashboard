@@ -270,9 +270,9 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
             <p className="text-sm text-gray-600">AI-powered with Llama 3.1 (Local)</p>
           </div>
           <div className="flex items-center space-x-2">
-            {user.allRoles && user.allRoles.length > 0 ? (
-              <div className="flex flex-wrap gap-1">
-                {user.allRoles.map((role, index) => (
+            <div className="flex flex-wrap gap-1">
+              {user.allRoles && user.allRoles.length > 0 ? (
+                user.allRoles.map((role, index) => (
                   <Badge 
                     key={index}
                     variant={role === 'Super Admin' ? 'default' : role.includes('Admin') ? 'secondary' : 'outline'}
@@ -281,17 +281,17 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
                     <ShieldCheck size={12} className="mr-1" />
                     {role}
                   </Badge>
-                ))}
-              </div>
-            ) : (
-              <Badge 
-                variant={user.role === 'super_admin' ? 'default' : user.role === 'app_owner' ? 'secondary' : 'outline'}
-                className="text-xs"
-              >
-                <ShieldCheck size={12} className="mr-1" />
-                {getRoleDisplayName(user.role)}
-              </Badge>
-            )}
+                ))
+              ) : (
+                <Badge 
+                  variant={user.role === 'super_admin' ? 'default' : user.role === 'app_owner' ? 'secondary' : 'outline'}
+                  className="text-xs"
+                >
+                  <ShieldCheck size={12} className="mr-1" />
+                  {getRoleDisplayName(user.role)}
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
       </div>

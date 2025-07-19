@@ -10,16 +10,144 @@ interface User {
   email: string;
 }
 
-interface ApplicationTileProps {
+interface OktaApp {
+  id: string;
   name: string;
-  icon: string;
-  url: string;
+  label: string;
+  status: string;
+  accessibility: {
+    selfService: boolean;
+  };
+  visibility: {
+    hide: {
+      iOS: boolean;
+      web: boolean;
+    };
+  };
+  settings?: {
+    app?: {
+      url?: string;
+    };
+  };
+  _links?: {
+    logo?: Array<{
+      name: string;
+      href: string;
+      type: string;
+    }>;
+    appLinks?: Array<{
+      name: string;
+      href: string;
+    }>;
+  };
 }
 
-function ApplicationTile({ name, icon, url }: ApplicationTileProps) {
+function OktaApplicationsGrid({ user }: { user: User }) {
+  const [apps, setApps] = useState<OktaApp[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showIframe, setShowIframe] = useState(false);
+
+  useEffect(() => {
+    const fetchApps = async () => {
+      try {
+        const response = await fetch('/api/okta/user-apps', {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const appsData = await response.json();
+          console.log('Fetched Okta apps:', appsData);
+          setApps(appsData);
+        } else {
+          console.log('Failed to fetch apps, falling back to iframe');
+          setShowIframe(true);
+        }
+      } catch (error) {
+        console.error('Error fetching apps:', error);
+        setError('Failed to load applications');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchApps();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your applications...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (showIframe) {
+    return (
+      <div className="h-full">
+        <iframe
+          src="https://fcxdemo.okta.com/app/UserHome?fromAdmin=true"
+          className="w-full h-[600px] border border-gray-200 rounded-lg"
+          title="Okta Applications"
+          sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+        />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-600 mb-4">{error}</p>
+        <Button onClick={() => setShowIframe(true)} variant="outline">
+          Load Okta Dashboard
+        </Button>
+      </div>
+    );
+  }
+
+  if (apps.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-600 mb-4">No applications assigned to your account.</p>
+        <Button onClick={() => setShowIframe(true)} variant="outline">
+          Open Okta Dashboard
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+        {apps.map((app) => (
+          <OktaApplicationTile key={app.id} app={app} />
+        ))}
+      </div>
+      
+      <div className="text-center pt-4">
+        <Button onClick={() => setShowIframe(true)} variant="outline" size="sm">
+          View All in Okta Dashboard
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function OktaApplicationTile({ app }: { app: OktaApp }) {
   const handleClick = () => {
-    window.open(url, '_blank', 'noopener,noreferrer');
+    // Use app link if available, otherwise open in Okta
+    const appUrl = app._links?.appLinks?.[0]?.href || 
+                   app.settings?.app?.url ||
+                   `https://fcxdemo.okta.com/app/${app.name}/${app.id}`;
+    window.open(appUrl, '_blank', 'noopener,noreferrer');
   };
+
+  const logoUrl = app._links?.logo?.[0]?.href || 
+                  `https://fcxdemo-admin.okta.com/img/logos/default.6770228fb0dab250a8556360d72fcebabde7696e.png`;
 
   return (
     <div 
@@ -28,17 +156,17 @@ function ApplicationTile({ name, icon, url }: ApplicationTileProps) {
     >
       <div className="mb-3 flex justify-center">
         <img 
-          src={icon} 
-          alt={name}
-          className="w-12 h-12 rounded-lg"
+          src={logoUrl}
+          alt={app.label || app.name}
+          className="w-12 h-12 rounded-lg object-contain"
           onError={(e) => {
             const target = e.target as HTMLImageElement;
-            target.src = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23374151'><rect width='24' height='24' fill='%23f3f4f6'/><text x='12' y='16' text-anchor='middle' font-family='Arial' font-size='10' fill='%23374151'>${name[0]}</text></svg>`;
+            target.src = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23374151'><rect width='24' height='24' fill='%23f3f4f6'/><text x='12' y='16' text-anchor='middle' font-family='Arial' font-size='10' fill='%23374151'>${(app.label || app.name)[0].toUpperCase()}</text></svg>`;
           }}
         />
       </div>
       <h3 className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2">
-        {name}
+        {app.label || app.name}
       </h3>
       <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-blue-500 mx-auto mt-2 opacity-0 group-hover:opacity-100 transition-opacity" />
     </div>
@@ -265,69 +393,8 @@ export default function SimpleDashboard() {
             <p className="text-gray-600">Click any app to launch</p>
           </div>
           
-          {/* Applications Grid - Okta Style */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
-            <ApplicationTile 
-              name="Salesforce"
-              icon="https://logo.clearbit.com/salesforce.com"
-              url="https://login.salesforce.com"
-            />
-            <ApplicationTile 
-              name="Microsoft 365"
-              icon="https://logo.clearbit.com/office.com"
-              url="https://portal.office.com"
-            />
-            <ApplicationTile 
-              name="Google Workspace"
-              icon="https://logo.clearbit.com/workspace.google.com"
-              url="https://workspace.google.com"
-            />
-            <ApplicationTile 
-              name="Slack"
-              icon="https://logo.clearbit.com/slack.com"
-              url="https://slack.com"
-            />
-            <ApplicationTile 
-              name="Jira"
-              icon="https://logo.clearbit.com/atlassian.com"
-              url="https://atlassian.com"
-            />
-            <ApplicationTile 
-              name="GitHub"
-              icon="https://logo.clearbit.com/github.com"
-              url="https://github.com"
-            />
-            <ApplicationTile 
-              name="AWS Console"
-              icon="https://logo.clearbit.com/aws.amazon.com"
-              url="https://console.aws.amazon.com"
-            />
-            <ApplicationTile 
-              name="Zoom"
-              icon="https://logo.clearbit.com/zoom.us"
-              url="https://zoom.us"
-            />
-            <ApplicationTile 
-              name="Notion"
-              icon="https://logo.clearbit.com/notion.so"
-              url="https://notion.so"
-            />
-            <ApplicationTile 
-              name="Figma"
-              icon="https://logo.clearbit.com/figma.com"
-              url="https://figma.com"
-            />
-            <ApplicationTile 
-              name="DocuSign"
-              icon="https://logo.clearbit.com/docusign.com"
-              url="https://docusign.com"
-            />
-            <ApplicationTile 
-              name="HubSpot"
-              icon="https://logo.clearbit.com/hubspot.com"
-              url="https://hubspot.com"
-            />
-          </div>
+          {/* Okta Applications - Real Data */}
+          <OktaApplicationsGrid user={user} />
         </div>
 
         {/* AI Assistant Sidebar */}

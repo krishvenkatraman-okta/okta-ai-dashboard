@@ -125,36 +125,85 @@ export class OktaApiService {
         console.log('No management token available for app links fallback');
       }
 
-      // If both fail, try getting assigned apps
-      if (managementToken) {
-        const appsResponse = await fetch(`https://${this.oktaDomain}/api/v1/apps?filter=user.id eq "me"&expand=user`, {
+      return [];
+    } catch (error) {
+      console.error('Error fetching user app links:', error);
+      return [];
+    }
+  }
+
+  async getUserApplications(userId: string, userAccessToken?: string): Promise<any[]> {
+    try {
+      console.log(`📱 Fetching applications for user: ${userId}`);
+      
+      const oktaApiToken = process.env.OKTA_API_TOKEN;
+      if (!oktaApiToken) {
+        console.log('❌ No Okta API token available');
+        return [];
+      }
+      
+      // Try different endpoints to get user applications
+      const endpoints = [
+        `/users/${userId}/appLinks`,
+        `/users/${userId}/apps`,
+        `/apps?filter=user.id+eq+"${userId}"`
+      ];
+
+      let apps: any[] = [];
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`🔍 Trying endpoint: ${endpoint}`);
+          const response = await fetch(`https://${this.oktaDomain}/api/v1${endpoint}`, {
+            headers: {
+              'Authorization': `SSWS ${oktaApiToken}`,
+              'Accept': 'application/json'
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log(`✅ Got ${data.length} results from ${endpoint}`);
+            
+            if (data.length > 0) {
+              apps = data;
+              break;
+            }
+          } else {
+            console.log(`❌ Endpoint ${endpoint} failed: ${response.status}`);
+          }
+        } catch (endpointError) {
+          console.log(`❌ Endpoint ${endpoint} error:`, endpointError);
+        }
+      }
+
+      // If no apps found via API, get all apps (fallback for demo)
+      if (apps.length === 0) {
+        console.log('🔄 No user-specific apps found, fetching all available apps');
+        const response = await fetch(`https://${this.oktaDomain}/api/v1/apps?limit=20`, {
           headers: {
-            'Authorization': `SSWS ${managementToken}`,
+            'Authorization': `SSWS ${oktaApiToken}`,
             'Accept': 'application/json'
           }
         });
-
-        if (appsResponse.ok) {
-          const apps = await appsResponse.json();
-          console.log('Found assigned apps:', apps.length);
-          // Convert apps to app link format
-          return apps.map((app: any) => ({
-            id: app.id,
-            label: app.label,
-            linkUrl: app.settings?.signOn?.loginUrl || app.settings?.app?.url,
-            logoUrl: app._links?.logo?.[0]?.href,
-            appName: app.name,
-            appInstanceId: app.id,
-            sortOrder: 0
-          }));
+        
+        if (response.ok) {
+          const allApps = await response.json();
+          // Filter only active apps that are visible to end users
+          apps = allApps.filter((app: any) => 
+            app.status === 'ACTIVE' && 
+            !app.visibility?.hide?.web &&
+            app.accessibility?.selfService !== false
+          );
+          console.log(`📋 Filtered to ${apps.length} available apps`);
         }
       }
+
+      return apps;
     } catch (error) {
-      console.error('Error fetching user app links:', error);
+      console.error('Error fetching user applications:', error);
+      return [];
     }
-    
-    console.log('No app links found, returning empty array');
-    return [];
   }
 
   async getApplications(accessToken: string): Promise<any[]> {

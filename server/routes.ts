@@ -243,6 +243,40 @@ Keep responses concise and professional.`;
   });
 
   // Okta API routes
+  app.get('/api/okta/user-apps', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      console.log('🔍 Fetching user apps for:', user.name);
+
+      // Import Okta API service
+      const { OktaApiService } = await import('./services/okta-api.ts');
+      const oktaApi = new OktaApiService();
+
+      // Get user's assigned applications using Okta API
+      const apps = await oktaApi.getUserApplications(user.oktaId, session.oktaTokens.accessToken);
+      
+      console.log(`✅ Found ${apps.length} applications for user`);
+      res.json(apps);
+    } catch (error) {
+      console.error('Failed to fetch user apps:', error);
+      res.status(500).json({ error: 'Failed to fetch applications' });
+    }
+  });
+
   app.get('/api/okta/dashboard-stats', async (req, res) => {
     try {
       const sessionId = req.cookies.session_id;

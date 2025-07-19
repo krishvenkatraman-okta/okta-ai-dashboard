@@ -55,7 +55,7 @@ export class MemStorage implements IStorage {
     const user: User = {
       ...insertUser,
       id,
-      groups: Array.isArray(insertUser.groups) ? insertUser.groups : null,
+      groups: Array.isArray(insertUser.groups) ? insertUser.groups : insertUser.groups ? [insertUser.groups as any].flat() : null,
       createdAt: new Date(),
       lastLogin: new Date()
     };
@@ -76,6 +76,10 @@ export class MemStorage implements IStorage {
     const session: Session = {
       ...insertSession,
       id: Date.now(),
+      oktaTokens: {
+        ...insertSession.oktaTokens,
+        refreshToken: typeof insertSession.oktaTokens.refreshToken === 'string' ? insertSession.oktaTokens.refreshToken : undefined
+      },
       createdAt: new Date()
     };
     this.sessions.set(session.sessionId, session);

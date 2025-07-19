@@ -71,9 +71,9 @@ export class OktaGovernanceService {
           const processedEntries = entries.map((item: any) => ({
             id: item.id,
             displayName: item.name || item.displayName || item.label,
-            description: `${item.label || 'Application'} - ${item.requestable ? 'Available for request' : 'Not requestable'}`,
+            description: `${item.label || 'Application'} - ${item.requestable === false ? 'Not requestable' : 'Available for request'}`,
             type: item.label || 'application',
-            status: item.requestable ? 'AVAILABLE' : 'RESTRICTED',
+            status: item.requestable === false ? 'RESTRICTED' : 'AVAILABLE',
             requestable: item.requestable !== false
           }));
           

@@ -226,18 +226,16 @@ export class OktaMCPServer {
       });
     }
 
-    // Specific app access request
+    // Specific app access request - handle via governance service
     const accessMatch = message.match(/request access to (.+)/i);
     if (accessMatch) {
       const appName = accessMatch[1].trim();
+      console.log('🎯 MCP: Access request detected for:', appName);
+      
+      // First get catalog to find the app ID
       requests.push({
-        endpoint: this.endpoints.find(e => e.name === 'submit_access_request')!,
-        params: { appName },
-        body: {
-          justification: `Access needed for ${appName} - requested via AI assistant`,
-          duration: 90,
-          durationUnit: 'days'
-        }
+        endpoint: this.endpoints.find(e => e.name === 'list_catalog_entries')!,
+        params: { filter: 'status eq "ACTIVE"', limit: 50, appName: appName }
       });
     }
 
@@ -594,8 +592,26 @@ export class OktaMCPServer {
       }
     }
 
-    // Handle access request submissions
+    // Handle access request submissions with better error handling for non-requestable apps
     if (message.includes('request access to')) {
+      const appNameMatch = message.match(/request access to (.+)/i);
+      const appName = appNameMatch ? appNameMatch[1].trim() : 'application';
+      
+      // Check if we have catalog data to verify if app is requestable
+      const catalogResult = results.find(r => r.endpoint === 'list_catalog_entries');
+      if (catalogResult?.success && catalogResult.data) {
+        const app = catalogResult.data.find(app => app.displayName?.toLowerCase().includes(appName.toLowerCase()));
+        
+        if (app && app.requestable === false) {
+          return {
+            success: true,
+            type: 'access_request_blocked',
+            data: { app, reason: 'not_requestable' },
+            message: `**❌ Access Request Blocked**\n\n**${app.displayName}** is not requestable in the IGA catalog.\n\n**Possible solutions:**\n• Contact your Okta administrator to enable request functionality\n• Check if the application has alternate access methods\n• Verify your permissions for requesting this application\n\n**Application Details:**\n• Type: ${app.type}\n• Status: ${app.status}\n• Requestable: ${app.requestable ? 'Yes' : 'No'}\n\n**Manual Access:** Try accessing the application directly through the Okta dashboard or contact your IT administrator.\n\n**Feedback:** 👍 👎 (Help improve responses)`
+          };
+        }
+      }
+      
       const requestResult = results.find(r => r.endpoint === 'submit_access_request');
       if (requestResult?.success) {
         return {
@@ -603,6 +619,14 @@ export class OktaMCPServer {
           type: 'access_request_submitted',
           data: requestResult.data,
           message: 'Access request submitted successfully'
+        };
+      } else {
+        // Generic failure message
+        return {
+          success: true,
+          type: 'access_request_failed',
+          data: { appName, error: requestResult?.error },
+          message: `**❌ Access Request Failed**\n\nUnable to submit request for **${appName}**.\n\n**Error:** ${requestResult?.error || 'Unknown error'}\n\n**Next Steps:**\n• Verify the application is available in the catalog\n• Check if you have permission to request access\n• Contact your Okta administrator if issues persist\n\n**Feedback:** 👍 👎 (Help improve accuracy)`
         };
       }
     }

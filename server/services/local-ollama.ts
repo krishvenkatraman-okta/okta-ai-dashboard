@@ -111,18 +111,38 @@ export class LocalOllamaService {
     try {
       console.log('🤖 Generating AI response for prompt:', prompt);
       
-      // Check if Ollama is available
+      // Check if Ollama is available and has models
       const healthCheck = await fetch(`${this.baseUrl}/api/tags`);
       if (!healthCheck.ok) {
         console.log('❌ Ollama not available, using fallback response');
         return this.getFallbackResponse(prompt);
       }
 
+      const modelsData = await healthCheck.json();
+      if (!modelsData.models || modelsData.models.length === 0) {
+        console.log('❌ No models available in Ollama, using fallback response');
+        return this.getFallbackResponse(prompt);
+      }
+
+      console.log('✅ Ollama models available:', modelsData.models.map((m: any) => m.name));
+
+      // Use first available model if llama3.1:8b is not available
+      const availableModel = modelsData.models.find((m: any) => m.name === 'llama3.1:8b') 
+        || modelsData.models[0];
+      
+      if (!availableModel) {
+        console.log('❌ No suitable model found, using fallback response');
+        return this.getFallbackResponse(prompt);
+      }
+
+      const modelName = availableModel.name;
+      console.log('🤖 Using model:', modelName);
+
       const response = await fetch(`${this.baseUrl}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'llama3.1:8b',
+          model: modelName,
           prompt: prompt,
           stream: false,
           options: {
@@ -177,24 +197,34 @@ What type of campaign would you like to create?`;
     }
     
     if (lowerPrompt.includes('access request') || lowerPrompt.includes('request access')) {
-      return `I can help you with access requests! Here are your options:
+      return `I can help you with access requests! As your Okta Assistant, I can guide you through:
 
-• **Request New Access**: Browse available applications and request access through Okta
-• **Check Request Status**: View pending access requests and their approval status  
-• **Application Catalog**: See all applications available for self-service access
+**Access Request Process:**
+• Browse the application catalog to see available apps
+• Submit requests with proper business justification
+• Track approval status and follow up with approvers
+• Get notified when access is granted
 
-To request access to a specific application, I can guide you through the process. Which application would you like to access?`;
+**Available Applications:**
+• Enterprise applications assigned to your organization
+• Self-service applications you can request instantly
+• Managed applications requiring manager approval
+
+Would you like me to show you available applications to request, or help with a specific access request?`;
     }
     
-    if (lowerPrompt.includes('hello') || lowerPrompt.includes('hi')) {
-      return `Hello! I'm your Okta Assistant powered by local AI. I can help you with:
+    if (lowerPrompt.includes('hello') || lowerPrompt.includes('hi') || lowerPrompt.includes('hey')) {
+      return `Hello! I'm your Okta Assistant. I'm here to help you manage your identity and access needs.
 
-• Access requests and application provisioning
-• User and group management  
-• Governance and compliance tasks
-• General Okta administration
+**What I can help you with:**
+• **Access Requests**: Request access to applications and resources
+• **Application Management**: View and manage your assigned applications
+• **Governance Tasks**: Handle compliance and access reviews (admin users)
+• **User Administration**: Manage users, groups, and permissions
 
-What would you like to do today?`;
+**Your current access level**: Super Admin - You have full administrative capabilities.
+
+What would you like to work on today?`;
     }
     
     if (lowerPrompt.includes('applications') || lowerPrompt.includes('apps')) {
@@ -208,7 +238,22 @@ What would you like to do today?`;
 What specific application help do you need?`;
     }
     
-    return `I'm your Okta Assistant. I can help with access requests, application management, governance tasks, and user administration. What specific help do you need today?`;
+    // Default conversational response
+    return `I'm your Okta Assistant! I understand you're asking about "${prompt.slice(0, 50)}${prompt.length > 50 ? '...' : ''}".
+
+**I can help you with:**
+• **Access Requests**: Request access to applications and resources
+• **Application Management**: View your current applications and manage access
+• **Governance & Compliance**: Handle access reviews and governance campaigns
+• **User & Group Management**: Manage organizational users and permissions
+
+**Your Role**: Super Admin - Full administrative access enabled.
+
+Could you tell me more specifically what you'd like to do? For example:
+- "Show me available applications"
+- "Help me request access to [app name]"
+- "Create a governance campaign"
+- "Review user access"`;
   }
 
   async analyzeIntent(message: string): Promise<{

@@ -75,18 +75,36 @@ export class OktaApiService {
     return '12';
   }
 
-  async getApplications(apiToken: string): Promise<any[]> {
+  async getApplications(accessToken: string): Promise<any[]> {
     try {
-      const response = await fetch(`https://${this.oktaDomain}/api/v1/apps`, {
+      // First try with user's access token for their assigned apps
+      const userAppsResponse = await fetch(`https://${this.oktaDomain}/api/v1/users/me/appLinks`, {
         headers: {
-          'Authorization': `SSWS ${apiToken}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Accept': 'application/json'
         }
       });
 
-      if (response.ok) {
-        return await response.json();
+      if (userAppsResponse.ok) {
+        const userApps = await userAppsResponse.json();
+        return userApps;
       }
+
+      // Fallback to Management API if user token doesn't work
+      const managementToken = process.env.OKTA_API_TOKEN;
+      if (managementToken) {
+        const response = await fetch(`https://${this.oktaDomain}/api/v1/apps`, {
+          headers: {
+            'Authorization': `SSWS ${managementToken}`,
+            'Accept': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          return await response.json();
+        }
+      }
+
     } catch (error) {
       console.error('Error fetching applications:', error);
     }

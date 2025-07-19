@@ -248,13 +248,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'User not found' });
       }
 
-      // Get applications from Okta Management API using management token
-      const managementToken = process.env.OKTA_API_TOKEN;
-      if (!managementToken) {
-        return res.status(500).json({ error: 'Management API token not configured' });
-      }
-      
-      const apps = await oktaApi.getApplications(managementToken);
+      // Get applications using user's access token for proper permissions
+      const apps = await oktaApi.getApplications(session.oktaTokens.accessToken);
       res.json(apps);
     } catch (error) {
       console.error('Get applications error:', error);

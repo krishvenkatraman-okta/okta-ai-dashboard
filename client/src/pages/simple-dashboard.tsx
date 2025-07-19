@@ -1,115 +1,68 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, BarChart3 } from "lucide-react";
+import { GovernanceWidgets } from "@/components/governance-widgets";
+import { AdvancedGovernanceDashboard } from "@/components/advanced-governance-dashboard";
 
 interface User {
   id: number;
   name: string;
-  role: string;
   email: string;
+  role: string;
+  groups: string[];
 }
 
 interface OktaApp {
   id: string;
   name: string;
   label: string;
-  status?: string;
   linkUrl?: string;
   logoUrl?: string;
-  appName?: string;
-  appInstanceId?: string;
-  sortOrder?: number;
-  accessibility?: {
-    selfService: boolean;
-  };
-  visibility?: {
-    hide: {
-      iOS: boolean;
-      web: boolean;
-    };
-  };
-  settings?: {
-    app?: {
-      url?: string;
-    };
-  };
-  _links?: {
-    logo?: Array<{
-      name: string;
-      href: string;
-      type: string;
-    }>;
-    appLinks?: Array<{
-      name: string;
-      href: string;
-    }>;
-  };
+  status: string;
 }
 
 function OktaApplicationsGrid({ user }: { user: User }) {
   const [apps, setApps] = useState<OktaApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showIframe, setShowIframe] = useState(false);
 
   useEffect(() => {
-    const fetchApps = async () => {
-      try {
-        const response = await fetch('/api/okta/user-apps', {
-          credentials: 'include'
-        });
-        
-        if (response.ok) {
-          const appsData = await response.json();
-          console.log('Fetched Okta apps:', appsData);
-          console.log('Sample app structure:', JSON.stringify(appsData[0], null, 2));
-          setApps(appsData);
+    fetch('/api/okta/user-apps', { credentials: 'include' })
+      .then(async (res) => {
+        if (res.ok) {
+          const appsData = await res.json();
+          console.log('Apps data received:', appsData);
+          setApps(appsData.apps || []);
         } else {
-          console.log('Failed to fetch apps, falling back to iframe');
-          setShowIframe(true);
+          console.log('Apps fetch failed:', res.status);
+          setError(`Failed to load apps: ${res.status}`);
         }
-      } catch (error) {
-        console.error('Error fetching apps:', error);
-        setError('Failed to load applications');
-      } finally {
+      })
+      .catch((err) => {
+        console.error('Apps fetch error:', err);
+        setError(err.message);
+      })
+      .finally(() => {
         setLoading(false);
-      }
-    };
-
-    fetchApps();
+      });
   }, []);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your applications...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (showIframe) {
-    return (
-      <div className="h-full">
-        <iframe
-          src="https://fcxdemo.okta.com/app/UserHome?fromAdmin=true"
-          className="w-full h-[600px] border border-gray-200 rounded-lg"
-          title="Okta Applications"
-          sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-        />
+      <div className="text-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="mt-2 text-gray-600">Loading your applications...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center py-12">
-        <p className="text-red-600 mb-4">{error}</p>
-        <Button onClick={() => setShowIframe(true)} variant="outline">
-          Load Okta Dashboard
+      <div className="text-center py-8">
+        <p className="text-red-600">{error}</p>
+        <Button onClick={() => window.location.reload()} className="mt-4">
+          Try Again
         </Button>
       </div>
     );
@@ -117,159 +70,104 @@ function OktaApplicationsGrid({ user }: { user: User }) {
 
   if (apps.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-600 mb-4">No applications assigned to your account.</p>
-        <Button onClick={() => setShowIframe(true)} variant="outline">
-          Open Okta Dashboard
-        </Button>
+      <div className="text-center py-8">
+        <p className="text-gray-600">No applications available</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
-        {apps.map((app) => (
-          <OktaApplicationTile key={app.id} app={app} />
-        ))}
-      </div>
-      
-      <div className="text-center pt-4">
-        <Button onClick={() => setShowIframe(true)} variant="outline" size="sm">
-          View All in Okta Dashboard
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function OktaApplicationTile({ app }: { app: OktaApp }) {
-  const handleClick = () => {
-    // For appLinks, use the linkUrl directly
-    if (app.linkUrl) {
-      window.open(app.linkUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
-    
-    // For regular apps, construct proper Okta app launch URL
-    const appUrl = app._links?.appLinks?.[0]?.href || 
-                   `https://fcxdemo.okta.com/home/${app.name}/${app.id}/alnk`;
-    window.open(appUrl, '_blank', 'noopener,noreferrer');
-  };
-
-  const logoUrl = app.logoUrl ||
-                  app._links?.logo?.[0]?.href || 
-                  `https://op1static.oktacdn.com/assets/img/logos/default.6770228fb0dab250a8556360d72fcebabde7696e.png`;
-
-  return (
-    <div 
-      onClick={handleClick}
-      className="group cursor-pointer bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-blue-300 transition-all duration-200 text-center"
-    >
-      <div className="mb-3 flex justify-center">
-        <img 
-          src={logoUrl}
-          alt={app.label || app.name}
-          className="w-12 h-12 rounded-lg object-contain"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.src = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23374151'><rect width='24' height='24' fill='%23f3f4f6'/><text x='12' y='16' text-anchor='middle' font-family='Arial' font-size='10' fill='%23374151'>${(app.label || app.name)[0].toUpperCase()}</text></svg>`;
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {apps.map((app) => (
+        <div
+          key={app.id}
+          className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer group"
+          onClick={() => {
+            if (app.linkUrl) {
+              window.open(app.linkUrl, '_blank');
+            }
           }}
-        />
-      </div>
-      <h3 className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2">
-        {app.label || app.name}
-      </h3>
-      <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-blue-500 mx-auto mt-2 opacity-0 group-hover:opacity-100 transition-opacity" />
+        >
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              {app.logoUrl ? (
+                <img src={app.logoUrl} alt={app.label} className="w-8 h-8 rounded" />
+              ) : (
+                <span className="text-blue-600 font-semibold text-lg">
+                  {app.label?.charAt(0) || app.name?.charAt(0) || '?'}
+                </span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-medium text-gray-900 truncate">
+                {app.label || app.name}
+              </h3>
+              <p className="text-xs text-gray-500 truncate">
+                Status: {app.status}
+              </p>
+            </div>
+            {app.linkUrl && (
+              <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
-function OktaAssistantChat({ user }: { user: User }) {
+function GovernanceChatPanel() {
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
       role: 'assistant',
-      content: `Hello ${user.name}! I'm your AI-powered Okta Assistant with continuous learning. ${
-        user.role === 'super_admin' ? 
-          `As a Super Admin, I can help you with:\n\n• **User Management**: Create, modify, and deactivate users\n• **Application Management**: Configure apps and assignments\n• **Governance Workflows**: Set up access reviews and campaigns\n• **Policy Administration**: Configure authentication and authorization policies\n• **Bulk Operations**: Mass user updates and group management\n• **Compliance Reporting**: Generate detailed audit reports\n• **API Integration**: Manage Okta APIs and integrations\n• **Advanced Admin Operations**: System-wide configurations\n• **30-Day Access Review**: Review and clean up unused application access\n\nWhat administrative task would you like to work on?` :
-        user.role === 'app_owner' ? 
-          `As an App Owner, I can help you with:\n\n• **Show My Apps**: View applications you own and their status\n• **Governance Campaigns**: Create access review campaigns for your apps\n• **User Access Reviews**: Review who has access to your applications\n• **Access Requests**: Review and approve requests for your apps\n• **30-Day Cleanup**: Review applications you haven't used recently\n• **Compliance Reporting**: Generate reports for your managed applications\n\n**Quick Actions:**\n- Say "show my apps" to see applications you own\n- Say "30-day review" to see unused applications\n- Say "create campaign" to start governance reviews\n\nWhat would you like to manage today?` :
-          `I can help you with:\n\n• **Access Requests**: Request access to applications you need\n• **Application Usage**: Get help with your assigned applications\n• **Profile Management**: Update your profile information\n• **Self-Service Tasks**: Manage your own access and settings\n\nWhat can I help you with today?`
-      }`
+      content: `Welcome to the Okta AI Assistant! 🤖
+
+I can help you with:
+• 30-day access reviews and compliance tracking
+• Access request submissions with automatic form completion
+• Governance campaign creation and management
+• User and application management tasks
+• Policy compliance monitoring
+
+Try asking me:
+- "Show me a 30-day access review"
+- "I need access to Salesforce"
+- "Create a governance review campaign"
+- "What apps haven't been used recently?"
+
+What would you like to do today?`
     }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [feedbackStatus, setFeedbackStatus] = useState<Record<string, string>>({});
-
-  // Auto-load 30-day review on component mount
-  useEffect(() => {
-    const autoLoad30DayReview = async () => {
-      console.log('Auto-loading 30-day access review...');
-      setLoading(true);
-      
-      try {
-        const response = await fetch('/api/chat/message', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ message: '30-day review' })
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setMessages(prev => [...prev, 
-            { role: 'user', content: '30-Day Access Review' },
-            { role: 'assistant', content: data.response }
-          ]);
-        } else {
-          console.error('Auto 30-day review failed:', response.status);
-        }
-      } catch (error) {
-        console.error('Auto 30-day review error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    // Delay to let the component mount completely
-    const timer = setTimeout(autoLoad30DayReview, 1000);
-    return () => clearTimeout(timer);
-  }, []);
+  const [feedbackStatus, setFeedbackStatus] = useState<{[key: string]: 'positive' | 'negative'}>({});
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
-    const userMessage = input.trim();
+    const userMessage = { id: `user-${Date.now()}`, role: 'user', content: input };
+    setMessages(prev => [...prev, userMessage]);
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setLoading(true);
 
     try {
-      console.log('Sending chat message:', userMessage);
-      const response = await fetch('/api/chat/message', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ message: userMessage })
+        body: JSON.stringify({ message: input })
       });
 
-      console.log('Chat response status:', response.status);
-      
       if (response.ok) {
         const data = await response.json();
-        console.log('Chat response data:', data);
-        const responseId = `assistant-${Date.now()}`;
-        setMessages(prev => [...prev, { id: responseId, role: 'assistant', content: data.response }]);
-      } else {
-        const errorData = await response.text();
-        console.error('Chat error response:', response.status, errorData);
         setMessages(prev => [...prev, { 
-          id: `error-${Date.now()}`,
+          id: `assistant-${Date.now()}`, 
           role: 'assistant', 
-          content: `Error ${response.status}: ${errorData}. Please try signing in again or refreshing the page.` 
+          content: data.response 
         }]);
+      } else {
+        throw new Error(`Server error: ${response.status}`);
       }
     } catch (error) {
       console.error('Chat request failed:', error);
@@ -409,6 +307,7 @@ export default function SimpleDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAdvancedDashboard, setShowAdvancedDashboard] = useState(false);
 
   useEffect(() => {
     // Simple fetch without React Query
@@ -526,6 +425,15 @@ export default function SimpleDashboard() {
                 <p className="text-sm font-medium text-gray-900">{user.name}</p>
                 <p className="text-xs text-blue-600 font-medium capitalize">{user.role.replace('_', ' ')}</p>
               </div>
+              <Button 
+                onClick={() => setShowAdvancedDashboard(!showAdvancedDashboard)}
+                variant="outline" 
+                size="sm" 
+                className="mr-2"
+              >
+                <BarChart3 className="h-4 w-4 mr-2" />
+                {showAdvancedDashboard ? 'Simple View' : 'Advanced View'}
+              </Button>
               <Button onClick={refreshRole} variant="outline" size="sm" className="mr-2">
                 Refresh Role
               </Button>
@@ -541,6 +449,20 @@ export default function SimpleDashboard() {
       <div className="flex flex-1">
         {/* Applications Dashboard */}
         <div className="flex-1 px-6 py-8">
+          {/* Governance Insights Widgets */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-2">Governance Insights</h2>
+            <p className="text-gray-600 mb-4">Real-time governance metrics and compliance data</p>
+            <GovernanceWidgets userId={user.id.toString()} userRole={user.role} />
+          </div>
+
+          {/* Advanced Dashboard Toggle */}
+          {showAdvancedDashboard && (
+            <div className="mb-8">
+              <AdvancedGovernanceDashboard userRole={user.role} />
+            </div>
+          )}
+          
           <div className="mb-6">
             <h2 className="text-2xl font-semibold text-gray-900 mb-2">My Apps</h2>
             <p className="text-gray-600">Click any app to launch</p>
@@ -553,11 +475,11 @@ export default function SimpleDashboard() {
         {/* AI Assistant Sidebar */}
         <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
           <div className="p-4 border-b border-gray-200 bg-blue-50">
-            <h3 className="text-lg font-semibold text-blue-900 mb-1">Okta Assistant</h3>
-            <p className="text-sm text-blue-700">Access Level: {user.role.replace('_', ' ').toUpperCase()}</p>
+            <h3 className="font-semibold text-gray-900">🤖 AI Assistant</h3>
+            <p className="text-sm text-gray-600">Intelligent governance support</p>
           </div>
           
-          <OktaAssistantChat user={user} />
+          <GovernanceChatPanel />
         </div>
       </div>
     </div>

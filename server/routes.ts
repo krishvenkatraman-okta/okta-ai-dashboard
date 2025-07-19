@@ -622,8 +622,40 @@ Response (be natural and concise):`;
             break;
 
           case '30_day_review':
-            // Use the processed message from MCP server
-            finalResponse = mcpResult.message || `**📊 30-Day Access Review - AI Enhanced**\n\n✅ Retrieved system logs via intelligent API mapping.\n\nAnalyzing authentication patterns...\n\n*📊 AI continuously learns from usage patterns*\n\n**Feedback:** 👍 👎 (Help AI improve accuracy)`;
+            // Process the actual System Log data for 30-day review
+            const reviewData = mcpResult.data;
+            const apps = reviewData?.apps || [];
+            const logs = reviewData?.logs || [];
+            
+            console.log('📊 Processing 30-day review data:', { appsCount: apps.length, logsCount: logs.length });
+            
+            // Create a map of recent access from system logs
+            const recentlyAccessedApps = new Set();
+            if (Array.isArray(logs)) {
+              logs.forEach((log: any) => {
+                if (log.target && log.target.length > 0 && log.target[0].id) {
+                  recentlyAccessedApps.add(log.target[0].id);
+                }
+              });
+            }
+            
+            // Analyze app usage
+            const usedApps = apps.filter((app: any) => recentlyAccessedApps.has(app.id));
+            const unusedApps = apps.filter((app: any) => !recentlyAccessedApps.has(app.id));
+            
+            finalResponse = `**📊 30-Day Access Review - AI Enhanced**\n\n✅ **Analysis Complete**\n• Applications: ${apps.length}\n• Access Events: ${logs.length}\n• Recently Used: ${usedApps.length}\n• Unused: ${unusedApps.length}\n\n`;
+            
+            if (unusedApps.length > 0) {
+              finalResponse += `**🔍 Unused Applications (Last 30 Days):**\n${unusedApps.slice(0, 8).map((app: any) => `• ${app.label || app.name || 'Unknown App'}`).join('\n')}`;
+              if (unusedApps.length > 8) {
+                finalResponse += `\n• ... and ${unusedApps.length - 8} more applications`;
+              }
+              finalResponse += `\n\n**Recommendation:** Consider reviewing access to these ${unusedApps.length} unused applications.\n\n`;
+            } else {
+              finalResponse += `**✅ All Applications Active**\nAll your applications show recent usage.\n\n`;
+            }
+            
+            finalResponse += `**Usage Summary:**\n• Active: ${usedApps.length} apps\n• Unused: ${unusedApps.length} apps\n• Total Events: ${logs.length}\n\n*🤖 AI analyzed real System Log data*\n\n**Feedback:** 👍 👎 (Help AI improve accuracy)`;
             break;
 
           case 'access_request_entitlements':
@@ -654,7 +686,8 @@ Response (be natural and concise):`;
             console.log('🔍 Entitlement name extracted:', entitlementName);
             
             // Find the entitlement ID first
-            const fieldGovernanceService = new OktaGovernanceService();
+            const { OktaGovernanceService: FieldGovernanceService } = await import('./services/okta-governance-api.ts');
+            const fieldGovernanceService = new FieldGovernanceService();
             const allCatalogEntries = await fieldGovernanceService.getCatalogEntries(session.oktaTokens.accessToken);
             let targetEntitlementForFields = null;
             

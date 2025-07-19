@@ -61,8 +61,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           groups: oktaUser.groups || []
         });
       } else {
-        // Update last login
-        await storage.updateUser(user.id, { lastLogin: new Date() });
+        // Update last login AND refresh role from current Okta groups/roles
+        const userRole = oktaAuth.determineUserRole(oktaUser.groups || []);
+        await storage.updateUser(user.id, { 
+          lastLogin: new Date(),
+          role: userRole,
+          groups: oktaUser.groups || []
+        });
+        user.role = userRole; // Update in-memory user object
+        user.groups = oktaUser.groups || [];
       }
 
       // Create session

@@ -26,6 +26,11 @@ export class OpenAIService {
 - Privileged Access Management (PAM)
 - Enterprise security best practices
 
+Based on the user's role, provide appropriate responses:
+- SUPER ADMIN / ORG ADMIN: Full administrative capabilities, governance workflows, user management, advanced operations
+- APP OWNER / APP ADMIN: Application management, user assignments, moderate admin tasks
+- REGULAR USER: Basic access requests, self-service tasks, application usage
+
 Respond conversationally and helpfully. Keep responses concise but informative. Focus on actionable guidance rather than theoretical explanations.`
           },
           {
@@ -53,14 +58,25 @@ Respond conversationally and helpfully. Keep responses concise but informative. 
     const lowerPrompt = prompt.toLowerCase();
     
     if (lowerPrompt.includes('access request') || lowerPrompt.includes('request access')) {
-      return `I can help you with access requests! Here's how to request application access:
+      return `As an admin, you can both submit and manage access requests:
 
-**Step 1**: Browse available applications in your Okta dashboard
-**Step 2**: Click on the application you need access to
-**Step 3**: If prompted, provide business justification
-**Step 4**: Submit the request for manager approval
+**For Submitting Requests:**
+• Browse application catalog and request access for yourself
+• Submit requests with business justification
 
-Would you like me to help you find a specific application or guide you through the request process?`;
+**For Managing Requests (Admin Powers):**
+• **Review & Approve**: Pending access requests from users
+• **Bulk Operations**: Mass approve/deny requests  
+• **Policy Setup**: Configure auto-approval rules
+• **Audit Trail**: View request history and compliance reports
+• **User Assignment**: Directly assign applications to users
+
+**Available Resources:**
+• Application Catalog API integration
+• Automated workflow triggers
+• Compliance reporting tools
+
+Would you like to manage pending requests, set up policies, or submit a personal request?`;
     }
     
     if (lowerPrompt.includes('governance') || lowerPrompt.includes('campaign')) {
@@ -70,8 +86,10 @@ Would you like me to help you find a specific application or guide you through t
 • **Compliance Reports**: Generate audit reports for access management
 • **Campaign Creation**: Design governance workflows
 • **Risk Assessment**: Identify over-privileged users
+• **Bulk Operations**: Mass user updates and group management
+• **Policy Enforcement**: Configure access policies and rules
 
-What type of governance task would you like help with?`;
+As an admin, you have access to advanced governance tools. What type of governance task would you like help with?`;
     }
     
     if (lowerPrompt.includes('hello') || lowerPrompt.includes('hi') || lowerPrompt.includes('hey')) {

@@ -189,7 +189,13 @@ function OktaAssistantChat({ user }: { user: User }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: `Hello ${user.name}! I'm your Okta Assistant. I can help you with:\n\n• Access requests for applications\n• Governance and compliance tasks\n• User and group management${user.role === 'super_admin' ? '\n• Advanced admin operations' : ''}\n\nWhat would you like to do today?`
+      content: `Hello ${user.name}! I'm your Okta Assistant. ${
+        user.role === 'super_admin' ? 
+          `As a Super Admin, I can help you with:\n\n• **User Management**: Create, modify, and deactivate users\n• **Application Management**: Configure apps and assignments\n• **Governance Workflows**: Set up access reviews and campaigns\n• **Policy Administration**: Configure authentication and authorization policies\n• **Bulk Operations**: Mass user updates and group management\n• **Compliance Reporting**: Generate detailed audit reports\n• **API Integration**: Manage Okta APIs and integrations\n• **Advanced Admin Operations**: System-wide configurations\n\nWhat administrative task would you like to work on?` :
+        user.role === 'app_owner' ? 
+          `As an App Owner, I can help you with:\n\n• **Application Management**: Configure and manage your assigned applications\n• **User Assignments**: Add/remove users from your applications\n• **Access Requests**: Review and approve requests for your apps\n• **Governance Tasks**: Set up access reviews for your applications\n• **Reporting**: Generate reports for your managed applications\n\nWhat would you like to manage today?` :
+          `I can help you with:\n\n• **Access Requests**: Request access to applications you need\n• **Application Usage**: Get help with your assigned applications\n• **Profile Management**: Update your profile information\n• **Self-Service Tasks**: Manage your own access and settings\n\nWhat can I help you with today?`
+      }`
     }
   ]);
   const [input, setInput] = useState('');

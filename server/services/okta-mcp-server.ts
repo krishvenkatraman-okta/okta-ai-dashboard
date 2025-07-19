@@ -226,7 +226,30 @@ export class OktaMCPServer {
       });
     }
 
-    // Specific app access request - handle via governance service
+    // Handle entitlement selection without justification first - show required fields
+    const entitlementSelectionMatch = message.match(/I want (.+?)(?:\s+for\s+(.+))?$/i);
+    if (entitlementSelectionMatch) {
+      const entitlementName = entitlementSelectionMatch[1].trim();
+      const justification = entitlementSelectionMatch[2]?.trim();
+      
+      if (justification) {
+        // Full request with justification - submit it
+        console.log('🎯 MCP: Entitlement request with justification:', entitlementName);
+        requests.push({
+          endpoint: this.endpoints.find(e => e.name === 'list_catalog_entries')!,
+          params: { filter: 'status eq "ACTIVE"', limit: 200, findEntitlement: entitlementName, justification: justification }
+        });
+      } else {
+        // Just selection - show required fields
+        console.log('🎯 MCP: Entitlement selection for fields:', entitlementName);
+        requests.push({
+          endpoint: this.endpoints.find(e => e.name === 'list_catalog_entries')!,
+          params: { filter: 'status eq "ACTIVE"', limit: 200, showFieldsFor: entitlementName }
+        });
+      }
+    }
+
+    // Specific app access request - handle via governance service  
     const accessMatch = message.match(/request access to (.+)/i);
     if (accessMatch) {
       const appName = accessMatch[1].trim();
@@ -598,22 +621,44 @@ export class OktaMCPServer {
       }
     }
 
-    // Handle access request submissions with better error handling for non-requestable apps
+    // Handle entitlement request processing
+    if (message.includes('I want')) {
+      const hasJustification = message.includes(' for ');
+      console.log('🎯 MCP: Processing entitlement', hasJustification ? 'request' : 'field lookup');
+      return {
+        success: true,
+        type: hasJustification ? 'entitlement_request_processing' : 'entitlement_fields_lookup',
+        data: { message },
+        message: hasJustification ? 
+          `**🔄 Processing Entitlement Request**\n\nFinding the specific entitlement and submitting your request...\n\n*Please wait while I process your access request.*` :
+          `**📋 Getting Required Fields**\n\nLooking up the specific form fields required for this entitlement...\n\n*Please wait while I fetch the request requirements.*`
+      };
+    }
+
+    // Handle access request submissions - first get available entitlements
     if (message.includes('request access to')) {
       const appNameMatch = message.match(/request access to (.+)/i);
       const appName = appNameMatch ? appNameMatch[1].trim() : 'application';
       
-      // Check if we have catalog data to verify if app is requestable
+      // Check if we have catalog data to find the app ID
       const catalogResult = results.find(r => r.endpoint === 'list_catalog_entries');
       if (catalogResult?.success && catalogResult.data) {
         const app = catalogResult.data.find(app => app.displayName?.toLowerCase().includes(appName.toLowerCase()));
         
-        if (app && app.requestable === false) {
+        if (app) {
+          // Use parent API to get available entitlements for this app
           return {
             success: true,
-            type: 'access_request_blocked',
-            data: { app, reason: 'not_requestable' },
-            message: `**❌ Access Request Blocked**\n\n**${app.displayName}** is not requestable in the IGA catalog.\n\n**Possible solutions:**\n• Contact your Okta administrator to enable request functionality\n• Check if the application has alternate access methods\n• Verify your permissions for requesting this application\n\n**Application Details:**\n• Type: ${app.type}\n• Status: ${app.status}\n• Requestable: ${app.requestable ? 'Yes' : 'No'}\n\n**Manual Access:** Try accessing the application directly through the Okta dashboard or contact your IT administrator.\n\n**Feedback:** 👍 👎 (Help improve responses)`
+            type: 'access_request_entitlements',
+            data: { app, appId: app.id, appName: app.displayName },
+            message: `**🔍 Finding Available Entitlements**\n\nChecking available access options for **${app.displayName}**...\n\nUsing parent API to retrieve specific roles and entitlements you can request.\n\n*Please wait while I fetch the available access levels...*`
+          };
+        } else {
+          return {
+            success: true,
+            type: 'access_request_app_not_found',
+            data: { appName },
+            message: `**❌ Application Not Found**\n\n**${appName}** was not found in the IGA catalog.\n\n**Available Applications:**\n${catalogResult.data?.map(app => `• ${app.displayName}`).join('\n') || 'None found'}\n\n**Try again with exact application name from the list above.**\n\n**Feedback:** 👍 👎 (Help improve accuracy)`
           };
         }
       }
@@ -627,7 +672,6 @@ export class OktaMCPServer {
           message: 'Access request submitted successfully'
         };
       } else {
-        // Generic failure message
         return {
           success: true,
           type: 'access_request_failed',

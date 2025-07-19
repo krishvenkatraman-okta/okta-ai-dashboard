@@ -626,6 +626,59 @@ Response (be natural and concise):`;
             finalResponse = mcpResult.message || `**📊 30-Day Access Review - AI Enhanced**\n\n✅ Retrieved system logs via intelligent API mapping.\n\nAnalyzing authentication patterns...\n\n*📊 AI continuously learns from usage patterns*\n\n**Feedback:** 👍 👎 (Help AI improve accuracy)`;
             break;
 
+          case 'access_request_entitlements':
+            // Fetch available entitlements via parent API
+            const appData = mcpResult.data;
+            console.log('🔍 Fetching entitlements for app:', appData.appId);
+            
+            const { OktaGovernanceService } = await import('./services/okta-governance-api.ts');
+            const governanceService = new OktaGovernanceService();
+            const entitlements = await governanceService.getCatalogEntryRolesViaParent(appData.appId, session.oktaTokens.accessToken);
+            
+            if (entitlements && entitlements.length > 0) {
+              finalResponse = `**🎯 Available Entitlements for ${appData.appName}**\n\n✅ **Found ${entitlements.length} access options:**\n\n${
+                entitlements.map((ent, idx) => 
+                  `${idx + 1}. **${ent.name}**\n   ${ent.description}\n   To select: "I want ${ent.name}"`
+                ).join('\n\n')
+              }\n\n**Next Step:**\nChoose an entitlement by saying: *"I want [entitlement name]"*\n\nI'll then show you the required fields for that specific access request.\n\n**Feedback:** 👍 👎`;
+            } else {
+              finalResponse = `**❌ No Entitlements Available**\n\n**${appData.appName}** has no requestable entitlements configured.\n\nThis may indicate:\n• Application access is managed differently\n• Contact your Okta administrator\n• Try accessing directly through Okta dashboard\n\n**Feedback:** 👍 👎`;
+            }
+            break;
+
+          case 'entitlement_fields_lookup':
+            // Show required fields for selected entitlement
+            console.log('📋 Looking up request fields for entitlement');
+            
+            const entitlementName = mcpResult.data.message.match(/I want (.+?)(?:\s+for|$)/i)?.[1]?.trim();
+            console.log('🔍 Entitlement name extracted:', entitlementName);
+            
+            // Find the entitlement ID first
+            const allCatalogEntries = await legacyGovernanceService.getCatalogEntries(session.oktaTokens.accessToken);
+            let targetEntitlementForFields = null;
+            
+            for (const app of allCatalogEntries) {
+              const parentEntries = await legacyGovernanceService.getCatalogEntryRolesViaParent(app.id, session.oktaTokens.accessToken);
+              targetEntitlementForFields = parentEntries.find(ent => 
+                ent.name?.toLowerCase().includes(entitlementName?.toLowerCase()) ||
+                entitlementName?.toLowerCase().includes(ent.name?.toLowerCase())
+              );
+              if (targetEntitlementForFields) break;
+            }
+            
+            if (targetEntitlementForFields) {
+              const requestFields = await legacyGovernanceService.getEntitlementRequestFields(targetEntitlementForFields.id, session.oktaTokens.accessToken);
+              
+              finalResponse = `**📋 Request Fields for "${targetEntitlementForFields.name}"**\n\n✅ **Required Information:**\n\n${
+                requestFields.map((field, idx) => 
+                  `${idx + 1}. **${field.label}** ${field.required ? '(Required)' : '(Optional)'}\n   Type: ${field.type}\n   ${field.placeholder || field.description || 'Please provide this information'}`
+                ).join('\n\n')
+              }\n\n**To Submit Request:**\nProvide all required information in this format:\n*"I want ${targetEntitlementForFields.name} for [your business justification]"*\n\n**Example:**\n*"I want ${targetEntitlementForFields.name} for creating marketing materials for Q1 campaign"*\n\n**Feedback:** 👍 👎`;
+            } else {
+              finalResponse = `**❌ Entitlement Not Found**\n\nCould not locate "${entitlementName}" in the available catalog.\n\nPlease use the exact entitlement name from the previous list.\n\n**Feedback:** 👍 👎`;
+            }
+            break;
+
           case 'access_request_submitted':
             const requestData = mcpResult.data;
             finalResponse = `**✅ Access Request Submitted**\n\nRequest ID: ${requestData.id || 'Generated'}\nStatus: ${requestData.status || 'Pending'}\nSubmitted: ${new Date().toISOString()}\n\n*🤖 AI successfully mapped your request to the correct API*\n\n**Feedback:** 👍 👎 (Rate this response)`;
@@ -682,6 +735,40 @@ Response (be natural and concise):`;
                 session.oktaTokens.accessToken
               );
               finalResponse = `✅ **Access Request Submitted Successfully!**\n\nRequest ID: ${requestResult.id}\nApplication: ${requestResult.catalogEntryDisplayName}\nStatus: ${requestResult.status}\nSubmitted: ${requestResult.requestedOn}\n\nYour request has been submitted for approval. You'll be notified when it's processed.`;
+              break;
+              
+            case 'submit_entitlement_request':
+              // Process entitlement request with proper API call
+              const entArgs = parsedResponse.arguments;
+              console.log('🎯 Processing entitlement request:', entArgs);
+              
+              // Find the entitlement by name first
+              const allEntries = await legacyGovernanceService.getCatalogEntries(session.oktaTokens.accessToken);
+              console.log('📋 Searching through', allEntries.length, 'catalog entries');
+              
+              let targetEntitlement = null;
+              for (const app of allEntries) {
+                const parentEntries = await legacyGovernanceService.getCatalogEntryRolesViaParent(app.id, session.oktaTokens.accessToken);
+                targetEntitlement = parentEntries.find(ent => 
+                  ent.name?.toLowerCase().includes(entArgs.entitlementName?.toLowerCase()) ||
+                  entArgs.entitlementName?.toLowerCase().includes(ent.name?.toLowerCase())
+                );
+                if (targetEntitlement) {
+                  console.log('✅ Found target entitlement:', targetEntitlement.id, targetEntitlement.name);
+                  break;
+                }
+              }
+              
+              if (targetEntitlement) {
+                const entitlementResult = await legacyGovernanceService.submitEntitlementRequest(
+                  targetEntitlement.id,
+                  entArgs.justification,
+                  session.oktaTokens.accessToken
+                );
+                finalResponse = `✅ **Entitlement Request Submitted Successfully!**\n\nRequest ID: ${entitlementResult.id}\nEntitlement: ${entitlementResult.entitlementName}\nJustification: ${entArgs.justification}\nStatus: ${entitlementResult.status}\nSubmitted: ${entitlementResult.requestedOn}\n\nYour access request has been submitted for approval. You'll receive notifications about the approval process.`;
+              } else {
+                finalResponse = `❌ **Entitlement Not Found**\n\nCould not locate "${entArgs.entitlementName}" in the available catalog entries.\n\nPlease try:\n• Using the exact entitlement name from the list\n• Requesting access to the parent application first\n\n**Available entitlements can be found by saying "request access to [app name]"**`;
+              }
               break;
               
             case 'create_governance_campaign':

@@ -71,10 +71,10 @@ export class OktaGovernanceService {
           const processedEntries = entries.map((item: any) => ({
             id: item.id,
             displayName: item.name || item.displayName || item.label,
-            description: `${item.label || 'Application'} - ${item.requestable === false ? 'Not requestable' : 'Available for request'}`,
+            description: `${item.label || 'Application'} - Available for access request`,
             type: item.label || 'application',
-            status: item.requestable === false ? 'RESTRICTED' : 'AVAILABLE',
-            requestable: item.requestable !== false
+            status: 'AVAILABLE', // Always show as available since we'll check parent API for actual roles
+            requestable: true // Allow all apps to be requested, we'll check roles via parent API
           }));
           
           console.log('📊 Successfully processed:', processedEntries.length, 'real IGA catalog entries');
@@ -127,6 +127,43 @@ export class OktaGovernanceService {
     }
   }
 
+  async getCatalogEntryRolesViaParent(entryId: string, accessToken?: string): Promise<CatalogRole[]> {
+    try {
+      // Use the parent API to get actual requestable roles for this application
+      const url = `https://${this.domain}/governance/api/v2/my/catalogs/default/entries?filter=parent eq "${entryId}"&limit=20`;
+      
+      console.log('🎭 Fetching roles via parent API for:', entryId);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `SSWS ${this.apiToken}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        console.log('⚠️ Parent API failed, returning empty roles');
+        return [];
+      }
+
+      const data = await response.json();
+      console.log('✅ Parent API response:', JSON.stringify(data, null, 2));
+      
+      // Extract roles from parent API response
+      const roles = (data.data || []).map((role: any) => ({
+        id: role.id,
+        name: role.name || role.displayName,
+        description: role.description || `Access role for ${role.name}`
+      }));
+      
+      console.log('🎭 Found', roles.length, 'roles via parent API');
+      return roles;
+    } catch (error) {
+      console.error('❌ Error fetching roles via parent API:', error);
+      return [];
+    }
+  }
+
   async getCatalogEntryDetails(entryId: string, accessToken?: string): Promise<CatalogEntry> {
     try {
       const url = `https://${this.domain}/governance/api/v2/my/catalogs/default/entries/${entryId}`;
@@ -156,6 +193,104 @@ export class OktaGovernanceService {
       };
     } catch (error) {
       console.error('❌ Error fetching catalog entry details:', error);
+      throw error;
+    }
+  }
+
+  async getEntitlementRequestFields(entitlementId: string, accessToken?: string): Promise<any[]> {
+    try {
+      const url = `https://${this.domain}/governance/api/v2/my/catalogs/default/entries/${entitlementId}/request-fields`;
+      
+      console.log('📋 Fetching request fields for entitlement:', entitlementId);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `SSWS ${this.apiToken}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        console.log('⚠️ Request fields API failed, using default justification field');
+        return [
+          {
+            key: 'justification',
+            label: 'Business Justification',
+            type: 'text',
+            required: true,
+            placeholder: 'Please provide your business justification for this access request'
+          }
+        ];
+      }
+
+      const data = await response.json();
+      console.log('✅ Request fields response:', JSON.stringify(data, null, 2));
+      
+      // Process fields from API response
+      const fields = (data.data || data || []).map((field: any) => ({
+        key: field.key || field.name,
+        label: field.label || field.displayName,
+        type: field.type || 'text',
+        required: field.required || false,
+        placeholder: field.placeholder || field.description,
+        options: field.options || field.values
+      }));
+      
+      console.log('📋 Found', fields.length, 'request fields');
+      return fields;
+    } catch (error) {
+      console.error('❌ Error fetching request fields:', error);
+      // Return default justification field if API fails
+      return [
+        {
+          key: 'justification',
+          label: 'Business Justification',
+          type: 'text',
+          required: true,
+          placeholder: 'Please provide your business justification for this access request'
+        }
+      ];
+    }
+  }
+
+  async submitEntitlementRequest(entitlementId: string, justification: string, accessToken?: string): Promise<any> {
+    try {
+      const url = `https://${this.domain}/governance/api/v2/my/catalogs/default/entries/${entitlementId}/requests`;
+      
+      console.log('📝 Submitting entitlement request for:', entitlementId);
+      
+      const requestBody = {
+        justification: justification,
+        requestType: 'GRANT_ACCESS'
+      };
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `SSWS ${this.apiToken}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Entitlement request failed:', response.status, errorText);
+        throw new Error(`Entitlement request failed: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ Entitlement request submitted successfully:', data.id);
+      
+      return {
+        id: data.id,
+        status: data.status,
+        entitlementName: data.catalogEntryDisplayName || 'Requested Entitlement',
+        requestedOn: data.requestedOn || new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('❌ Error submitting entitlement request:', error);
       throw error;
     }
   }

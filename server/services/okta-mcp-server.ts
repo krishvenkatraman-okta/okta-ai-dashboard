@@ -82,11 +82,11 @@ export class OktaMCPServer {
       description: 'Get user profile information',
       requiredParams: ['userId']
     },
-    // Governance Campaign APIs
+    // Governance Campaign APIs - Try different endpoint structure
     {
       name: 'list_governance_campaigns',
       method: 'GET',
-      endpoint: '/governance/api/v2/campaigns',
+      endpoint: '/api/v1/governance/campaigns',
       description: 'List existing governance campaigns for access reviews',
       optionalParams: ['limit', 'after', 'status']
     },
@@ -296,9 +296,10 @@ export class OktaMCPServer {
    * Execute API request with proper authentication and error handling
    */
   async executeRequest(request: ApiRequest, userToken?: string): Promise<any> {
+    let url = '';
     try {
       // Build URL with path parameters
-      let url = `https://${this.domain}${request.endpoint.endpoint}`;
+      url = `https://${this.domain}${request.endpoint.endpoint}`;
       
       // Replace path parameters
       if (request.endpoint.requiredParams) {
@@ -481,7 +482,7 @@ export class OktaMCPServer {
       }
     }
     
-    // Handle governance campaigns
+    // Handle governance campaigns with fallback
     if (message.includes('governance campaign') || message.includes('campaign')) {
       const campaignResult = results.find(r => r.endpoint === 'list_governance_campaigns');
       if (campaignResult?.success) {
@@ -492,28 +493,65 @@ export class OktaMCPServer {
           data: campaignResult.data || [],
           message: `Found ${campaignResult.data?.length || 0} governance campaigns`
         };
+      } else if (campaignResult) {
+        // API call failed, provide helpful error message
+        console.log('⚠️ MCP: Governance campaigns API failed:', campaignResult.error);
+        return {
+          success: true,
+          type: 'governance_campaigns',
+          data: [],
+          message: `**🏛️ Governance Campaigns**\n\n⚠️ Unable to retrieve campaigns from Okta API.\n\n**Possible reasons:**\n• Governance features may not be enabled\n• API endpoint may need different configuration\n• Check with your Okta administrator\n\n**Error:** ${campaignResult.error}\n\n**Manual Access:** Try accessing governance campaigns directly in the Okta Admin Console.`
+        };
       }
     }
 
-    // Handle catalog requests
+    // Handle catalog requests with detailed debugging
     if (message.includes('catalog') || message.includes('access request')) {
       const catalogResult = results.find(r => r.endpoint === 'list_catalog_entries');
       if (catalogResult?.success) {
         const catalogData = catalogResult.data;
         const dataLength = Array.isArray(catalogData) ? catalogData.length : (catalogData ? Object.keys(catalogData).length : 0);
         console.log('📊 MCP: Catalog result found with', dataLength, 'entries, data type:', typeof catalogData);
-        console.log('📊 MCP: Raw catalog data:', JSON.stringify(catalogData).substring(0, 200) + '...');
+        console.log('📊 MCP: Full catalog data:', JSON.stringify(catalogData, null, 2));
         
-        if (catalogData && ((Array.isArray(catalogData) && catalogData.length > 0) || (typeof catalogData === 'object' && Object.keys(catalogData).length > 0))) {
+        // Check if we have actual data
+        if (catalogData && Array.isArray(catalogData) && catalogData.length > 0) {
           return {
             success: true,
             type: 'catalog',
             data: catalogData,
             message: `Found ${dataLength} applications available for request`
           };
+        } else if (catalogData && typeof catalogData === 'object') {
+          // Handle non-array responses
+          const entries = catalogData.entries || catalogData.items || catalogData.applications || [];
+          if (entries.length > 0) {
+            return {
+              success: true,
+              type: 'catalog',
+              data: entries,
+              message: `Found ${entries.length} applications available for request`
+            };
+          }
         }
+        
+        // API succeeded but returned empty data
+        console.log('📊 MCP: Catalog API succeeded but returned empty data');
+        return {
+          success: true,
+          type: 'catalog',
+          data: [],
+          message: 'IGA catalog API returned no entries - may be empty or not configured'
+        };
       } else {
-        console.log('⚠️ MCP: Catalog result failed or no data:', catalogResult);
+        console.log('⚠️ MCP: Catalog result failed:', catalogResult?.error);
+        // Return error information for debugging
+        return {
+          success: true,
+          type: 'catalog',
+          data: [],
+          message: `Catalog API failed: ${catalogResult?.error || 'Unknown error'}`
+        };
       }
     }
 

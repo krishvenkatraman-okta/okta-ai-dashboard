@@ -1,80 +1,65 @@
 import { useQuery } from "@tanstack/react-query";
-import { Globe, ExternalLink, Users, Dock, Clock, Shield } from "lucide-react";
+import { Search, Grid3X3, List } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
 
-interface Application {
+interface AppLink {
   id: string;
-  name: string;
   label: string;
-  status: string;
-  signOnMode: string;
-  created: string;
-  lastUpdated: string;
-  settings?: {
-    app?: {
-      url?: string;
-    };
-  };
-  visibility?: {
-    hide?: {
-      iOS?: boolean;
-      web?: boolean;
-    };
-  };
-}
-
-interface DashboardStats {
-  users: number;
-  apps: number;
-  pendingRequests: number;
+  linkUrl: string;
+  logoUrl?: string;
+  appName: string;
+  appInstanceId: string;
+  credentialsSetup?: boolean;
+  hidden?: boolean;
+  sortOrder: number;
 }
 
 export default function ApplicationsDashboard() {
-  const { data: applications, isLoading: appsLoading } = useQuery<Application[]>({
-    queryKey: ['/api/applications'],
+  const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Fetch user's app links (actual Okta end user dashboard data)
+  const { data: appLinks, isLoading: appsLoading } = useQuery<AppLink[]>({
+    queryKey: ['/api/user/applinks'],
     staleTime: 60000, // 1 minute
   });
 
-  const { data: dashboardData } = useQuery<DashboardStats>({
-    queryKey: ['/api/okta/dashboard-stats'],
-    staleTime: 60000, // 1 minute
-  });
+  const filteredApps = appLinks?.filter(app => 
+    app.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    app.appName.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
 
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'inactive': return 'bg-gray-100 text-gray-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const handleLaunchApp = (app: AppLink) => {
+    if (app.linkUrl) {
+      window.open(app.linkUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
-  const getSignOnModeDisplay = (mode: string) => {
-    switch (mode) {
-      case 'SAML_2_0': return 'SAML 2.0';
-      case 'WS_FEDERATION': return 'WS-Federation';
-      case 'OPENID_CONNECT': return 'OpenID Connect';
-      case 'AUTO_LOGIN': return 'Auto Login';
-      case 'SECURE_WEB_AUTHENTICATION': return 'SWA';
-      default: return mode || 'Unknown';
+  const getAppLogo = (app: AppLink) => {
+    if (app.logoUrl) {
+      return app.logoUrl;
     }
-  };
-
-  const handleLaunchApp = (app: Application) => {
-    const appUrl = app.settings?.app?.url;
-    if (appUrl) {
-      window.open(appUrl, '_blank');
-    }
+    // Generate initials-based logo for apps without icons
+    const initials = app.label.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
+    return `data:image/svg+xml;base64,${btoa(`
+      <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <rect width="40" height="40" fill="#007dc1" rx="8"/>
+        <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="14" fill="white" text-anchor="middle" dominant-baseline="middle">${initials}</text>
+      </svg>
+    `)}`;
   };
 
   if (appsLoading) {
     return (
-      <div className="h-full p-4">
-        <div className="bg-gray-100 rounded-lg h-full flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[hsl(199,100%,38%)] mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading your applications...</p>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto p-6">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[hsl(199,100%,38%)] mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading your applications...</p>
+            </div>
           </div>
         </div>
       </div>
@@ -82,126 +67,125 @@ export default function ApplicationsDashboard() {
   }
 
   return (
-    <div className="h-full p-4 overflow-y-auto">
-      <div className="max-w-7xl mx-auto">
-        {/* Stats Overview */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4 text-gray-900">Dashboard Overview</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-blue-600 font-medium">Total Users</p>
-                  <p className="text-2xl font-bold text-blue-700">
-                    {dashboardData?.users || '---'}
-                  </p>
-                </div>
-                <Users className="text-blue-500" size={28} />
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Header Section */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-semibold text-gray-900 mb-2">My Apps</h1>
+          <p className="text-gray-600">Access your applications with single sign-on</p>
+        </div>
+
+        {/* Search and Filter Bar */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+          <div className="flex items-center justify-between space-x-4">
+            <div className="flex-1 max-w-md">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <Input
+                  type="text"
+                  placeholder="Search applications..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                />
               </div>
             </div>
-            <div className="bg-green-50 p-4 rounded-lg border border-green-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-green-600 font-medium">Active Apps</p>
-                  <p className="text-2xl font-bold text-green-700">
-                    {applications?.length || dashboardData?.apps || '---'}
-                  </p>
-                </div>
-                <Dock className="text-green-500" size={28} />
-              </div>
-            </div>
-            <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-yellow-600 font-medium">Pending Requests</p>
-                  <p className="text-2xl font-bold text-yellow-700">
-                    {dashboardData?.pendingRequests || '12'}
-                  </p>
-                </div>
-                <Clock className="text-yellow-500" size={28} />
-              </div>
+            
+            <div className="flex items-center space-x-2">
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+              >
+                <Grid3X3 size={16} />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+              >
+                <List size={16} />
+              </Button>
             </div>
           </div>
         </div>
 
-        {/* Applications Grid */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">My Applications</h2>
-            <Badge variant="secondary" className="text-sm">
-              {applications?.length || 0} applications
-            </Badge>
+        {/* Applications Grid/List */}
+        {!appLinks || appLinks.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <Grid3X3 className="text-gray-400" size={24} />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No applications available</h3>
+            <p className="text-gray-600 max-w-md mx-auto">
+              You don't have access to any applications yet. Contact your administrator if you need access to specific applications.
+            </p>
           </div>
-
-          {!applications || applications.length === 0 ? (
-            <div className="text-center py-12">
-              <Dock className="text-4xl text-gray-400 mb-4 mx-auto" size={48} />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No applications available</h3>
-              <p className="text-gray-600 max-w-md mx-auto">
-                You don't have access to any applications yet, or they're still being loaded from your organization.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {applications.map((app) => (
-                <div
-                  key={app.id}
-                  className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-[hsl(199,100%,38%)] rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Globe className="text-white" size={20} />
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="font-medium text-gray-900 truncate" title={app.label || app.name}>
-                          {app.label || app.name}
-                        </h3>
-                        <p className="text-xs text-gray-500 truncate">
-                          {getSignOnModeDisplay(app.signOnMode)}
-                        </p>
-                      </div>
+        ) : (
+          <div className={`grid gap-4 ${
+            viewMode === 'grid' 
+              ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6' 
+              : 'grid-cols-1'
+          }`}>
+            {filteredApps.map((app) => (
+              <div
+                key={app.id}
+                onClick={() => handleLaunchApp(app)}
+                className={`bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group ${
+                  viewMode === 'grid' ? 'p-4' : 'p-4 flex items-center space-x-4'
+                }`}
+              >
+                {viewMode === 'grid' ? (
+                  <div className="text-center">
+                    <div className="w-12 h-12 mx-auto mb-3 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                      <img 
+                        src={getAppLogo(app)} 
+                        alt={`${app.label} logo`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = getAppLogo(app);
+                        }}
+                      />
                     </div>
-                    <Badge className={`text-xs ${getStatusColor(app.status)}`}>
-                      {app.status || 'Unknown'}
-                    </Badge>
+                    <h3 className="font-medium text-gray-900 text-sm truncate group-hover:text-blue-600 transition-colors">
+                      {app.label}
+                    </h3>
                   </div>
-
-                  <div className="space-y-2 mb-4">
-                    <div className="text-xs text-gray-600">
-                      <span className="font-medium">Created:</span>{' '}
-                      {app.created ? new Date(app.created).toLocaleDateString() : 'Unknown'}
+                ) : (
+                  <>
+                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center flex-shrink-0">
+                      <img 
+                        src={getAppLogo(app)} 
+                        alt={`${app.label} logo`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = getAppLogo(app);
+                        }}
+                      />
                     </div>
-                    {app.settings?.app?.url && (
-                      <div className="text-xs text-gray-600 truncate">
-                        <span className="font-medium">URL:</span>{' '}
-                        <span className="text-blue-600">{app.settings.app.url}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center text-xs text-gray-500">
-                      <Shield size={12} className="mr-1" />
-                      SSO Enabled
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                        {app.label}
+                      </h3>
+                      <p className="text-sm text-gray-500 truncate">{app.appName}</p>
                     </div>
-                    {app.settings?.app?.url && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleLaunchApp(app)}
-                        className="text-xs h-7"
-                      >
-                        <ExternalLink size={12} className="mr-1" />
-                        Launch
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Results count */}
+        {appLinks && appLinks.length > 0 && (
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-500">
+              Showing {filteredApps.length} of {appLinks.length} applications
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

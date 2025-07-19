@@ -1,10 +1,11 @@
 import type { User, McpResponse } from '@shared/schema';
+import { LLMAutomationService } from './llm-automation';
 
 interface OktaTokens {
   accessToken: string;
   idToken: string;
   refreshToken?: string;
-  expiresIn: number;
+  expiresAt: number;
 }
 
 export class McpServerService {
@@ -12,12 +13,14 @@ export class McpServerService {
   private readonly oktaApiToken: string;
   private readonly pamDomain: string;
   private readonly pamTeamName: string;
+  private readonly llmAutomation: LLMAutomationService;
 
   constructor() {
     this.oktaDomain = process.env.OKTA_DOMAIN || 'fcxdemo.okta.com';
     this.oktaApiToken = process.env.OKTA_API_TOKEN || '';
     this.pamDomain = process.env.OKTA_PAM_DOMAIN || `${this.oktaDomain}`;
     this.pamTeamName = process.env.OKTA_PAM_TEAM || '';
+    this.llmAutomation = new LLMAutomationService();
 
     if (!this.oktaApiToken) {
       console.warn('Okta API token not configured. Set OKTA_API_TOKEN environment variable for MCP server operations.');
@@ -33,11 +36,18 @@ export class McpServerService {
       
       switch (intent.type) {
         case 'governance':
-          return await this.handleGovernanceRequest(intent, user, tokens);
+        case 'access_request':
+        case 'list_governance':
+        case 'list_catalog':
+          // Use LLM automation for all governance and access request operations
+          const result = await this.llmAutomation.processGovernanceRequest(message, user, tokens);
+          return {
+            success: result.success,
+            data: result.data,
+            error: result.error
+          };
         case 'pam':
           return await this.handlePamRequest(intent, user, tokens);
-        case 'access_request':
-          return await this.handleAccessRequest(intent, user, tokens);
         case 'user_management':
           return await this.handleUserManagement(intent, user, tokens);
         default:
@@ -55,10 +65,25 @@ export class McpServerService {
   private analyzeIntent(message: string): { type: string; action?: string; params?: any } {
     const lowerMessage = message.toLowerCase();
 
-    if (lowerMessage.includes('governance') || lowerMessage.includes('campaign')) {
+    // Governance patterns
+    if (lowerMessage.includes('governance') && lowerMessage.includes('applications')) {
+      return { type: 'list_governance' };
+    }
+    
+    if (lowerMessage.includes('governance') || lowerMessage.includes('campaign') || lowerMessage.includes('access review')) {
       return { type: 'governance', action: 'start' };
     }
 
+    // Catalog and access request patterns
+    if (lowerMessage.includes('catalog') || lowerMessage.includes('available') && lowerMessage.includes('resource')) {
+      return { type: 'list_catalog' };
+    }
+
+    if (lowerMessage.includes('access request') || lowerMessage.includes('request access') || lowerMessage.includes('submit') && lowerMessage.includes('request')) {
+      return { type: 'access_request', action: 'submit' };
+    }
+
+    // PAM patterns
     if (lowerMessage.includes('pam') || lowerMessage.includes('session') || lowerMessage.includes('privileged')) {
       if (lowerMessage.includes('list') || lowerMessage.includes('show')) {
         return { type: 'pam', action: 'list' };
@@ -72,7 +97,8 @@ export class McpServerService {
       return { type: 'pam', action: 'list' };
     }
 
-    if (lowerMessage.includes('access request') || lowerMessage.includes('request access')) {
+    // User management patterns
+    if (lowerMessage.includes('user') && (lowerMessage.includes('manage') || lowerMessage.includes('reset') || lowerMessage.includes('unlock'))) {
       return { type: 'access_request', action: 'submit' };
     }
 

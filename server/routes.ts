@@ -190,7 +190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         accessToken: session.oktaTokens.accessToken,
         idToken: session.oktaTokens.idToken,
         refreshToken: session.oktaTokens.refreshToken,
-        expiresIn: Math.floor((session.oktaTokens.expiresAt - Date.now()) / 1000)
+        expiresAt: session.oktaTokens.expiresAt
       });
 
       // Save assistant response
@@ -230,7 +230,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Applications API endpoint
+  // User app links API endpoint (Okta end-user dashboard)
+  app.get('/api/user/applinks', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      // Get user's app links from Okta - exactly what end user dashboard shows
+      const appLinks = await oktaApi.getUserAppLinks(session.oktaTokens.accessToken);
+      res.json(appLinks);
+    } catch (error) {
+      console.error('Get user app links error:', error);
+      res.status(500).json({ error: 'Failed to fetch user app links' });
+    }
+  });
+
+  // Applications API endpoint (for admin purposes)
   app.get('/api/applications', async (req, res) => {
     try {
       const sessionId = req.cookies.session_id;
@@ -254,6 +281,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Get applications error:', error);
       res.status(500).json({ error: 'Failed to fetch applications' });
+    }
+  });
+
+  // Governance API endpoints
+  app.get('/api/governance/apps', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      // Get governance-enabled applications using MCP server
+      const mcpResponse = await mcpServer.processMessage('list governance enabled applications', user, session.oktaTokens);
+      res.json(mcpResponse.success ? mcpResponse.data : []);
+    } catch (error) {
+      console.error('Get governance apps error:', error);
+      res.status(500).json({ error: 'Failed to fetch governance applications' });
+    }
+  });
+
+  // Access request catalog endpoint
+  app.get('/api/catalog/entries', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      // Get catalog entries using MCP server
+      const mcpResponse = await mcpServer.processMessage('list catalog entries for access requests', user, session.oktaTokens);
+      res.json(mcpResponse.success ? mcpResponse.data : []);
+    } catch (error) {
+      console.error('Get catalog entries error:', error);
+      res.status(500).json({ error: 'Failed to fetch catalog entries' });
+    }
+  });
+
+  // Submit access request endpoint
+  app.post('/api/requests/submit', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const { entryId, justification } = req.body;
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+      
+      // Submit access request using MCP server
+      const mcpResponse = await mcpServer.processMessage(
+        `submit access request for entry ${entryId} with justification: ${justification}`, 
+        user, 
+        session.oktaTokens
+      );
+      
+      if (mcpResponse.success) {
+        res.json(mcpResponse.data);
+      } else {
+        res.status(400).json({ error: mcpResponse.error });
+      }
+    } catch (error) {
+      console.error('Submit access request error:', error);
+      res.status(500).json({ error: 'Failed to submit access request' });
     }
   });
 

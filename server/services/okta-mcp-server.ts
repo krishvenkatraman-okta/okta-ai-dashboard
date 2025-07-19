@@ -568,13 +568,19 @@ export class OktaMCPServer {
       }
     }
 
-    // Handle 30-day reviews
-    if (message.includes('30-day') || message.includes('review')) {
-      const hasRelevantData = results.some(r => 
-        (r.endpoint === 'get_system_logs' || r.endpoint === 'list_user_apps') && r.success
-      );
+    // Handle 30-day reviews with better processing
+    if (message.includes('30-day') || message.includes('review') || message.includes('unused') || message.includes('governance review')) {
+      const userAppsResult = results.find(r => r.endpoint === 'list_user_apps');
+      const systemLogsResult = results.find(r => r.endpoint === 'get_system_logs');
       
-      if (hasRelevantData) {
+      console.log('🔍 MCP: 30-day review processing:', {
+        userAppsSuccess: userAppsResult?.success,
+        systemLogsSuccess: systemLogsResult?.success,
+        userAppsCount: userAppsResult?.data?.length,
+        systemLogsCount: systemLogsResult?.data?.length
+      });
+      
+      if (userAppsResult?.success || systemLogsResult?.success) {
         const processedReview = this.process30DayReview(results);
         return {
           success: true,
@@ -587,7 +593,7 @@ export class OktaMCPServer {
           success: true,
           type: '30_day_review',
           data: results,
-          message: `**📊 30-Day Access Review - AI Enhanced**\n\n❌ Unable to retrieve comprehensive data. API responses:\n${results.map(r => `• ${r.endpoint}: ${r.success ? 'Success' : 'Failed'}`).join('\n')}\n\n**Feedback:** 👍 👎 (Help AI improve accuracy)`
+          message: `**📊 30-Day Access Review - AI Enhanced**\n\n❌ Unable to retrieve comprehensive data. API responses:\n${results.map(r => `• ${r.endpoint}: ${r.success ? 'Success' : 'Failed'}`).join('\n')}\n\n**Possible Issues:**\n• System Log API may need additional permissions\n• User Apps API may be restricted\n• Check your Okta API token permissions\n\n**Manual Review:** Try accessing reports directly in Okta Admin Console under Reports → System Log\n\n**Feedback:** 👍 👎 (Help AI improve accuracy)`
         };
       }
     }

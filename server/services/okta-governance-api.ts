@@ -135,40 +135,7 @@ export class OktaGovernanceService {
         }
       }
 
-      // Log the error details for debugging - Clone the response before reading
-      const errorText = await response.clone().text();
-      console.error('❌ IGA Catalog API failed:', {
-        status: response.status,
-        statusText: response.statusText,
-        error: errorText,
-        url: url
-      });
-      
-      // Try alternative endpoint with different path
-      console.log('🔄 Trying alternative IGA endpoint...');
-      const altUrl = `https://${this.domain}/governance/api/v2/my/catalogs?filter=status eq "ACTIVE"&limit=50`;
-      const altResponse = await fetch(altUrl, {
-        headers: {
-          'Authorization': `SSWS ${this.apiToken}`,
-          'Accept': 'application/json'
-        }
-      });
-      
-      if (altResponse.ok) {
-        const altData = await altResponse.json();
-        console.log('✅ Alternative catalog endpoint worked:', altData?.length || 0, 'entries');
-        
-        // Handle different response structures
-        const items = Array.isArray(altData) ? altData : (altData.catalogs || altData.entries || altData.items || []);
-        
-        return items.map((item: any) => ({
-          id: item.id || item.catalogId,
-          displayName: item.displayName || item.name || item.label,
-          description: item.description,
-          type: item.type || 'application',
-          status: item.status || 'AVAILABLE'
-        }));
-      }
+
 
       // If all IGA endpoints fail, fallback to regular apps API as catalog alternative
       console.log('🔄 All IGA catalog endpoints failed, trying apps API as fallback...');

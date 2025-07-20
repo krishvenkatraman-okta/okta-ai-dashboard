@@ -280,13 +280,14 @@ export class OktaMCPServer {
       });
     }
 
-    // Group management intents for GROUP_MEMBERSHIP_ADMIN
+    // Group management intents for GROUP_MEMBERSHIP_ADMIN - use manageable groups only
     if (message.includes('groups i can manage') || message.includes('show my groups') || 
         message.includes('list groups') || message.includes('managed groups')) {
-      console.log('👥 MCP: Group management request detected');
+      console.log('👥 MCP: Group management request detected - will use manageable groups only');
+      // Mark this as a special manageable groups request
       requests.push({
         endpoint: this.endpoints.find(e => e.name === 'list_groups')!,
-        params: { limit: 50, expand: 'stats' }
+        params: { limit: 50, expand: 'stats', manageableOnly: true }
       });
     }
 
@@ -380,6 +381,70 @@ export class OktaMCPServer {
           endpoint: request.endpoint.name,
           url: 'governance-service'
         };
+      }
+
+      // Special handling for manageable groups - use getManageableGroups instead of generic list_groups
+      if (request.endpoint.name === 'list_groups' && request.params.manageableOnly) {
+        console.log('👥 MCP: Using manageable groups only for GROUP_MEMBERSHIP_ADMIN');
+        
+        // Import auth service to get manageable groups
+        const { default: oktaAuth } = await import('./okta-auth.ts');
+        
+        // We need the user's Okta ID - we'll get it from the access token
+        // First, decode the token to get user info
+        let oktaUserId = '';
+        if (userToken) {
+          try {
+            // Get user info from token
+            const userInfoResponse = await fetch(`https://${this.domain}/oauth2/v1/userinfo`, {
+              headers: {
+                'Authorization': `Bearer ${userToken}`,
+                'Accept': 'application/json'
+              }
+            });
+            
+            if (userInfoResponse.ok) {
+              const userInfo = await userInfoResponse.json();
+              oktaUserId = userInfo.sub; // User ID from OIDC token
+            }
+          } catch (error) {
+            console.error('Error getting user info from token:', error);
+          }
+        }
+        
+        if (oktaUserId) {
+          const manageableGroups = await oktaAuth.getManageableGroups(oktaUserId);
+          console.log('👥 MCP: Found', manageableGroups.length, 'manageable groups for user');
+          
+          // Convert group names to group objects to match expected format
+          const groupObjects = manageableGroups.map(groupName => ({
+            id: `group-${groupName.toLowerCase().replace(/\s+/g, '-')}`,
+            profile: {
+              name: groupName,
+              description: 'Group you can manage',
+              stats: {
+                memberCount: 'Unknown'
+              }
+            },
+            type: 'OKTA_GROUP'
+          }));
+          
+          return {
+            success: true,
+            data: groupObjects,
+            endpoint: request.endpoint.name,
+            url: 'manageable-groups-service'
+          };
+        } else {
+          console.warn('Could not determine user ID for manageable groups');
+          // Fall back to empty array rather than all groups
+          return {
+            success: true,
+            data: [],
+            endpoint: request.endpoint.name,
+            url: 'manageable-groups-fallback'
+          };
+        }
       }
       // Build URL with path parameters
       url = `https://${this.domain}${request.endpoint.endpoint}`;

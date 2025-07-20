@@ -470,4 +470,146 @@ export class OktaGovernanceService {
       throw error;
     }
   }
+
+  async getUserApplicationAccess(userId: string, accessToken?: string): Promise<any[]> {
+    try {
+      const managementToken = this.apiToken;
+      if (!managementToken) {
+        throw new Error('Management API token required');
+      }
+
+      console.log('📊 Starting 30-day access review for user:', userId);
+
+      // First, get user's application assignments
+      const appLinksUrl = `https://${this.domain}/api/v1/users/${userId}/appLinks`;
+      
+      const appLinksResponse = await fetch(appLinksUrl, {
+        headers: {
+          'Authorization': `SSWS ${managementToken}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!appLinksResponse.ok) {
+        console.error('❌ Failed to fetch user app links:', appLinksResponse.status);
+        return [];
+      }
+
+      const appLinks = await appLinksResponse.json();
+      console.log(`📱 Found ${appLinks.length} application assignments for user`);
+
+      if (appLinks.length === 0) {
+        console.log('📱 No applications assigned to user');
+        return [];
+      }
+
+      // Prepare date ranges for System Log API
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const today = new Date();
+
+      // Format dates for System Log API (ISO format)
+      const sinceDate = thirtyDaysAgo.toISOString();
+      const untilDate = today.toISOString();
+
+      console.log(`📅 Checking usage from ${sinceDate} to ${untilDate}`);
+
+      // Check each application for SSO usage in the last 30 days using System Log API
+      const accessReview: any[] = [];
+      
+      for (const app of appLinks) {
+        const appId = app.appInstanceId;
+        const appName = app.label || app.appName || 'Unknown App';
+        
+        console.log(`🔍 Checking System Log for app: ${appName} (${appId})`);
+        
+        // Use System Log API with proper filter format
+        const filter = `actor.id eq "${userId}" and target.id eq "${appId}" and eventType eq "user.authentication.sso"`;
+        const syslogUrl = `https://${this.domain}/api/v1/logs?filter=${encodeURIComponent(filter)}&since=${encodeURIComponent(sinceDate)}&until=${encodeURIComponent(untilDate)}&limit=1`;
+        
+        try {
+          const syslogResponse = await fetch(syslogUrl, {
+            headers: {
+              'Authorization': `SSWS ${managementToken}`,
+              'Accept': 'application/json'
+            }
+          });
+
+          if (!syslogResponse.ok) {
+            console.warn(`⚠️ System Log API failed for app ${appId}: ${syslogResponse.status}`);
+            // Add app to review list with unknown access status
+            accessReview.push({
+              applicationId: appId,
+              applicationName: appName,
+              lastAccessedDate: 'Unable to determine',
+              daysSinceAccess: 60, // Conservative estimate
+              shouldReview: true
+            });
+            continue;
+          }
+
+          const syslogData = await syslogResponse.json();
+          const hasRecentAccess = syslogData.length > 0;
+          
+          if (!hasRecentAccess) {
+            // No SSO events in the last 30 days - this app should be reviewed
+            let lastAccessedDate = 'Never accessed';
+            let daysSinceAccess = 365; // More realistic than 999
+            
+            // Try to find the last access before 30 days ago
+            const lastAccessFilter = `actor.id eq "${userId}" and target.id eq "${appId}" and eventType eq "user.authentication.sso"`;
+            const lastAccessUrl = `https://${this.domain}/api/v1/logs?filter=${encodeURIComponent(lastAccessFilter)}&limit=1&sortOrder=DESCENDING`;
+            
+            try {
+              const lastAccessResponse = await fetch(lastAccessUrl, {
+                headers: {
+                  'Authorization': `SSWS ${managementToken}`,
+                  'Accept': 'application/json'
+                }
+              });
+
+              if (lastAccessResponse.ok) {
+                const lastAccessData = await lastAccessResponse.json();
+                if (lastAccessData.length > 0) {
+                  const lastEventDate = new Date(lastAccessData[0].published);
+                  daysSinceAccess = Math.floor((Date.now() - lastEventDate.getTime()) / (1000 * 60 * 60 * 24));
+                  lastAccessedDate = lastEventDate.toISOString().split('T')[0];
+                  console.log(`📅 Found last access for ${appName}: ${lastAccessedDate} (${daysSinceAccess} days ago)`);
+                } else {
+                  console.log(`📅 No SSO events found for ${appName} - never accessed`);
+                }
+              } else {
+                console.warn(`⚠️ System Log API failed for last access check: ${lastAccessResponse.status}`);
+                lastAccessedDate = 'Unable to determine';
+                daysSinceAccess = 60; // Conservative estimate
+              }
+            } catch (lastAccessError) {
+              console.warn(`⚠️ Could not fetch last access for app ${appId}:`, lastAccessError);
+              lastAccessedDate = 'Unable to determine';
+              daysSinceAccess = 60;
+            }
+            
+            accessReview.push({
+              applicationId: appId,
+              applicationName: appName,
+              lastAccessedDate: lastAccessedDate,
+              daysSinceAccess: daysSinceAccess,
+              shouldReview: true
+            });
+          } else {
+            console.log(`✅ App ${appName} has recent access - no review needed`);
+          }
+        } catch (appError) {
+          console.error(`❌ Error checking access for app ${appId}:`, appError);
+        }
+      }
+
+      console.log(`📋 30-day review complete: ${accessReview.length} apps need review`);
+      return accessReview;
+      
+    } catch (error) {
+      console.error('❌ Error in 30-day access review:', error);
+      return [];
+    }
+  }
 }

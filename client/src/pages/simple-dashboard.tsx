@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Grid, Monitor } from "lucide-react";
 
 interface User {
   id: number;
@@ -51,9 +51,17 @@ function OktaApplicationsGrid({ user }: { user: User }) {
   const [apps, setApps] = useState<OktaApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showIframe, setShowIframe] = useState(false);
+  // Check if iframe mode should be enabled by default
+  const defaultIframeMode = import.meta.env.VITE_DEFAULT_IFRAME_MODE === 'true';
+  const [showIframe, setShowIframe] = useState(defaultIframeMode);
 
   useEffect(() => {
+    // Skip API fetch if iframe mode is enabled by default
+    if (defaultIframeMode) {
+      setLoading(false);
+      return;
+    }
+
     const fetchApps = async () => {
       try {
         const response = await fetch('/api/okta/user-apps', {
@@ -78,7 +86,7 @@ function OktaApplicationsGrid({ user }: { user: User }) {
     };
 
     fetchApps();
-  }, []);
+  }, [defaultIframeMode]);
 
   if (loading) {
     return (
@@ -92,13 +100,16 @@ function OktaApplicationsGrid({ user }: { user: User }) {
   }
 
   if (showIframe) {
+    // Get Okta domain from environment or use default
+    const oktaDomain = import.meta.env.VITE_OKTA_DOMAIN || 'fcxdemo.okta.com';
+    
     return (
       <div className="h-full">
         <iframe
-          src="https://fcxdemo.okta.com/app/UserHome?fromAdmin=true"
+          src={`https://${oktaDomain}/app/UserHome`}
           className="w-full h-[600px] border border-gray-200 rounded-lg"
           title="Okta Applications"
-          sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+          sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-top-navigation"
         />
       </div>
     );
@@ -115,29 +126,62 @@ function OktaApplicationsGrid({ user }: { user: User }) {
     );
   }
 
-  if (apps.length === 0) {
+  if (apps.length === 0 && !showIframe) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600 mb-4">No applications assigned to your account.</p>
-        <Button onClick={() => setShowIframe(true)} variant="outline">
-          Open Okta Dashboard
-        </Button>
+        <div className="mb-6">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Grid className="w-8 h-8 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Applications Found</h3>
+          <p className="text-gray-600 mb-4">No applications are currently assigned to your account.</p>
+        </div>
+        <div className="flex justify-center space-x-3">
+          <Button onClick={() => setShowIframe(true)} variant="default">
+            <Monitor size={16} className="mr-2" />
+            Open Okta Portal
+          </Button>
+          <Button onClick={() => window.location.reload()} variant="outline">
+            Refresh
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* View Toggle */}
+      <div className="flex justify-between items-center">
+        <div className="text-sm text-gray-600">
+          Showing {apps.length} applications
+        </div>
+        <div className="flex space-x-2">
+          <Button 
+            onClick={() => setShowIframe(false)} 
+            variant={!showIframe ? "default" : "outline"} 
+            size="sm"
+            className="flex items-center space-x-2"
+          >
+            <Grid size={16} />
+            <span>Grid View</span>
+          </Button>
+          <Button 
+            onClick={() => setShowIframe(true)} 
+            variant={showIframe ? "default" : "outline"} 
+            size="sm"
+            className="flex items-center space-x-2"
+          >
+            <Monitor size={16} />
+            <span>Okta Portal</span>
+          </Button>
+        </div>
+      </div>
+      
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
         {apps.map((app) => (
           <OktaApplicationTile key={app.id} app={app} />
         ))}
-      </div>
-      
-      <div className="text-center pt-4">
-        <Button onClick={() => setShowIframe(true)} variant="outline" size="sm">
-          View All in Okta Dashboard
-        </Button>
       </div>
     </div>
   );
@@ -212,31 +256,71 @@ function OktaAssistantChat({ user }: { user: User }) {
       setLoading(true);
       
       try {
-        const response = await fetch('/api/chat/message', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ message: '30-day review' })
+        // Try the dedicated governance endpoint first
+        const response = await fetch('/api/governance/30-day-review', {
+          method: 'GET',
+          credentials: 'include'
         });
 
         if (response.ok) {
           const data = await response.json();
+          console.log('30-day review data:', data);
+          
+          let reviewContent = '**📊 30-Day Access Review**\n\n';
+          
+          if (data && data.length > 0) {
+            reviewContent += `Found ${data.length} applications to review:\n\n`;
+            data.forEach((app: any, index: number) => {
+              reviewContent += `${index + 1}. **${app.applicationName || app.name}**\n`;
+              reviewContent += `   Last accessed: ${app.lastAccessedDate || 'Unknown'}\n`;
+              reviewContent += `   Days since access: ${app.daysSinceAccess || 'Unknown'}\n\n`;
+            });
+            reviewContent += '\n**Recommendations:**\n';
+            reviewContent += '• Consider revoking access to applications not used in 30+ days\n';
+            reviewContent += '• Review applications with "Never accessed" status\n';
+            reviewContent += '• Verify access to critical applications is appropriate\n\n';
+            reviewContent += '*Say "revoke access to [app name]" to remove unused access*';
+          } else {
+            reviewContent += '✅ **All Clear!**\n\n';
+            reviewContent += 'You have accessed all your assigned applications within the last 30 days.\n';
+            reviewContent += 'Your access appears to be actively used and appropriate.\n\n';
+            reviewContent += '*This is excellent security hygiene!*';
+          }
+          
           setMessages(prev => [...prev, 
-            { role: 'user', content: '30-Day Access Review' },
-            { role: 'assistant', content: data.response }
+            { id: `auto-review-${Date.now()}`, role: 'assistant', content: reviewContent }
           ]);
         } else {
-          console.error('Auto 30-day review failed:', response.status);
+          console.error('30-day review API failed:', response.status);
+          // Fallback to chat endpoint
+          const fallbackResponse = await fetch('/api/chat/message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ message: 'Show me my 30-day access review' })
+          });
+          
+          if (fallbackResponse.ok) {
+            const fallbackData = await fallbackResponse.json();
+            setMessages(prev => [...prev, 
+              { id: `fallback-review-${Date.now()}`, role: 'assistant', content: fallbackData.response }
+            ]);
+          }
         }
       } catch (error) {
         console.error('Auto 30-day review error:', error);
+        setMessages(prev => [...prev, {
+          id: `error-${Date.now()}`,
+          role: 'assistant', 
+          content: '**📊 30-Day Access Review**\n\n❌ Unable to load review data at this time.\n\nThis could be due to:\n• API rate limits\n• Temporary connectivity issues\n• Authentication token refresh needed\n\n*Try asking "30-day review" manually or refresh the page.*'
+        }]);
       } finally {
         setLoading(false);
       }
     };
 
     // Delay to let the component mount completely
-    const timer = setTimeout(autoLoad30DayReview, 1000);
+    const timer = setTimeout(autoLoad30DayReview, 2000);
     return () => clearTimeout(timer);
   }, []);
 

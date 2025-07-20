@@ -19,30 +19,72 @@ interface GovernanceChatProps {
   user: {
     name: string;
     role: string;
+    allRoles?: string[];
   };
 }
 
 export default function GovernanceChat({ user }: GovernanceChatProps) {
   const [message, setMessage] = useState('');
-  const getRoleDisplayName = (role: string) => {
-    switch (role) {
-      case 'super_admin': return 'Super Administrator';
-      case 'app_owner': return 'Application Owner'; 
-      case 'regular_user': return 'User';
-      default: return 'User';
+  const getRoleDisplayName = (user: any) => {
+    // For custom roles, show the custom role name prominently
+    if (user.allRoles && user.allRoles.length > 0) {
+      // Check for custom roles (formatted role names like "Sap Group Admins")
+      const customRoles = user.allRoles.filter((role: string) => 
+        !['Super Admin', 'App Admin', 'Group Admin', 'User Admin', 'Help Desk Admin', 'Read Only Admin', 'Mobile Admin', 'API Access Admin', 'Report Admin', 'Group Membership Admin'].includes(role)
+      );
+      
+      if (customRoles.length > 0) {
+        return customRoles[0].toUpperCase(); // Show first custom role prominently
+      }
+      
+      // If no custom roles, show highest standard role
+      if (user.allRoles.includes('Super Admin')) return 'SUPER ADMIN';
+      if (user.allRoles.includes('App Admin')) return 'APP ADMIN';
+      if (user.allRoles.includes('Group Admin') || user.allRoles.includes('Group Membership Admin')) return 'GROUP ADMIN';
+    }
+    
+    // Fallback to role-based detection
+    switch (user.role) {
+      case 'super_admin': return 'SUPER ADMIN';
+      case 'app_owner': return 'APP ADMIN'; 
+      case 'group_admin': return 'GROUP ADMIN';
+      case 'regular_user': return 'REGULAR USER';
+      default: return 'USER';
     }
   };
 
-  const getAccessLevelMessage = (role: string) => {
-    switch (role) {
+  const getAccessLevelMessage = (user: any) => {
+    const roleDisplay = getRoleDisplayName(user);
+    
+    // Handle custom roles
+    if (user.allRoles && user.allRoles.length > 0) {
+      const customRoles = user.allRoles.filter((role: string) => 
+        !['Super Admin', 'App Admin', 'Group Admin', 'User Admin', 'Help Desk Admin', 'Read Only Admin', 'Mobile Admin', 'API Access Admin', 'Report Admin', 'Group Membership Admin'].includes(role)
+      );
+      
+      if (customRoles.length > 0) {
+        // Custom role with group management access
+        if (customRoles[0].toLowerCase().includes('group')) {
+          return `**Access Level: ${roleDisplay}**\n\nYou have custom group management access. I can help you with:\n• Manage groups and group memberships\n• Review group access across applications\n• Add/remove users from groups\n• Show your manageable groups`;
+        }
+        
+        // Generic custom role
+        return `**Access Level: ${roleDisplay}**\n\nYou have custom administrative access. I can help you with:\n• Manage resources within your scope\n• Review access to assigned resources\n• Request access to additional applications`;
+      }
+    }
+    
+    // Handle standard roles
+    switch (user.role) {
       case 'super_admin':
-        return `**Access Level: ${getRoleDisplayName(role)}**\n\nYou have full administrative access. I can help you with:\n• Create governance campaigns for any application\n• Review user access across all applications\n• Manage users and groups\n• Access all administrative features`;
+        return `**Access Level: ${roleDisplay}**\n\nYou have full administrative access. I can help you with:\n• Create governance campaigns for any application\n• Review user access across all applications\n• Manage users and groups\n• Access all administrative features`;
       case 'app_owner':
-        return `**Access Level: ${getRoleDisplayName(role)}**\n\nYou can manage applications you own. I can help you with:\n• Create governance campaigns for your applications\n• Review access to your applications\n• Request access to other applications`;
+        return `**Access Level: ${roleDisplay}**\n\nYou can manage applications you own. I can help you with:\n• Create governance campaigns for your applications\n• Review access to your applications\n• Request access to other applications`;
+      case 'group_admin':
+        return `**Access Level: ${roleDisplay}**\n\nYou can manage groups. I can help you with:\n• Manage group memberships\n• Review group access\n• Show your manageable groups`;
       case 'regular_user':
-        return `**Access Level: ${getRoleDisplayName(role)}**\n\nI can help you with:\n• Review your own application access\n• Request access to new applications\n• View your access history`;
+        return `**Access Level: ${roleDisplay}**\n\nI can help you with:\n• Review your own application access\n• Request access to new applications\n• View your access history`;
       default:
-        return `**Access Level: Limited**\n\nI can help you request access to applications you need for your work.`;
+        return `**Access Level: LIMITED**\n\nI can help you request access to applications you need for your work.`;
     }
   };
 
@@ -50,7 +92,7 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
     {
       id: '1',
       role: 'assistant',
-      content: `Hi ${user.name}! I'm your Okta Assistant powered by AI.\n\n${getAccessLevelMessage(user.role)}\n\n**Quick Actions:**\n• "Show me apps I accessed in the last 30 days"\n• "List available applications to request"\n• "What can I do with my current access level?"\n\nHow can I help you today?`,
+      content: `Hi ${user.name}! I'm your Okta Assistant powered by AI.\n\n${getAccessLevelMessage(user)}\n\n**Quick Actions:**\n• "Show me apps I accessed in the last 30 days"\n• "List available applications to request"\n• "Show my groups"\n• "What can I do with my current access level?"\n\nHow can I help you today?`,
       timestamp: new Date(),
     }
   ]);

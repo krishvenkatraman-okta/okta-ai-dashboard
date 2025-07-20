@@ -231,20 +231,70 @@ function OktaApplicationTile({ app }: { app: OktaApp }) {
   );
 }
 
-function OktaAssistantChat({ user }: { user: User }) {
+function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }) {
+  // Helper function to determine custom role display
+  const getRoleDisplayName = (user: any) => {
+    if (user.allRoles && user.allRoles.length > 0) {
+      const customRoles = user.allRoles.filter((role: string) => 
+        !['Super Admin', 'App Admin', 'Group Admin', 'User Admin', 'Help Desk Admin', 'Read Only Admin', 'Mobile Admin', 'API Access Admin', 'Report Admin', 'Group Membership Admin'].includes(role)
+      );
+      
+      if (customRoles.length > 0) {
+        return customRoles[0].toUpperCase(); // Show first custom role prominently
+      }
+      
+      if (user.allRoles.includes('Super Admin')) return 'SUPER ADMIN';
+      if (user.allRoles.includes('App Admin')) return 'APP ADMIN';
+      if (user.allRoles.includes('Group Admin') || user.allRoles.includes('Group Membership Admin')) return 'GROUP ADMIN';
+    }
+    
+    switch (user.role) {
+      case 'super_admin': return 'SUPER ADMIN';
+      case 'app_owner': return 'APP ADMIN'; 
+      case 'group_admin': return 'GROUP ADMIN';
+      case 'regular_user': return 'REGULAR USER';
+      default: return 'USER';
+    }
+  };
+
+  const getAccessLevelMessage = (user: any) => {
+    const roleDisplay = getRoleDisplayName(user);
+    
+    // Handle custom roles
+    if (user.allRoles && user.allRoles.length > 0) {
+      const customRoles = user.allRoles.filter((role: string) => 
+        !['Super Admin', 'App Admin', 'Group Admin', 'User Admin', 'Help Desk Admin', 'Read Only Admin', 'Mobile Admin', 'API Access Admin', 'Report Admin', 'Group Membership Admin'].includes(role)
+      );
+      
+      if (customRoles.length > 0) {
+        if (customRoles[0].toLowerCase().includes('group')) {
+          return `**Access Level: ${roleDisplay}**\n\nYou have custom group management access. I can help you with:\n• Manage groups and group memberships\n• Review group access across applications\n• Add/remove users from groups\n• Show your manageable groups`;
+        }
+        
+        return `**Access Level: ${roleDisplay}**\n\nYou have custom administrative access. I can help you with:\n• Manage resources within your scope\n• Review access to assigned resources\n• Request access to additional applications`;
+      }
+    }
+    
+    // Handle standard roles
+    switch (user.role) {
+      case 'super_admin':
+        return `**Access Level: ${roleDisplay}**\n\nYou have full administrative access. I can help you with:\n• Create governance campaigns for any application\n• Review user access across all applications\n• Manage users and groups\n• Access all administrative features`;
+      case 'app_owner':
+        return `**Access Level: ${roleDisplay}**\n\nYou can manage applications you own. I can help you with:\n• Create governance campaigns for your applications\n• Review access to your applications\n• Request access to other applications`;
+      case 'group_admin':
+        return `**Access Level: ${roleDisplay}**\n\nYou can manage groups. I can help you with:\n• Manage group memberships\n• Review group access\n• Show your manageable groups`;
+      case 'regular_user':
+        return `**Access Level: ${roleDisplay}**\n\nI can help you with:\n• Review your own application access\n• Request access to new applications\n• View your access history`;
+      default:
+        return `**Access Level: LIMITED**\n\nI can help you request access to applications you need for your work.`;
+    }
+  };
+
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
       role: 'assistant',
-      content: `Hello ${user.name}! I'm your AI-powered Okta Assistant with continuous learning. ${
-        user.role === 'super_admin' ? 
-          `As a Super Admin, I can help you with:\n\n• **User Management**: Create, modify, and deactivate users\n• **Application Management**: Configure apps and assignments\n• **Governance Workflows**: Set up access reviews and campaigns\n• **Policy Administration**: Configure authentication and authorization policies\n• **Bulk Operations**: Mass user updates and group management\n• **Compliance Reporting**: Generate detailed audit reports\n• **API Integration**: Manage Okta APIs and integrations\n• **Advanced Admin Operations**: System-wide configurations\n• **30-Day Access Review**: Review and clean up unused application access\n\nWhat administrative task would you like to work on?` :
-        user.role === 'app_owner' ? 
-          `As an Administrator, I can help you with:\n\n• **Show My Apps**: View applications you own and their status\n• **Governance Campaigns**: Create access review campaigns for your apps\n• **User Access Reviews**: Review who has access to your applications\n• **Access Requests**: Review and approve requests for your apps\n• **30-Day Cleanup**: Review applications you haven't used recently\n• **Compliance Reporting**: Generate reports for your managed applications\n${user.allRoles?.some(role => role.includes('Group')) ? '\n• **Group Management**: Manage group memberships and view group details\n• **Group Operations**: List groups you can manage, add/remove users' : ''}\n\n**Quick Actions:**\n- Say "show my apps" to see applications you own\n- Say "30-day review" to see unused applications\n- Say "create campaign" to start governance reviews\n${user.allRoles?.some(role => role.includes('Group')) ? '\n- Say "show my groups" to see groups you can manage\n- Say "list groups" to view manageable groups' : ''}\n\nWhat would you like to manage today?` :
-        user.role === 'group_admin' ?
-          `As a Group Membership Administrator, I can help you with:\n\n• **Group Management**: Manage group memberships and view group details\n• **Group Operations**: List groups you can manage, add/remove users\n• **User Assignment**: Add and remove users from groups\n• **Group Analytics**: View group statistics and membership counts\n• **30-Day Cleanup**: Review unused access across managed groups\n• **Compliance Reporting**: Generate group membership reports\n\n**Quick Actions:**\n- Say "show my groups" to see groups you can manage\n- Say "list groups" to view manageable groups\n- Say "30-day review" to see unused applications\n\nWhat group management task would you like to work on?` :
-          `I can help you with:\n\n• **Access Requests**: Request access to applications you need\n• **Application Usage**: Get help with your assigned applications\n• **Profile Management**: Update your profile information\n• **Self-Service Tasks**: Manage your own access and settings\n\nWhat can I help you with today?`
-      }`
+      content: `Hello ${user.name.split(' ')[0]}! I'm your AI-powered Okta Assistant with continuous learning.\n\n${getAccessLevelMessage(user)}\n\n**Quick Actions:**\n• "Show me apps I accessed in the last 30 days"\n• "List available applications to request"\n• "Show my groups"\n• "What can I do with my current access level?"\n\nWhat can I help you with today?`
     }
   ]);
   const [input, setInput] = useState('');
@@ -669,7 +719,17 @@ export default function SimpleDashboard() {
         <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
           <div className="p-4 border-b border-gray-200 bg-blue-50">
             <h3 className="text-lg font-semibold text-blue-900 mb-1">Okta Assistant</h3>
-            <p className="text-sm text-blue-700">Access Level: {user.role.replace('_', ' ').toUpperCase()}</p>
+            <p className="text-sm text-blue-700">Access Level: {
+              user.allRoles && user.allRoles.length > 0 
+                ? user.allRoles.filter(role => 
+                    !['Super Admin', 'App Admin', 'Group Admin', 'User Admin', 'Help Desk Admin', 'Read Only Admin', 'Mobile Admin', 'API Access Admin', 'Report Admin', 'Group Membership Admin'].includes(role)
+                  ).length > 0
+                  ? user.allRoles.filter(role => 
+                      !['Super Admin', 'App Admin', 'Group Admin', 'User Admin', 'Help Desk Admin', 'Read Only Admin', 'Mobile Admin', 'API Access Admin', 'Report Admin', 'Group Membership Admin'].includes(role)
+                    )[0].toUpperCase()
+                  : user.allRoles[0].replace(/Admin$/, 'ADMIN')
+                : user.role.replace('_', ' ').toUpperCase()
+            }</p>
           </div>
           
           <OktaAssistantChat user={user} />

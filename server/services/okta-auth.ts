@@ -324,23 +324,36 @@ export class OktaAuthService {
             if (targetsResponse.ok) {
               const targets = await targetsResponse.json();
               console.log('🎯 Raw targets data:', JSON.stringify(targets, null, 2));
+              console.log('🎯 Targets array length:', targets.length);
+              console.log('🎯 Targets type check:', Array.isArray(targets));
               
-              targets.forEach((target: any) => {
-                console.log('🔍 Processing target:', {
-                  type: target.type,
-                  displayName: target.displayName,
-                  name: target.name,
-                  profile: target.profile
-                });
-                
-                if (target.type === 'Group') {
-                  const groupName = target.displayName || target.profile?.name || target.name;
-                  if (groupName) {
-                    manageableGroups.push(groupName);
-                    console.log('✅ Added manageable group:', groupName);
+              if (Array.isArray(targets)) {
+                targets.forEach((target: any, index: number) => {
+                  console.log(`🔍 Processing target ${index + 1}:`, {
+                    type: target.type,
+                    displayName: target.displayName,
+                    name: target.name,
+                    profile: target.profile,
+                    id: target.id,
+                    allKeys: Object.keys(target)
+                  });
+                  
+                  // Check for different possible type values
+                  if (target.type === 'Group' || target.type === 'GROUP' || target.type === 'group') {
+                    const groupName = target.displayName || target.profile?.name || target.name;
+                    if (groupName) {
+                      manageableGroups.push(groupName);
+                      console.log('✅ Added manageable group:', groupName);
+                    } else {
+                      console.warn('⚠️ Group target found but no name available:', target);
+                    }
+                  } else {
+                    console.log(`⏭️ Skipping non-group target type: ${target.type}`);
                   }
-                }
-              });
+                });
+              } else {
+                console.error('❌ Targets response is not an array:', typeof targets);
+              }
             } else {
               console.error('❌ Failed to fetch targets:', targetsResponse.status, targetsResponse.statusText);
             }

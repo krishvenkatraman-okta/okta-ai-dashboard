@@ -114,14 +114,14 @@ The application is architected for scalability and maintainability, with clear s
 
 ## Recent Updates (July 19, 2025)
 
-**Current Session Focus (July 19, 2025 - Session 7):**
-- ✅ **Role Display Issue**: Fixed Steve Rogers to show both "App Admin" and "Group Membership Admin" role badges using getAllUserRoles method
-- ✅ **Group Management Constraint Issue**: Fixed "show my groups" showing 50 groups instead of 3 manageable groups for GROUP_MEMBERSHIP_ADMIN
-- ✅ **Intent Detection Priority**: Reordered group management intent detection to prevent conflicts with 30-day review logic
-- ✅ **User Context Storage**: Added currentUserContext property to MCP server for proper user ID retrieval in API calls
-- ✅ **Enhanced Group API Integration**: Implemented getManageableGroups method using Okta role targets API for constrained access
-- ✅ **Import Error Fixed**: Resolved TypeError by properly importing OktaAuthService class instead of default export
-- 🔍 **Role Targets Investigation**: System now correctly detects group management intent and calls API, but returns 0 groups - investigating role target configuration
+**Current Session Focus (July 20, 2025 - Session 8):**
+- ✅ **Complete Custom Role Support**: Implemented full Okta IAM custom role detection with resource set integration
+- ✅ **Resource Set API Integration**: Added `/api/v1/iam/resource-sets/{resourceSetId}` endpoint support for custom role permissions
+- ✅ **Enhanced Group Management**: Custom roles with group resource sets now fetch all manageable groups via `/api/v1/groups` API
+- ✅ **Smart Role Detection**: System detects role.type === "CUSTOM" and processes resource sets to determine access level
+- ✅ **Role Display Enhancement**: Updated getAllUserRoles to fetch and format custom role labels (e.g., "sap_group_admins" → "Sap Group Admins")
+- ✅ **Duplicate Role Fix**: Removed duplicate getAllUserRoles method and fixed LSP TypeScript errors
+- ✅ **API Pattern Upgrade**: Supports both standard role targets and custom role resource sets simultaneously
 
 **Latest Major Enhancement (July 19, 2025 - Session 6):**
 - ✅ **Fixed Governance Review Natural Language Mapping**: Added comprehensive governance campaign workflow with proper intent detection

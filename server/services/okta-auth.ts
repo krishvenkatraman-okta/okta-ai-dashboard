@@ -237,13 +237,14 @@ export class OktaAuthService {
     }
   }
 
-  getAllUserRoles(groups: string[]): string[] {
-    console.log('🏷️ Getting all user role badges from assigned roles:', JSON.stringify(groups));
-    
+  // Get all user roles for display purposes including custom roles
+  async getAllUserRoles(userId: string, groups: string[]): Promise<string[]> {
     const roleLabels: string[] = [];
     
+    console.log('🔍 Processing user role badges from groups:', groups);
+    
     // Map role groups to display labels with additional info for group admins
-    const roleMapping = {
+    const roleMapping: Record<string, string> = {
       'Super Admins': 'Super Admin',
       'App Admins': 'App Admin', 
       'User Admins': 'User Admin',
@@ -263,8 +264,40 @@ export class OktaAuthService {
       }
     });
     
+    // Check for custom roles
+    try {
+      const managementToken = process.env.OKTA_API_TOKEN;
+      if (managementToken && userId) {
+        const assignedRolesResponse = await fetch(`https://${this.oktaDomain}/api/v1/users/${userId}/roles`, {
+          headers: {
+            'Authorization': `SSWS ${managementToken}`,
+            'Accept': 'application/json'
+          }
+        });
+
+        if (assignedRolesResponse.ok) {
+          const assignedRoles = await assignedRolesResponse.json();
+          
+          // Add custom role labels
+          assignedRoles.forEach((role: any) => {
+            if (role.type === 'CUSTOM' && role.label) {
+              // Format custom role labels nicely
+              const formattedLabel = role.label
+                .split('_')
+                .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+              roleLabels.push(formattedLabel);
+              console.log('✅ Added custom role:', formattedLabel);
+            }
+          });
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error fetching custom roles:', error);
+    }
+    
     console.log('🏷️ All role badges:', roleLabels);
-    return roleLabels.length > 0 ? roleLabels : ['User'];
+    return roleLabels.length > 0 ? Array.from(new Set(roleLabels)) : ['User']; // Remove duplicates
   }
 
   // Get groups that a Group Membership Admin can manage
@@ -297,18 +330,71 @@ export class OktaAuthService {
       const assignedRoles = await assignedRolesResponse.json();
       console.log('📋 All assigned roles for user:', JSON.stringify(assignedRoles, null, 2));
       
+      // Handle both standard and custom roles
       const groupAdminRoles = assignedRoles.filter((role: any) => 
-        role.type === 'GROUP_MEMBERSHIP_ADMIN' || role.type === 'GROUP_ADMIN'
+        role.type === 'GROUP_MEMBERSHIP_ADMIN' || 
+        role.type === 'GROUP_ADMIN' ||
+        (role.type === 'CUSTOM' && (role.label?.includes('group') || role.label?.includes('admin')))
       );
-      console.log('👥 Group admin roles found:', groupAdminRoles.length, groupAdminRoles.map(r => r.type));
+      console.log('👥 Group admin roles found:', groupAdminRoles.length, groupAdminRoles.map((r: any) => ({ type: r.type, label: r.label })));
 
       const manageableGroups: string[] = [];
 
-      // For each group admin role, get the target groups
+      // Process each role
       for (const role of groupAdminRoles) {
-        console.log('🔍 Processing role:', role.type, 'with links:', role._links);
+        console.log('🔍 Processing role:', { type: role.type, label: role.label, links: role._links });
         
-        if (role._links?.targets?.href) {
+        if (role.type === 'CUSTOM' && role['resource-set']) {
+          // Handle custom roles with resource sets
+          try {
+            console.log('🔗 Fetching custom role resource set:', role['resource-set']);
+            
+            const resourceSetResponse = await fetch(`https://${this.oktaDomain}/api/v1/iam/resource-sets/${role['resource-set']}`, {
+              headers: {
+                'Authorization': `SSWS ${managementToken}`,
+                'Accept': 'application/json'
+              }
+            });
+
+            if (resourceSetResponse.ok) {
+              const resourceSet = await resourceSetResponse.json();
+              console.log('🎯 Resource set data:', JSON.stringify(resourceSet, null, 2));
+              
+              // Check if resource set includes group management
+              if (resourceSet.resources && Array.isArray(resourceSet.resources)) {
+                const hasGroupAccess = resourceSet.resources.some((resource: any) => 
+                  resource.type === 'Group' || resource.type === 'GROUP' || 
+                  resource.id === 'iam:groups' || resource.id?.includes('group')
+                );
+                
+                if (hasGroupAccess) {
+                  console.log('✅ Custom role has group management access, fetching all groups');
+                  // For custom roles with group access, get all groups (resource set defines the scope)
+                  const allGroupsResponse = await fetch(`https://${this.oktaDomain}/api/v1/groups?limit=200`, {
+                    headers: {
+                      'Authorization': `SSWS ${managementToken}`,
+                      'Accept': 'application/json'
+                    }
+                  });
+                  
+                  if (allGroupsResponse.ok) {
+                    const allGroups = await allGroupsResponse.json();
+                    allGroups.forEach((group: any) => {
+                      if (group.profile?.name) {
+                        manageableGroups.push(group.profile.name);
+                        console.log('✅ Added group from custom role:', group.profile.name);
+                      }
+                    });
+                  }
+                }
+              }
+            } else {
+              console.error('❌ Failed to fetch resource set:', resourceSetResponse.status, resourceSetResponse.statusText);
+            }
+          } catch (error) {
+            console.error('❌ Error fetching custom role resource set:', error);
+          }
+        } else if (role._links?.targets?.href) {
           try {
             console.log('🔗 Fetching targets from:', role._links.targets.href);
             
@@ -366,7 +452,7 @@ export class OktaAuthService {
       }
 
       console.log('✅ Final manageable groups list:', manageableGroups);
-      return [...new Set(manageableGroups)]; // Remove duplicates
+      return Array.from(new Set(manageableGroups)); // Remove duplicates
     } catch (error) {
       console.error('❌ Error fetching manageable groups:', error);
       return [];
@@ -421,46 +507,7 @@ export class OktaAuthService {
     return 'regular_user';
   }
 
-  // Get all user roles for display purposes based on official Okta role assignments
-  getAllUserRoles(groups: string[]): string[] {
-    const roles: string[] = [];
-    
-    // Check for exact role mappings from Okta API response
-    const roleMapping = {
-      'Super Admins': 'Super Admin',
-      'App Admins': 'App Admin', 
-      'Group Admins': 'Group Admin',
-      'Group Membership Admins': 'Group Membership Admin',
-      'User Admins': 'User Admin',
-      'Help Desk Admins': 'Help Desk Admin',
-      'Read Only Admins': 'Read Only Admin',
-      'Mobile Admins': 'Mobile Admin',
-      'API Access Management Admins': 'API Access Management Admin',
-      'Report Admins': 'Report Admin'
-    };
 
-    // Map groups to display roles
-    groups.forEach(group => {
-      if (roleMapping[group]) {
-        roles.push(roleMapping[group]);
-      }
-    });
-
-    // Legacy group support for backward compatibility
-    const legacyMappings = {
-      'Organization Administrators': 'Super Admin',
-      'Application Owners': 'App Owner',
-      'Application Administrators': 'App Owner'
-    };
-
-    groups.forEach(group => {
-      if (legacyMappings[group] && !roles.includes(legacyMappings[group])) {
-        roles.push(legacyMappings[group]);
-      }
-    });
-
-    return roles.length > 0 ? roles : ['Regular User'];
-  }
 
   generateSessionId(): string {
     return randomBytes(32).toString('hex');

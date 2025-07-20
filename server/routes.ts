@@ -228,8 +228,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newRole = oktaAuth.determineUserRole(oktaUser.groups || []);
       console.log('🔄 Determined role:', newRole);
       
-      // Update user in database
-      const allRoles = oktaAuth.getAllUserRoles(oktaUser.groups || []);
+      // Update user in database with fresh role information including custom roles
+      const allRoles = await oktaAuth.getAllUserRoles(user.oktaId, oktaUser.groups || []);
       await storage.updateUser(user.id, {
         role: newRole,
         allRoles: allRoles,

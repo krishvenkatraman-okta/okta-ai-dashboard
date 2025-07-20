@@ -268,6 +268,21 @@ export class OktaMCPServer {
       }
     }
 
+    // Group management intents for GROUP_MEMBERSHIP_ADMIN - use manageable groups only
+    // PRIORITY: Check this BEFORE other intents to avoid conflicts
+    if (message.includes('groups i can manage') || message.includes('show my groups') || 
+        message.includes('list groups') || message.includes('managed groups') ||
+        message.includes('my groups')) {
+      console.log('👥 MCP: Group management request detected - will use manageable groups only');
+      // Mark this as a special manageable groups request
+      requests.push({
+        endpoint: this.endpoints.find(e => e.name === 'list_groups')!,
+        params: { limit: 50, expand: 'stats', manageableOnly: true }
+      });
+      // Return early to prevent other intent matches
+      return requests;
+    }
+
     // Specific app access request - handle via governance service  
     const accessMatch = message.match(/request access to (.+)/i);
     if (accessMatch) {
@@ -278,17 +293,6 @@ export class OktaMCPServer {
       requests.push({
         endpoint: this.endpoints.find(e => e.name === 'list_catalog_entries')!,
         params: { filter: 'status eq "ACTIVE"', limit: 50, appName: appName }
-      });
-    }
-
-    // Group management intents for GROUP_MEMBERSHIP_ADMIN - use manageable groups only
-    if (message.includes('groups i can manage') || message.includes('show my groups') || 
-        message.includes('list groups') || message.includes('managed groups')) {
-      console.log('👥 MCP: Group management request detected - will use manageable groups only');
-      // Mark this as a special manageable groups request
-      requests.push({
-        endpoint: this.endpoints.find(e => e.name === 'list_groups')!,
-        params: { limit: 50, expand: 'stats', manageableOnly: true }
       });
     }
 

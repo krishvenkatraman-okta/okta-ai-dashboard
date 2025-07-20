@@ -257,12 +257,14 @@ export class OktaAuthService {
       'Report Admins': 'Report Admin'
     };
     
-    // Add all matching role labels
-    groups.forEach(group => {
-      if (roleMapping[group]) {
-        roleLabels.push(roleMapping[group]);
-      }
-    });
+    // Add all matching role labels with null safety
+    if (groups && Array.isArray(groups)) {
+      groups.forEach(group => {
+        if (roleMapping[group]) {
+          roleLabels.push(roleMapping[group]);
+        }
+      });
+    }
     
     // Check for custom roles
     try {

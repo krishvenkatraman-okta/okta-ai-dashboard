@@ -52,7 +52,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let user = await storage.getUserByOktaId(oktaUser.id);
       if (!user) {
         const userRole = oktaAuth.determineUserRole(oktaUser.groups || []);
-        const allRoles = oktaAuth.getAllUserRoles(oktaUser.groups || []);
+        const allRoles = await oktaAuth.getAllUserRoles(oktaUser.id, oktaUser.groups || []);
         user = await storage.createUser({
           oktaId: oktaUser.id,
           username: oktaUser.profile.login,
@@ -69,7 +69,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('🔄 Fetched Okta groups:', oktaUser.groups);
         
         const userRole = oktaAuth.determineUserRole(oktaUser.groups || []);
-        const allRoles = oktaAuth.getAllUserRoles(oktaUser.groups || []);
+        const allRoles = await oktaAuth.getAllUserRoles(oktaUser.id, oktaUser.groups || []);
         console.log('🔄 Determined new role:', userRole);
         console.log('🔄 All roles:', allRoles);
         

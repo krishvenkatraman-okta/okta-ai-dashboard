@@ -393,14 +393,15 @@ export class OktaMCPServer {
         console.log('👥 MCP: Using manageable groups only for GROUP_MEMBERSHIP_ADMIN');
         
         // Import auth service to get manageable groups (method exists in okta-auth.ts)
-        const { default: oktaAuth } = await import('./okta-auth.ts');
+        const { OktaAuthService } = await import('./okta-auth.ts');
+        const authService = new OktaAuthService();
         
         // Get user ID from the stored user context instead of token parsing
         const oktaUserId = this.currentUserContext?.userId;
         console.log('🔍 Using stored user ID from context:', oktaUserId);
         
         if (oktaUserId) {
-          const manageableGroups = await oktaAuth.getManageableGroups(oktaUserId);
+          const manageableGroups = await authService.getManageableGroups(oktaUserId);
           console.log('👥 MCP: Found', manageableGroups.length, 'manageable groups for user');
           
           // Convert group names to group objects to match expected format

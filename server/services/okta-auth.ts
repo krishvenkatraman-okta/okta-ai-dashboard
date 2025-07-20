@@ -237,6 +237,99 @@ export class OktaAuthService {
     }
   }
 
+  getAllUserRoles(groups: string[]): string[] {
+    console.log('🏷️ Getting all user role badges from assigned roles:', JSON.stringify(groups));
+    
+    const roleLabels: string[] = [];
+    
+    // Map role groups to display labels with additional info for group admins
+    const roleMapping = {
+      'Super Admins': 'Super Admin',
+      'App Admins': 'App Admin', 
+      'User Admins': 'User Admin',
+      'Group Admins': 'Group Admin',
+      'Group Membership Admins': 'Group Membership Admin',
+      'Help Desk Admins': 'Help Desk Admin',
+      'Read Only Admins': 'Read Only Admin',
+      'Mobile Admins': 'Mobile Admin',
+      'API Access Management Admins': 'API Access Admin',
+      'Report Admins': 'Report Admin'
+    };
+    
+    // Add all matching role labels
+    groups.forEach(group => {
+      if (roleMapping[group]) {
+        roleLabels.push(roleMapping[group]);
+      }
+    });
+    
+    console.log('🏷️ All role badges:', roleLabels);
+    return roleLabels.length > 0 ? roleLabels : ['User'];
+  }
+
+  // Get groups that a Group Membership Admin can manage
+  async getManageableGroups(userId: string): Promise<string[]> {
+    try {
+      const managementToken = process.env.OKTA_API_TOKEN;
+      if (!managementToken) {
+        console.warn('No management API token configured');
+        return [];
+      }
+
+      // Get user's assigned admin roles with targets
+      const assignedRolesUrl = `https://${this.oktaDomain}/api/v1/users/${userId}/roles`;
+      const assignedRolesResponse = await fetch(assignedRolesUrl, {
+        headers: {
+          'Authorization': `SSWS ${managementToken}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!assignedRolesResponse.ok) {
+        console.error('Failed to fetch user roles for group management');
+        return [];
+      }
+
+      const assignedRoles = await assignedRolesResponse.json();
+      const groupAdminRoles = assignedRoles.filter((role: any) => 
+        role.type === 'GROUP_MEMBERSHIP_ADMIN' || role.type === 'GROUP_ADMIN'
+      );
+
+      const manageableGroups: string[] = [];
+
+      // For each group admin role, get the target groups
+      for (const role of groupAdminRoles) {
+        if (role._links?.targets?.href) {
+          try {
+            const targetsResponse = await fetch(role._links.targets.href, {
+              headers: {
+                'Authorization': `SSWS ${managementToken}`,
+                'Accept': 'application/json'
+              }
+            });
+
+            if (targetsResponse.ok) {
+              const targets = await targetsResponse.json();
+              targets.forEach((target: any) => {
+                if (target.type === 'Group' && target.displayName) {
+                  manageableGroups.push(target.displayName);
+                }
+              });
+            }
+          } catch (error) {
+            console.error('Error fetching role targets:', error);
+          }
+        }
+      }
+
+      console.log('👥 Groups user can manage:', manageableGroups);
+      return [...new Set(manageableGroups)]; // Remove duplicates
+    } catch (error) {
+      console.error('Error fetching manageable groups:', error);
+      return [];
+    }
+  }
+
   determineUserRole(groups: string[]): UserRole {
     console.log('🔍 Determining user role from assigned roles:', JSON.stringify(groups));
     

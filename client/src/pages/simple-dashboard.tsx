@@ -8,6 +8,8 @@ interface User {
   name: string;
   role: string;
   email: string;
+  allRoles?: string[];
+  groups?: string[];
 }
 
 interface OktaApp {
@@ -610,7 +612,34 @@ export default function SimpleDashboard() {
             <div className="flex items-center space-x-4">
               <div className="text-right">
                 <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                <p className="text-xs text-blue-600 font-medium capitalize">{user.role.replace('_', ' ')}</p>
+                <div className="flex flex-wrap gap-1 justify-end">
+                  {user.allRoles && user.allRoles.length > 0 ? (
+                    user.allRoles.map((role, index) => (
+                      <span
+                        key={index}
+                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          role === 'Super Admin' 
+                            ? 'bg-purple-100 text-purple-800' 
+                            : role.includes('Admin') 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'bg-gray-100 text-gray-800'
+                        }`}
+                        title={role === 'Group Membership Admin' ? 'Can manage group memberships' : ''}
+                      >
+                        {role}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 capitalize">
+                      {user.role.replace('_', ' ')}
+                    </span>
+                  )}
+                </div>
+                {user.allRoles?.some(role => role.includes('Group')) && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Can manage groups in Okta
+                  </p>
+                )}
               </div>
               <Button onClick={refreshRole} variant="outline" size="sm" className="mr-2">
                 Refresh Role

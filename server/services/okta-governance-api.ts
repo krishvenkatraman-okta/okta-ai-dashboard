@@ -211,23 +211,9 @@ export class OktaGovernanceService {
       });
 
       if (!response.ok) {
-        console.log('⚠️ Request fields API failed, using default fields');
-        return [
-          {
-            key: 'JUSTIFICATION',
-            label: 'Business Justification',
-            type: 'text',
-            required: true,
-            placeholder: 'Please provide your business justification for this access request'
-          },
-          {
-            key: 'ACCESS_DURATION',
-            label: 'Access Duration',
-            type: 'duration',
-            required: false,
-            placeholder: 'Duration for access (e.g., 1 hour, 2 days)'
-          }
-        ];
+        console.log('⚠️ Request fields API failed, returning empty array to prevent extra fields');
+        console.log('⚠️ Will use fallback logic in submitEntitlementRequest to send only duration');
+        return [];
       }
 
       const data = await response.json();
@@ -247,23 +233,9 @@ export class OktaGovernanceService {
       return fields;
     } catch (error) {
       console.error('❌ Error fetching request fields:', error);
-      // Return default fields if API fails
-      return [
-        {
-          key: 'JUSTIFICATION',
-          label: 'Business Justification',
-          type: 'text',
-          required: true,
-          placeholder: 'Please provide your business justification for this access request'
-        },
-        {
-          key: 'ACCESS_DURATION',
-          label: 'Access Duration',
-          type: 'duration',
-          required: false,
-          placeholder: 'Duration for access (e.g., 1 hour, 2 days)'
-        }
-      ];
+      // Return empty array if API fails to prevent sending extra fields
+      console.log('⚠️ Request fields API error, returning empty array');
+      return [];
     }
   }
 
@@ -278,46 +250,21 @@ export class OktaGovernanceService {
       const requestFields = await this.getEntitlementRequestFields(entitlementId, accessToken);
       console.log('📋 Available request fields:', requestFields);
       
-      // Build the requesterFieldValues array based on available fields
+      // Build the requesterFieldValues array based on ONLY the fields returned by the API
       const requesterFieldValues: any[] = [];
       
-      // Add justification - try multiple field identification methods
-      let justificationField = requestFields.find(field => 
-        field.key?.toUpperCase() === 'JUSTIFICATION' ||
-        field.key?.toLowerCase().includes('justification') || 
-        field.type?.toLowerCase() === 'text' ||
-        field.label?.toLowerCase().includes('justification')
-      );
+      console.log(`🔍 Processing ${requestFields.length} available fields for this entitlement`);
       
-      // If no specific justification field found, use the first text field
-      if (!justificationField) {
-        justificationField = requestFields.find(field => field.type?.toLowerCase() === 'text');
-      }
-      
-      if (justificationField) {
-        requesterFieldValues.push({
-          id: justificationField.key,
-          value: justification
-        });
-        console.log(`📝 Added justification with field ID: "${justificationField.key}"`);
-      } else {
-        // Fallback - add with standard field name
-        requesterFieldValues.push({
-          id: 'JUSTIFICATION',
-          value: justification
-        });
-        console.log('📝 Using fallback justification field ID: JUSTIFICATION');
-      }
-      
-      // Add duration if provided and there's a duration field
-      if (duration) {
-        let durationField = requestFields.find(field => 
+      // Only add fields that are actually returned by the request-fields API
+      for (const field of requestFields) {
+        console.log(`🔍 Checking field: ${field.key} (${field.type}) - Required: ${field.required}`);
+        
+        // Handle duration field
+        if (duration && (
           field.key?.toUpperCase() === 'ACCESS_DURATION' ||
           field.key?.toLowerCase().includes('duration') || 
           field.type?.toLowerCase() === 'duration'
-        );
-        
-        if (durationField) {
+        )) {
           // Convert duration to ISO 8601 format (PT1H format)
           const durationMatch = duration.match(/(\d+)\s*(hour|day|week|month)s?/i);
           let isoValue = 'PT1H'; // default to 1 hour
@@ -338,38 +285,60 @@ export class OktaGovernanceService {
           }
           
           requesterFieldValues.push({
-            id: durationField.key,
+            id: field.key,
             value: isoValue
           });
           
-          console.log(`📅 Added duration with field ID: "${durationField.key}" -> "${isoValue}"`);
-        } else {
-          // Fallback - add with standard field name
-          const durationMatch = duration.match(/(\d+)\s*(hour|day|week|month)s?/i);
-          let isoValue = 'PT1H';
-          
-          if (durationMatch) {
-            const value = parseInt(durationMatch[1]);
-            const unit = durationMatch[2].toLowerCase();
-            
-            if (unit === 'hour') {
-              isoValue = `PT${value}H`;
-            } else if (unit === 'day') {
-              isoValue = `P${value}D`;
-            } else if (unit === 'week') {
-              isoValue = `P${value}W`;
-            } else if (unit === 'month') {
-              isoValue = `P${value}M`;
-            }
-          }
-          
-          requesterFieldValues.push({
-            id: 'ACCESS_DURATION',
-            value: isoValue
-          });
-          
-          console.log(`📅 Using fallback duration field ID: ACCESS_DURATION -> "${isoValue}"`);
+          console.log(`✅ Added duration field: "${field.key}" -> "${isoValue}"`);
         }
+        // Handle justification field  
+        else if (justification && (
+          field.key?.toUpperCase() === 'JUSTIFICATION' ||
+          field.key?.toLowerCase().includes('justification') || 
+          field.type?.toLowerCase() === 'text' ||
+          field.label?.toLowerCase().includes('justification')
+        )) {
+          requesterFieldValues.push({
+            id: field.key,
+            value: justification
+          });
+          
+          console.log(`✅ Added justification field: "${field.key}"`);
+        }
+        // Handle other field types as needed
+        else {
+          console.log(`⏭️ Skipping field: "${field.key}" - no matching value provided`);
+        }
+      }
+      
+      // If no fields were found from API but we have duration, use fallback for duration only
+      if (requesterFieldValues.length === 0 && duration) {
+        console.log('🔄 No API fields matched - using ACCESS_DURATION fallback');
+        
+        const durationMatch = duration.match(/(\d+)\s*(hour|day|week|month)s?/i);
+        let isoValue = 'PT1H';
+        
+        if (durationMatch) {
+          const value = parseInt(durationMatch[1]);
+          const unit = durationMatch[2].toLowerCase();
+          
+          if (unit === 'hour') {
+            isoValue = `PT${value}H`;
+          } else if (unit === 'day') {
+            isoValue = `P${value}D`;
+          } else if (unit === 'week') {
+            isoValue = `P${value}W`;
+          } else if (unit === 'month') {
+            isoValue = `P${value}M`;
+          }
+        }
+        
+        requesterFieldValues.push({
+          id: 'ACCESS_DURATION',
+          value: isoValue
+        });
+        
+        console.log(`✅ Added fallback duration: ACCESS_DURATION -> "${isoValue}"`);
       }
       
       // Build the correct request body format

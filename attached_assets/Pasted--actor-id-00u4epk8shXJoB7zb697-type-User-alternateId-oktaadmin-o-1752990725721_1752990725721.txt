@@ -1,0 +1,83 @@
+{
+  "actor": {
+    "id": "00u4epk8shXJoB7zb697",
+    "type": "User",
+    "alternateId": "oktaadmin@okta.com",
+    "displayName": "okta admin",
+    "detailEntry": null
+  },
+  "client": {
+    "userAgent": null,
+    "zone": null,
+    "device": null,
+    "id": null,
+    "ipAddress": null,
+    "geographicalContext": null
+  },
+  "device": null,
+  "authenticationContext": {
+    "authenticationProvider": null,
+    "credentialProvider": null,
+    "credentialType": null,
+    "issuer": null,
+    "interface": null,
+    "authenticationStep": 0,
+    "rootSessionId": "trs1pOcDmxdSIeQw8riI4v2iw",
+    "externalSessionId": "trs9CanMImxT3Ov9rGz04QpGw"
+  },
+  "displayMessage": "A request for access has been created",
+  "eventType": "access.request.create",
+  "outcome": {
+    "result": "FAILURE",
+    "reason": "Access Request failed to create"
+  },
+  "published": "2025-07-20T05:45:26.576Z",
+  "securityContext": {
+    "asNumber": null,
+    "asOrg": null,
+    "isp": null,
+    "domain": null,
+    "isProxy": null
+  },
+  "severity": "WARN",
+  "debugContext": {
+    "debugData": {
+      "permalinkId": "0",
+      "requesterId": "00u4epk8shXJoB7zb697",
+      "accessScopeId": "enbjyqdb6IDzQkkHR696",
+      "accessRequestSubject": "Adobe (1 hours)",
+      "ruleConflictDetails": "[]",
+      "accessRequestApprovalSequenceId": "6852dedcf3a5e622a73e23c1",
+      "accessRequestId": "reqkkd2hhWzb3adEb696",
+      "accessRequestMatchedConditionId": "rcojz3zl1AyNF3gI7696",
+      "canceledAt": "2025-07-20T05:45:26.000Z",
+      "requestedResourceType": "APP",
+      "accessScopeType": "ENTITLEMENT_BUNDLE",
+      "requestedResourceId": "0oasfnwnrnJmf5RPl697",
+      "requestedForId": "00u4epk8shXJoB7zb697",
+      "riskSettingsRequestSubmissionType": "ALLOWED_WITH_NO_OVERRIDES"
+    }
+  },
+  "legacyEventType": null,
+  "transaction": {
+    "type": "JOB",
+    "id": "rtjkkd2hi5PITPPG0696",
+    "detail": {
+      "rootApiTokenId": "00T2vsdpa0AHdOTaj697"
+    }
+  },
+  "uuid": "bc9baa9b-652c-11f0-8556-4fb8859d3a28",
+  "version": "1",
+  "request": {
+    "ipChain": []
+  },
+  "target": [
+    {
+      "id": "reqkkd2hhWzb3adEb696",
+      "type": "access_request_request",
+      "alternateId": "0",
+      "displayName": "Adobe (1 hours)",
+      "detailEntry": null
+    }
+  ]
+}

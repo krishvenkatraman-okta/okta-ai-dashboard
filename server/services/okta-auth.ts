@@ -270,14 +270,18 @@ export class OktaAuthService {
   // Get groups that a Group Membership Admin can manage
   async getManageableGroups(userId: string): Promise<string[]> {
     try {
+      console.log('🔍 Getting manageable groups for user ID:', userId);
+      
       const managementToken = process.env.OKTA_API_TOKEN;
       if (!managementToken) {
-        console.warn('No management API token configured');
+        console.warn('❌ No management API token configured');
         return [];
       }
 
       // Get user's assigned admin roles with targets
       const assignedRolesUrl = `https://${this.oktaDomain}/api/v1/users/${userId}/roles`;
+      console.log('🔍 Fetching user roles from:', assignedRolesUrl);
+      
       const assignedRolesResponse = await fetch(assignedRolesUrl, {
         headers: {
           'Authorization': `SSWS ${managementToken}`,
@@ -286,21 +290,28 @@ export class OktaAuthService {
       });
 
       if (!assignedRolesResponse.ok) {
-        console.error('Failed to fetch user roles for group management');
+        console.error('❌ Failed to fetch user roles:', assignedRolesResponse.status, assignedRolesResponse.statusText);
         return [];
       }
 
       const assignedRoles = await assignedRolesResponse.json();
+      console.log('📋 All assigned roles for user:', JSON.stringify(assignedRoles, null, 2));
+      
       const groupAdminRoles = assignedRoles.filter((role: any) => 
         role.type === 'GROUP_MEMBERSHIP_ADMIN' || role.type === 'GROUP_ADMIN'
       );
+      console.log('👥 Group admin roles found:', groupAdminRoles.length, groupAdminRoles.map(r => r.type));
 
       const manageableGroups: string[] = [];
 
       // For each group admin role, get the target groups
       for (const role of groupAdminRoles) {
+        console.log('🔍 Processing role:', role.type, 'with links:', role._links);
+        
         if (role._links?.targets?.href) {
           try {
+            console.log('🔗 Fetching targets from:', role._links.targets.href);
+            
             const targetsResponse = await fetch(role._links.targets.href, {
               headers: {
                 'Authorization': `SSWS ${managementToken}`,
@@ -308,24 +319,43 @@ export class OktaAuthService {
               }
             });
 
+            console.log('📊 Targets response status:', targetsResponse.status);
+            
             if (targetsResponse.ok) {
               const targets = await targetsResponse.json();
+              console.log('🎯 Raw targets data:', JSON.stringify(targets, null, 2));
+              
               targets.forEach((target: any) => {
-                if (target.type === 'Group' && target.displayName) {
-                  manageableGroups.push(target.displayName);
+                console.log('🔍 Processing target:', {
+                  type: target.type,
+                  displayName: target.displayName,
+                  name: target.name,
+                  profile: target.profile
+                });
+                
+                if (target.type === 'Group') {
+                  const groupName = target.displayName || target.profile?.name || target.name;
+                  if (groupName) {
+                    manageableGroups.push(groupName);
+                    console.log('✅ Added manageable group:', groupName);
+                  }
                 }
               });
+            } else {
+              console.error('❌ Failed to fetch targets:', targetsResponse.status, targetsResponse.statusText);
             }
           } catch (error) {
-            console.error('Error fetching role targets:', error);
+            console.error('❌ Error fetching role targets:', error);
           }
+        } else {
+          console.warn('⚠️ Role has no targets link:', role.type);
         }
       }
 
-      console.log('👥 Groups user can manage:', manageableGroups);
+      console.log('✅ Final manageable groups list:', manageableGroups);
       return [...new Set(manageableGroups)]; // Remove duplicates
     } catch (error) {
-      console.error('Error fetching manageable groups:', error);
+      console.error('❌ Error fetching manageable groups:', error);
       return [];
     }
   }

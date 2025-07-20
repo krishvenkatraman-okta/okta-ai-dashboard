@@ -26,6 +26,7 @@ export class OktaMCPServer {
   private domain: string;
   private apiToken: string;
   private trainingService: any; // Will be imported dynamically
+  private currentUserContext: any; // Store current user context for API calls
   
   // Okta API endpoint registry
   private endpoints: ApiEndpoint[] = [
@@ -390,27 +391,9 @@ export class OktaMCPServer {
         // Import auth service to get manageable groups
         const { default: oktaAuth } = await import('./okta-auth.ts');
         
-        // We need the user's Okta ID - we'll get it from the access token
-        // First, decode the token to get user info
-        let oktaUserId = '';
-        if (userToken) {
-          try {
-            // Get user info from token
-            const userInfoResponse = await fetch(`https://${this.domain}/oauth2/v1/userinfo`, {
-              headers: {
-                'Authorization': `Bearer ${userToken}`,
-                'Accept': 'application/json'
-              }
-            });
-            
-            if (userInfoResponse.ok) {
-              const userInfo = await userInfoResponse.json();
-              oktaUserId = userInfo.sub; // User ID from OIDC token
-            }
-          } catch (error) {
-            console.error('Error getting user info from token:', error);
-          }
-        }
+        // Get user ID from the stored user context instead of token parsing
+        const oktaUserId = this.currentUserContext?.userId;
+        console.log('🔍 Using stored user ID from context:', oktaUserId);
         
         if (oktaUserId) {
           const manageableGroups = await oktaAuth.getManageableGroups(oktaUserId);
@@ -436,7 +419,7 @@ export class OktaMCPServer {
             url: 'manageable-groups-service'
           };
         } else {
-          console.warn('Could not determine user ID for manageable groups');
+          console.warn('❌ Could not determine user ID for manageable groups from context');
           // Fall back to empty array rather than all groups
           return {
             success: true,
@@ -566,6 +549,10 @@ export class OktaMCPServer {
    */
   async processRequest(userMessage: string, userContext?: any): Promise<any> {
     console.log(`🤖 MCP: Processing request: "${userMessage}"`);
+    
+    // Store user context for use in API calls
+    this.currentUserContext = userContext;
+    console.log('🔍 Stored user context:', { userId: userContext?.userId, userRole: userContext?.userRole });
 
     // Record user input for training context
     const interactionId = Date.now().toString();

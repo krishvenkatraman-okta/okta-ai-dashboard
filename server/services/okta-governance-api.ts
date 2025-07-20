@@ -211,14 +211,21 @@ export class OktaGovernanceService {
       });
 
       if (!response.ok) {
-        console.log('⚠️ Request fields API failed, using default justification field');
+        console.log('⚠️ Request fields API failed, using default fields');
         return [
           {
-            key: 'justification',
+            key: 'JUSTIFICATION',
             label: 'Business Justification',
             type: 'text',
             required: true,
             placeholder: 'Please provide your business justification for this access request'
+          },
+          {
+            key: 'ACCESS_DURATION',
+            label: 'Access Duration',
+            type: 'duration',
+            required: false,
+            placeholder: 'Duration for access (e.g., 1 hour, 2 days)'
           }
         ];
       }
@@ -228,8 +235,8 @@ export class OktaGovernanceService {
       
       // Process fields from API response
       const fields = (data.data || data || []).map((field: any) => ({
-        key: field.key || field.name,
-        label: field.label || field.displayName,
+        key: field.id || field.key || field.name,  // Use 'id' as primary key for field identification
+        label: field.label || field.displayName || field.name,
         type: field.type || 'text',
         required: field.required || false,
         placeholder: field.placeholder || field.description,
@@ -240,14 +247,21 @@ export class OktaGovernanceService {
       return fields;
     } catch (error) {
       console.error('❌ Error fetching request fields:', error);
-      // Return default justification field if API fails
+      // Return default fields if API fails
       return [
         {
-          key: 'justification',
+          key: 'JUSTIFICATION',
           label: 'Business Justification',
           type: 'text',
           required: true,
           placeholder: 'Please provide your business justification for this access request'
+        },
+        {
+          key: 'ACCESS_DURATION',
+          label: 'Access Duration',
+          type: 'duration',
+          required: false,
+          placeholder: 'Duration for access (e.g., 1 hour, 2 days)'
         }
       ];
     }
@@ -258,35 +272,112 @@ export class OktaGovernanceService {
       const url = `https://${this.domain}/governance/api/v2/my/catalogs/default/entries/${entitlementId}/requests`;
       
       console.log('📝 Submitting entitlement request for:', entitlementId);
+      console.log('📝 Request details:', { justification, duration });
       
-      const requestBody: any = {
-        justification: justification,
-        requestType: 'GRANT_ACCESS'
-      };
+      // Get the request fields for this entitlement to build proper payload
+      const requestFields = await this.getEntitlementRequestFields(entitlementId, accessToken);
+      console.log('📋 Available request fields:', requestFields);
       
-      // Add duration if provided
+      // Build the requesterFieldValues array based on available fields
+      const requesterFieldValues: any[] = [];
+      
+      // Add justification - try multiple field identification methods
+      let justificationField = requestFields.find(field => 
+        field.key?.toUpperCase() === 'JUSTIFICATION' ||
+        field.key?.toLowerCase().includes('justification') || 
+        field.type?.toLowerCase() === 'text' ||
+        field.label?.toLowerCase().includes('justification')
+      );
+      
+      // If no specific justification field found, use the first text field
+      if (!justificationField) {
+        justificationField = requestFields.find(field => field.type?.toLowerCase() === 'text');
+      }
+      
+      if (justificationField) {
+        requesterFieldValues.push({
+          id: justificationField.key,
+          value: justification
+        });
+        console.log(`📝 Added justification with field ID: "${justificationField.key}"`);
+      } else {
+        // Fallback - add with standard field name
+        requesterFieldValues.push({
+          id: 'JUSTIFICATION',
+          value: justification
+        });
+        console.log('📝 Using fallback justification field ID: JUSTIFICATION');
+      }
+      
+      // Add duration if provided and there's a duration field
       if (duration) {
-        const durationMatch = duration.match(/(\d+)\s*(hour|day|week|month)s?/i);
-        if (durationMatch) {
-          const value = parseInt(durationMatch[1]);
-          const unit = durationMatch[2].toLowerCase();
+        let durationField = requestFields.find(field => 
+          field.key?.toUpperCase() === 'ACCESS_DURATION' ||
+          field.key?.toLowerCase().includes('duration') || 
+          field.type?.toLowerCase() === 'duration'
+        );
+        
+        if (durationField) {
+          // Convert duration to ISO 8601 format (PT1H format)
+          const durationMatch = duration.match(/(\d+)\s*(hour|day|week|month)s?/i);
+          let isoValue = 'PT1H'; // default to 1 hour
           
-          // Convert to standard Okta duration format
-          if (unit === 'hour') {
-            requestBody.duration = value;
-            requestBody.durationUnit = 'HOURS';
-          } else if (unit === 'day') {
-            requestBody.duration = value;
-            requestBody.durationUnit = 'DAYS';
-          } else if (unit === 'week') {
-            requestBody.duration = value * 7;
-            requestBody.durationUnit = 'DAYS';
-          } else if (unit === 'month') {
-            requestBody.duration = value * 30;
-            requestBody.durationUnit = 'DAYS';
+          if (durationMatch) {
+            const value = parseInt(durationMatch[1]);
+            const unit = durationMatch[2].toLowerCase();
+            
+            if (unit === 'hour') {
+              isoValue = `PT${value}H`;
+            } else if (unit === 'day') {
+              isoValue = `P${value}D`;
+            } else if (unit === 'week') {
+              isoValue = `P${value}W`;
+            } else if (unit === 'month') {
+              isoValue = `P${value}M`;
+            }
           }
+          
+          requesterFieldValues.push({
+            id: durationField.key,
+            value: isoValue
+          });
+          
+          console.log(`📅 Added duration with field ID: "${durationField.key}" -> "${isoValue}"`);
+        } else {
+          // Fallback - add with standard field name
+          const durationMatch = duration.match(/(\d+)\s*(hour|day|week|month)s?/i);
+          let isoValue = 'PT1H';
+          
+          if (durationMatch) {
+            const value = parseInt(durationMatch[1]);
+            const unit = durationMatch[2].toLowerCase();
+            
+            if (unit === 'hour') {
+              isoValue = `PT${value}H`;
+            } else if (unit === 'day') {
+              isoValue = `P${value}D`;
+            } else if (unit === 'week') {
+              isoValue = `P${value}W`;
+            } else if (unit === 'month') {
+              isoValue = `P${value}M`;
+            }
+          }
+          
+          requesterFieldValues.push({
+            id: 'ACCESS_DURATION',
+            value: isoValue
+          });
+          
+          console.log(`📅 Using fallback duration field ID: ACCESS_DURATION -> "${isoValue}"`);
         }
       }
+      
+      // Build the correct request body format
+      const requestBody = {
+        requesterFieldValues: requesterFieldValues
+      };
+      
+      console.log('📝 Final request payload:', JSON.stringify(requestBody, null, 2));
 
       const response = await fetch(url, {
         method: 'POST',
@@ -301,11 +392,12 @@ export class OktaGovernanceService {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ Entitlement request failed:', response.status, errorText);
+        console.error('❌ Request body was:', JSON.stringify(requestBody, null, 2));
         throw new Error(`Entitlement request failed: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('✅ Entitlement request submitted successfully:', data.id);
+      console.log('✅ Entitlement request submitted successfully:', JSON.stringify(data, null, 2));
       
       return {
         id: data.id,

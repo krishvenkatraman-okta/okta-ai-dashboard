@@ -1,0 +1,60 @@
+request Adobe Express Bundle for 1 hour
+I understand you're asking about "request Adobe Express Bundle for 1 hour". However, I'm currently experiencing some technical difficulties with my processing. 
+
+Please try rephrasing your request or use one of these specific commands:
+• "request [application name]" - to request access to applications
+• "show my groups" - to view your group management access
+• "list available applications" - to see available apps
+• "30-day access review" - to review recent access
+
+You can also refresh the page and try again.
+Helpful?
+👍
+👎
+request Adobe Express Bundle
+I understand you're asking about "request Adobe Express Bundle". However, I'm currently experiencing some technical difficulties with my processing. 
+
+Please try rephrasing your request or use one of these specific commands:
+• "request [application name]" - to request access to applications
+• "show my groups" - to view your group management access
+• "list available applications" - to see available apps
+• "30-day access review" - to review recent access
+
+You can also refresh the page and try again.
+Helpful?
+👍
+👎
+show my groups
+**🔐 Admin Session Required**
+
+To perform group management operations, you need an active admin session.
+
+**Your Current Access:**
+• Role: Regular User
+• Can perform: 30-day access reviews, access requests
+
+**To unlock admin capabilities:**
+1. Click "Start Admin Session" below
+2. Authenticate in the admin portal
+3. Return here to continue
+
+This ensures all admin actions are properly audited in Okta system logs.
+Helpful?
+👍
+👎
+Start Admin Session
+I'm your Okta Assistant! I understand you're asking about "Start Admin Session".
+
+**I can help you with:**
+• **Access Requests**: Request access to applications and resources
+• **Application Management**: View your current applications and manage access
+• **Governance & Compliance**: Handle access reviews and governance campaigns
+• **User & Group Management**: Manage organizational users and permissions
+
+**Your Role**: Super Admin - Full administrative access enabled.
+
+Could you tell me more specifically what you'd like to do? For example:
+- "Show me available applications"
+- "Help me request access to [app name]"
+- "Create a governance campaign"
+- "Review user access"

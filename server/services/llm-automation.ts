@@ -80,18 +80,23 @@ export class LLMAutomationService {
           const entitlementName = entitlementMatch[1].trim();
           console.log('🎯 PRIORITY: Entitlement request pattern detected:', entitlementName);
           try {
-            return await this.handleEntitlementRequest(entitlementName, user, tokens);
+            const result = await this.handleEntitlementRequest(entitlementName, user, tokens);
+            console.log('✅ Entitlement request completed successfully');
+            return result;
           } catch (entitlementError) {
             console.error('❌ Entitlement request handling failed:', entitlementError);
             return {
               success: false,
               data: { 
-                response: `**📋 Access Request**\n\nI understand you want to request access to "${entitlementName}". However, I encountered a technical issue processing this request.\n\nPlease try:\n• "list available applications" to see what's available\n• Refreshing the page and trying again\n• Contacting your administrator if the issue persists` 
+                response: `**📋 Access Request Error**\n\nI encountered an issue processing your request for "${entitlementName}".\n\n**Error details:** ${entitlementError instanceof Error ? entitlementError.message : 'Unknown error'}\n\nPlease try:\n• "list available applications" to see available options\n• Using the exact entitlement name\n• Contacting your administrator if the issue persists` 
               }
             };
           }
         }
       }
+
+      // Return early if patterns were detected to prevent Ollama fallback
+      console.log('🔍 No priority patterns matched, continuing to LLM analysis...');
 
     // Use Ollama for intelligent intent analysis (with fallback on failure)
     let analysis;
@@ -253,16 +258,44 @@ export class LLMAutomationService {
   private requireAdminSession(intent: string, user: User): any {
     const adminDomain = this.oktaDomain.replace('.okta.com', '-admin.okta.com');
     
+    // Get actual user roles for proper display
+    const userRole = this.getUserDisplayRole(user);
+    
     return {
       success: false,
       requiresAdminAuth: true,
       data: {
-        response: `**🔐 Admin Session Required**\n\nTo perform ${intent.replace('_', ' ')} operations, you need an active admin session.\n\n**Your Current Access:**\n• Role: ${this.formatRoleName(user.role)}\n• Can perform: 30-day access reviews, access requests\n\n**To unlock admin capabilities:**\n1. Click "Start Admin Session" below\n2. Authenticate in the admin portal\n3. Return here to continue\n\nThis ensures all admin actions are properly audited in Okta system logs.`,
+        response: `**🔐 Admin Session Required**\n\nTo perform ${intent.replace('_', ' ')} operations, you need an active admin session.\n\n**Your Current Access:**\n• Role: ${userRole}\n• Can perform: 30-day access reviews, access requests\n\n**To unlock admin capabilities:**\n1. Click "Start Admin Session" below\n2. Authenticate in the admin portal\n3. Return here to continue\n\nThis ensures all admin actions are properly audited in Okta system logs.`,
         action: 'admin_auth_required',
         adminUrl: `https://${adminDomain}/admin/dashboard`,
         intent: intent
       }
     };
+  }
+
+  private getUserDisplayRole(user: User): string {
+    // Check if user has allRoles (custom roles) property
+    if (user.allRoles && Array.isArray(user.allRoles) && user.allRoles.length > 0) {
+      // Filter out standard admin roles to get custom roles
+      const customRoles = user.allRoles.filter((role: string) => 
+        !['Super Admin', 'App Admin', 'Group Admin', 'User Admin', 'Help Desk Admin', 
+          'Read Only Admin', 'Mobile Admin', 'API Access Admin', 'Report Admin', 
+          'Group Membership Admin'].includes(role)
+      );
+      
+      if (customRoles.length > 0) {
+        return customRoles[0]; // Return first custom role
+      }
+      
+      // If no custom roles, return highest standard role
+      if (user.allRoles.includes('Super Admin')) return 'Super Admin';
+      if (user.allRoles.includes('App Admin')) return 'App Admin';
+      if (user.allRoles.includes('Group Admin') || user.allRoles.includes('Group Membership Admin')) return 'Group Admin';
+      return user.allRoles[0]; // Fallback to first role
+    }
+    
+    // Fallback to role property formatting
+    return this.formatRoleName(user.role);
   }
 
   private formatRoleName(role: string): string {

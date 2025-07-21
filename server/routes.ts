@@ -20,7 +20,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Admin session route
   app.get('/api/auth/admin-login', (req, res) => {
-    if (!req.session?.userId) {
+    if (!(req as any).session?.userId) {
       return res.status(401).json({ error: 'Must be logged in to access admin session' });
     }
     
@@ -33,7 +33,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Store admin session token (called from frontend after admin auth)
   app.post('/api/auth/admin-session', (req, res) => {
-    if (!req.session?.userId) {
+    if (!(req as any).session?.userId) {
       return res.status(401).json({ error: 'Must be logged in' });
     }
 
@@ -44,7 +44,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Store session token with 1 hour expiry
     const expiresAt = Date.now() + (60 * 60 * 1000);
-    oktaAuth.storeAdminSessionToken(req.session.userId, sessionToken, expiresAt);
+    oktaAuth.storeAdminSessionToken((req as any).session.userId, sessionToken, expiresAt);
     
     res.json({ success: true, message: 'Admin session established' });
   });
@@ -575,6 +575,8 @@ Response (be natural and concise):`;
 
       // Use enhanced LLM automation service for intelligent API handling
       const { LLMAutomationService } = await import('./services/llm-automation.ts');
+      const { OktaAuthService } = await import('./services/okta-auth.ts');
+      const authService = new OktaAuthService();
       const llmService = new LLMAutomationService(authService);
       
       console.log('🤖 Using enhanced LLM processing for:', message);
@@ -620,8 +622,8 @@ Response (be natural and concise):`;
       res.json({ response: finalResponse });
     } catch (error) {
       console.error('💥 Chat message error:', error);
-      console.error('💥 Stack trace:', error.stack);
-      res.status(500).json({ error: `Failed to process message: ${error.message}` });
+      console.error('💥 Stack trace:', (error as Error).stack);
+      res.status(500).json({ error: `Failed to process message: ${(error as Error).message}` });
     }
   });
 

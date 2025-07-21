@@ -209,9 +209,14 @@ export class LLMAutomationService {
     console.log('👥 Processing group management with admin session');
     
     try {
+      // Use Management API token for groups API
+      const authHeader = this.oktaApiToken 
+        ? `SSWS ${this.oktaApiToken}`
+        : `Bearer ${tokens.accessToken}`;
+        
       const response = await fetch(`https://${this.oktaDomain}/api/v1/groups`, {
         headers: {
-          'Authorization': `Bearer ${tokens.accessToken}`,
+          'Authorization': authHeader,
           'Accept': 'application/json'
         }
       });
@@ -257,9 +262,16 @@ export class LLMAutomationService {
     console.log('📋 Processing catalog request');
     
     try {
+      // Use Management API token instead of user's access token for API calls
+      const authHeader = this.oktaApiToken 
+        ? `SSWS ${this.oktaApiToken}`
+        : `Bearer ${tokens.accessToken}`;
+        
+      console.log('🔑 Using API authentication:', this.oktaApiToken ? 'Management API Token' : 'User Access Token');
+      
       const response = await fetch(`https://${this.oktaDomain}/api/v1/iga/catalog/entries?filter=type+eq+%22APPLICATION%22&expand=app`, {
         headers: {
-          'Authorization': `Bearer ${tokens.accessToken}`,
+          'Authorization': authHeader,
           'Accept': 'application/json'
         }
       });
@@ -270,7 +282,7 @@ export class LLMAutomationService {
         // Fallback to regular apps API
         const appsResponse = await fetch(`https://${this.oktaDomain}/api/v1/apps`, {
           headers: {
-            'Authorization': `Bearer ${tokens.accessToken}`,
+            'Authorization': authHeader,
             'Accept': 'application/json'
           }
         });

@@ -42,14 +42,38 @@ export class LLMAutomationService {
     const analysis = await this.ollama.analyzeIntent(message);
     console.log('🧠 Intent analysis result:', analysis);
     
-    // Handle specific intents first
+    // Handle based on the analyzed intent first, then fall back to pattern matching
+    if (analysis.intent === 'catalog_request') {
+      console.log('📋 LLM detected catalog request');
+      return await this.handleCatalogRequest(user, tokens);
+    }
+    
+    if (analysis.intent === 'group_management') {
+      console.log('👥 LLM detected group management request');
+      const hasAdminSession = this.oktaAuthService?.getAdminSessionToken(user.oktaId);
+      
+      if (!hasAdminSession) {
+        console.log('🔐 No admin session - requiring admin auth');
+        return this.requireAdminSession('group_management', user);
+      }
+      
+      return await this.handleGroupManagement(analysis, user, tokens, hasAdminSession);
+    }
+    
+    if (analysis.intent === 'access_level_inquiry') {
+      console.log('🔑 LLM detected access level inquiry');
+      return await this.handleAccessLevelInquiry(user, tokens);
+    }
+    
+    // Fallback to pattern matching for missed cases
     const lowerMessage = message.toLowerCase();
     
     // Check for catalog/application listing requests
     if (lowerMessage.includes('list available applications') || 
         lowerMessage.includes('applications to request') ||
+        lowerMessage.includes('available apps') ||
         lowerMessage.includes('show catalog')) {
-      console.log('📋 Detected catalog request');
+      console.log('📋 Pattern matched catalog request');
       return await this.handleCatalogRequest(user, tokens);
     }
     
@@ -57,7 +81,7 @@ export class LLMAutomationService {
     if (lowerMessage.includes('show my groups') || 
         lowerMessage.includes('list groups') ||
         lowerMessage.includes('manageable groups')) {
-      console.log('👥 Detected group request - checking admin session');
+      console.log('👥 Pattern matched group request - checking admin session');
       const hasAdminSession = this.oktaAuthService?.getAdminSessionToken(user.oktaId);
       
       if (!hasAdminSession) {
@@ -72,6 +96,7 @@ export class LLMAutomationService {
     if (lowerMessage.includes('what can i do') || 
         lowerMessage.includes('current access level') ||
         lowerMessage.includes('my capabilities')) {
+      console.log('🔑 Pattern matched access level inquiry');
       return await this.handleAccessLevelInquiry(user, tokens);
     }
     
@@ -110,7 +135,8 @@ export class LLMAutomationService {
         return await this.handleGroupManagement(analysis, user, tokens, hasAdminSession);
       default:
         // General response with appropriate capabilities
-        const capabilities = this.getUserCapabilities(user, !!hasAdminSession);
+        const hasAdminSessionForDefault = this.oktaAuthService?.getAdminSessionToken(user.oktaId);
+        const capabilities = this.getUserCapabilities(user, !!hasAdminSessionForDefault);
         const context = `User: ${user.name}\nRole: ${user.role}\nCapabilities: ${capabilities.join(', ')}`;
         const response = await this.ollama.generateResponse(message, context);
         return {
@@ -708,7 +734,7 @@ export class LLMAutomationService {
     };
   }
 
-  async handleAccessRequest(analysis: IntentAnalysis, user: User, tokens: OktaTokens): Promise<any> {
+  async handleAccessRequest(analysis: any, user: User, tokens: OktaTokens): Promise<any> {
     // Implementation for access requests - uses session tokens
     return {
       success: true,

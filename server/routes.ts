@@ -578,6 +578,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Add admin session requirement handling
           finalResponse += '\n\n🔐 **Admin authentication required**\n\nClick "Establish Admin Session" to continue with administrative operations.';
         }
+      } else if (llmResult.requiresAdminAuth) {
+        console.log('🔐 Admin auth required, sending special response');
+        // Handle admin authentication requirement
+        finalResponse = llmResult.data?.response || 'Admin session required for this operation.';
+        
+        // Save response with admin auth flag
+        await storage.createChatMessage({
+          userId: user.id,
+          message: finalResponse,
+          response: JSON.stringify({ 
+            response: finalResponse, 
+            source: 'llm_automation',
+            requiresAdminAuth: true,
+            adminUrl: llmResult.data?.adminUrl 
+          }),
+          messageType: 'assistant',
+          command: 'chat'
+        });
+
+        return res.json({ 
+          response: finalResponse,
+          requiresAdminAuth: true,
+          adminUrl: llmResult.data?.adminUrl 
+        });
       } else {
         console.log('❌ LLM processing failed, using intelligent fallback');
         // Use intelligent fallback response

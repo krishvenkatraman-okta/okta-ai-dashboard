@@ -1,0 +1,124 @@
+2025-07-21 11:27:37.28
+8be458f2
+User
+]
+2025-07-21 11:27:37.28
+8be458f2
+User
+}
+2025-07-21 11:27:37.35
+8be458f2
+User
+📤 Submit response status: 400
+2025-07-21 11:27:37.36
+8be458f2
+User
+❌ Submit error response:
+2025-07-21 11:27:37.36
+8be458f2
+User
+❌ Error submitting access request: Error: Submit API error 400:
+2025-07-21 11:27:37.36
+8be458f2
+User
+at LLMAutomationService.submitAccessRequest (file:///home/runner/workspace/dist/index.js:1986:19)
+2025-07-21 11:27:37.36
+8be458f2
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-07-21 11:27:37.36
+8be458f2
+User
+at async LLMAutomationService.handleEntitlementRequest (file:///home/runner/workspace/dist/index.js:1947:18)
+2025-07-21 11:27:37.36
+8be458f2
+User
+at async LLMAutomationService.processGovernanceRequest (file:///home/runner/workspace/dist/index.js:927:24)
+2025-07-21 11:27:37.36
+8be458f2
+User
+at async file:///home/runner/workspace/dist/index.js:3863:25
+2025-07-21 11:27:37.36
+8be458f2
+User
+❌ LLM processing failed, using intelligent fallback
+2025-07-21 11:27:37.36
+8be458f2
+User
+6:27:37 PM [express] POST /api/chat/message 200 in 812ms :: {"response":"I understand you're asking …
+2025-07-21 11:27:55.96
+8be458f2
+User
+💬 Chat request received
+2025-07-21 11:27:55.96
+8be458f2
+User
+Cookies: {
+2025-07-21 11:27:55.96
+8be458f2
+User
+session_id: '9fad43150e64e4d189a0f48083d7acc4547693c86d2a0e9c46e9affe4a081344'
+2025-07-21 11:27:55.96
+8be458f2
+User
+}
+2025-07-21 11:27:55.96
+8be458f2
+User
+🔍 Session ID found: 9fad4315...
+2025-07-21 11:27:55.96
+8be458f2
+User
+🔧 Okta Auth Service initialized:
+2025-07-21 11:27:55.96
+8be458f2
+User
+Domain: fcxdemo.okta.com
+2025-07-21 11:27:55.96
+8be458f2
+User
+Client ID: ✓ Configured
+2025-07-21 11:27:55.96
+8be458f2
+User
+Redirect URI: https://atko.kriyahub.com/api/auth/callback
+2025-07-21 11:27:55.96
+8be458f2
+User
+Custom Domain: atko.kriyahub.com
+2025-07-21 11:27:55.96
+8be458f2
+User
+🚀 Starting Ollama service...
+2025-07-21 11:27:55.96
+8be458f2
+User
+🤖 Using enhanced LLM processing for: show my groups
+2025-07-21 11:27:55.96
+8be458f2
+User
+🔍 LLM processing request: show my groups
+2025-07-21 11:27:55.96
+8be458f2
+User
+🔍 Message type: string Length: 14
+2025-07-21 11:27:55.96
+8be458f2
+User
+🔍 Normalized message: "show my groups"
+2025-07-21 11:27:55.96
+8be458f2
+User
+🎯 CRITICAL: Group management pattern detected: show my groups
+2025-07-21 11:27:55.96
+8be458f2
+User
+🎯 BYPASSING OLLAMA - Direct pattern match
+2025-07-21 11:27:55.96
+8be458f2
+User
+🔐 No admin session - requiring admin auth
+2025-07-21 11:27:55.96
+8be458f2
+User
+❌ LLM processing failed, using intelligent fallback

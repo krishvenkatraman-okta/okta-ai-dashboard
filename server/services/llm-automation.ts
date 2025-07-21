@@ -1147,6 +1147,44 @@ export class LLMAutomationService {
       if (!submitResponse.ok) {
         const errorText = await submitResponse.text();
         console.error('❌ Submit error response:', errorText);
+        console.error('❌ Request URL was:', `https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries/${entitlementId}/requests`);
+        console.error('❌ Request payload was:', JSON.stringify(requestPayload, null, 2));
+        console.error('❌ Request headers:', JSON.stringify({
+          'Authorization': 'Bearer [REDACTED]',
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }, null, 2));
+        
+        // Try alternative payload format if 400 error
+        if (submitResponse.status === 400) {
+          console.log('🔄 Trying alternative payload format...');
+          
+          const alternativePayload = {
+            fieldsValues: fieldValues  // Alternative field name
+          };
+          
+          const retryResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries/${entitlementId}/requests`, {
+            method: 'POST',
+            headers: {
+              'Authorization': authHeader,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(alternativePayload)
+          });
+          
+          if (retryResponse.ok) {
+            console.log('✅ Alternative payload format worked!');
+            const retryData = await retryResponse.json();
+            return {
+              success: true,
+              data: {
+                response: `**✅ Access Request Submitted Successfully**\n\n📱 **Application:** ${appName}\n🎯 **Entitlement:** ${entitlementName}\n🆔 **Request ID:** ${retryData.id || 'Generated'}\n\n**Status:** Your request has been submitted for approval.\n\n**Next Steps:**\n• You will receive notifications about request status\n• Check back later for approval updates\n• Contact your administrator if you have questions\n\n*Request submitted successfully through Okta Governance API*`
+              }
+            };
+          }
+        }
+        
         throw new Error(`Submit API error ${submitResponse.status}: ${errorText}`);
       }
 

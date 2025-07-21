@@ -36,41 +36,62 @@ export class LLMAutomationService {
   }
 
   async processGovernanceRequest(message: string, user: User, tokens: OktaTokens): Promise<any> {
-    console.log('🔍 LLM processing request:', message);
-    console.log('🔍 Message type:', typeof message, 'Length:', message.length);
-    
-    // Check for explicit patterns first (higher priority than LLM)
-    const lowerMessage = message.toLowerCase().trim();
-    console.log('🔍 Normalized message:', `"${lowerMessage}"`);
-    
-    // Group management patterns - highest priority with detailed logging
-    const groupPatterns = ['group management', 'group operations', 'show my groups', 'manage groups'];
-    const foundPattern = groupPatterns.find(pattern => lowerMessage.includes(pattern));
-    
-    if (foundPattern) {
-      console.log('🎯 CRITICAL: Group management pattern detected:', foundPattern);
-      console.log('🎯 BYPASSING OLLAMA - Direct pattern match');
-      const hasAdminSession = this.oktaAuthService?.getAdminSessionToken(user.oktaId);
+    try {
+      console.log('🔍 LLM processing request:', message);
+      console.log('🔍 Message type:', typeof message, 'Length:', message.length);
       
-      if (!hasAdminSession) {
-        console.log('🔐 No admin session - requiring admin auth');
-        return this.requireAdminSession('group_management', user);
+      // Check for explicit patterns first (higher priority than LLM)
+      const lowerMessage = message.toLowerCase().trim();
+      console.log('🔍 Normalized message:', `"${lowerMessage}"`);
+      
+      // Group management patterns - highest priority with detailed logging
+      const groupPatterns = ['group management', 'group operations', 'show my groups', 'manage groups'];
+      const foundPattern = groupPatterns.find(pattern => lowerMessage.includes(pattern));
+      
+      if (foundPattern) {
+        console.log('🎯 CRITICAL: Group management pattern detected:', foundPattern);
+        console.log('🎯 BYPASSING OLLAMA - Direct pattern match');
+        try {
+          const hasAdminSession = this.oktaAuthService?.getAdminSessionToken(user.oktaId);
+          
+          if (!hasAdminSession) {
+            console.log('🔐 No admin session - requiring admin auth');
+            return this.requireAdminSession('group_management', user);
+          }
+          
+          return await this.handleGroupManagement({ intent: 'group_management' }, user, tokens, hasAdminSession);
+        } catch (groupError) {
+          console.error('❌ Group management handling failed:', groupError);
+          return {
+            success: false,
+            data: { 
+              response: `**👥 Group Management**\n\nI understand you want to view your groups. However, I encountered a technical issue processing this request.\n\nPlease try:\n• Refreshing the page and trying again\n• Using "list my groups" instead\n• Checking that you have proper group management permissions` 
+            }
+          };
+        }
       }
       
-      return await this.handleGroupManagement({ intent: 'group_management' }, user, tokens, hasAdminSession);
-    }
-    
-    console.log('🔍 No group management pattern found, continuing to other checks...');
-    
-    // Entitlement request patterns - check for "request [specific entitlement]" format
-    if (lowerMessage.startsWith('request ') && !lowerMessage.includes('request access to ')) {
-      const entitlementMatch = message.match(/^request\s+(.+)$/i);
-      if (entitlementMatch) {
-        const entitlementName = entitlementMatch[1].trim();
-        console.log('🎯 PRIORITY: Entitlement request pattern detected:', entitlementName);
-        return await this.handleEntitlementRequest(entitlementName, user, tokens);
+      console.log('🔍 No group management pattern found, continuing to other checks...');
+      
+      // Entitlement request patterns - check for "request [specific entitlement]" format
+      if (lowerMessage.startsWith('request ') && !lowerMessage.includes('request access to ')) {
+        const entitlementMatch = message.match(/^request\s+(.+)$/i);
+        if (entitlementMatch) {
+          const entitlementName = entitlementMatch[1].trim();
+          console.log('🎯 PRIORITY: Entitlement request pattern detected:', entitlementName);
+          try {
+            return await this.handleEntitlementRequest(entitlementName, user, tokens);
+          } catch (entitlementError) {
+            console.error('❌ Entitlement request handling failed:', entitlementError);
+            return {
+              success: false,
+              data: { 
+                response: `**📋 Access Request**\n\nI understand you want to request access to "${entitlementName}". However, I encountered a technical issue processing this request.\n\nPlease try:\n• "list available applications" to see what's available\n• Refreshing the page and trying again\n• Contacting your administrator if the issue persists` 
+              }
+            };
+          }
+        }
       }
-    }
 
     // Use Ollama for intelligent intent analysis (with fallback on failure)
     let analysis;
@@ -205,6 +226,16 @@ export class LLMAutomationService {
           success: true,
           data: { response }
         };
+    }
+    } catch (error) {
+      console.error('❌ CRITICAL: LLM automation service failed:', error);
+      console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
+      return {
+        success: false,
+        data: { 
+          response: `I encountered a technical issue processing your request: "${message}"\n\nPlease try:\n• Refreshing the page\n• Using simpler commands like "list available applications"\n• Contacting support if the issue persists\n\nError: ${error instanceof Error ? error.message : 'Unknown error'}` 
+        }
+      };
     }
   }
 

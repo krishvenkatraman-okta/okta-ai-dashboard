@@ -106,11 +106,22 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
       const assistantMessage: ChatMessage = {
         id: Date.now().toString(),
         role: 'assistant',
-        content: response.data?.response || 'I processed your request.',
+        content: response.data?.response || response.response || 'I processed your request.',
         timestamp: new Date(),
-        data: response.data
+        data: response.data || response
       };
       setMessages(prev => [...prev, assistantMessage]);
+      
+      // Handle admin session flows
+      if (response.requiresAdminAuth) {
+        if (response.data?.action === 'admin_oauth_flow') {
+          console.log('🔐 Starting admin OAuth flow');
+          handleAdminOAuthFlow();
+        } else if (response.adminUrl) {
+          console.log('🔐 Admin auth required, redirecting to:', response.adminUrl);
+          window.open(response.adminUrl, '_blank', 'width=1024,height=768,scrollbars=yes,resizable=yes');
+        }
+      }
       
       // Invalidate related queries if data was updated
       queryClient.invalidateQueries({ queryKey: ['/api/governance/apps'] });
@@ -162,6 +173,86 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
 
     setMessages(prev => [...prev, userMessage]);
     sendMessageMutation.mutate(action);
+  };
+
+  const handleAdminOAuthFlow = async () => {
+    try {
+      console.log('🔐 Initiating admin OAuth flow');
+      
+      // Get admin auth URL from backend
+      const response = await fetch('/api/auth/admin-login', {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to get admin auth URL');
+      }
+      
+      const { adminAuthUrl } = await response.json();
+      
+      // Open popup for admin authentication
+      const popup = window.open(
+        adminAuthUrl, 
+        'admin_oauth', 
+        'width=600,height=700,scrollbars=yes,resizable=yes'
+      );
+      
+      if (!popup) {
+        throw new Error('Popup blocked. Please allow popups for admin authentication.');
+      }
+      
+      // Listen for messages from the popup
+      const handleMessage = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+        
+        if (event.data.type === 'admin_auth_success') {
+          console.log('✅ Admin authentication successful');
+          window.removeEventListener('message', handleMessage);
+          
+          // Add success message
+          const successMessage: ChatMessage = {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: '✅ **Admin session established successfully!**\n\nYou now have admin privileges. You can proceed with administrative operations.\n\nTry your previous command again or ask me to help with admin tasks.',
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, successMessage]);
+          
+        } else if (event.data.type === 'admin_auth_error') {
+          console.error('❌ Admin authentication failed:', event.data.error);
+          window.removeEventListener('message', handleMessage);
+          
+          // Add error message
+          const errorMessage: ChatMessage = {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: `❌ **Admin authentication failed**\n\nError: ${event.data.error}\n\nPlease try again or contact your administrator.`,
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, errorMessage]);
+        }
+      };
+      
+      window.addEventListener('message', handleMessage);
+      
+      // Clean up if popup is closed manually
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          window.removeEventListener('message', handleMessage);
+        }
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Admin OAuth flow error:', error);
+      const errorMessage: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: `❌ **Unable to start admin authentication**\n\nError: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease refresh the page and try again.`,
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    }
   };
 
   const renderMessage = (msg: ChatMessage) => {

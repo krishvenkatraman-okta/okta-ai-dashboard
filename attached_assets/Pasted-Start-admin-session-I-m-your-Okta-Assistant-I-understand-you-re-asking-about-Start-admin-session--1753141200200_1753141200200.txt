@@ -1,0 +1,95 @@
+Start admin session
+I'm your Okta Assistant! I understand you're asking about "Start admin session".
+
+**I can help you with:**
+• **Access Requests**: Request access to applications and resources
+• **Application Management**: View your current applications and manage access
+• **Governance & Compliance**: Handle access reviews and governance campaigns
+• **User & Group Management**: Manage organizational users and permissions
+
+**Your Role**: Super Admin - Full administrative access enabled.
+
+Could you tell me more specifically what you'd like to do? For example:
+- "Show me available applications"
+- "Help me request access to [app name]"
+- "Create a governance campaign"
+- "Review user access"
+Helpful?
+👍
+👎
+List available applications to request
+**🏪 Available Applications**
+
+📋 **Found 5 requestable applications:**
+
+1. **Adobe**
+   ✅ Available for Access Request
+   Type: Application
+   ID: `cenjz3zqypzyR312w696`
+
+2. **IBM Maximo**
+   ✅ Available for Access Request
+   Type: Application
+   ID: `cenhlny03HXgcdrGu696`
+
+3. **Microsoft Office 365**
+   ✅ Available for Access Request
+   Type: Application
+   ID: `cenhzz4fiuzXrvVqU696`
+
+4. **Salesforce.com**
+   ✅ Available for Access Request
+   Type: Application
+   ID: `cenjydbmeHvTXjdbF696`
+
+5. **ServiceNow UD**
+   ✅ Available for Access Request
+   Type: Application
+   ID: `cenhlo6egtZRLJBWG696`
+
+**Next Steps:**
+• Say "request access to [application name]" to start the request process
+• Example: "request access to Adobe" or "request access to Salesforce.com"
+
+*All applications above support access requests through the governance workflow*
+Helpful?
+👍
+👎
+request access to Adobe
+**📱 Adobe - Available Entitlements**
+
+🎯 **Found 3 available entitlements:**
+
+1. **Adobe Express Bundle**
+   ID: `cenjz44zigEIxqwqZ696`
+   Adobe Express Bundle
+
+
+2. **Adobe Pro bundle**
+   ID: `cenjz44zhgtXpVtEZ696`
+   Adobe Pro bundle
+
+
+
+3. **Creative Cloud Bundle**
+   ID: `cenjz44zjUYoZUQqn696`
+   Creative Cloud Bundle
+
+**Next Steps:**
+• Say "request [entitlement name]" to proceed with the request
+• Example: "request Adobe Express Bundle"
+
+*Select the entitlement that best matches your access needs*
+Helpful?
+👍
+👎
+request Adobe Express Bundle
+I understand you're asking about "request Adobe Express Bundle". However, I'm currently experiencing some technical difficulties with my processing. 
+
+Please try rephrasing your request or use one of these specific commands:
+• "request [application name]" - to request access to applications
+• "show my groups" - to view your group management access
+• "list available applications" - to see available apps
+• "30-day access review" - to review recent access
+
+You can also refresh the page and try again.

@@ -18,17 +18,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.redirect(authUrl);
   });
 
-  // Admin session route
+  // Admin session route - initiate OAuth flow
   app.get('/api/auth/admin-login', (req, res) => {
     if (!(req as any).session?.userId) {
       return res.status(401).json({ error: 'Must be logged in to access admin session' });
     }
     
-    const adminUrl = oktaAuth.getAdminDashboardUrl();
+    const state = require('crypto').randomBytes(32).toString('hex');
+    const adminAuthUrl = oktaAuth.getAdminAuthUrl(state);
+    
     res.json({ 
-      adminUrl,
-      message: 'Please complete admin authentication in the popup window'
+      adminAuthUrl,
+      state,
+      message: 'Admin authentication URL generated'
     });
+  });
+
+  // Admin OAuth callback - handle admin token exchange
+  app.get('/api/auth/admin-callback', async (req, res) => {
+    try {
+      const { code, state } = req.query;
+      
+      if (!code || !state) {
+        return res.status(400).send('Missing authorization code or state');
+      }
+
+      // Exchange code for admin tokens
+      const adminTokens = await oktaAuth.exchangeCodeForTokens(code as string, state as string);
+      
+      // Store admin session with enhanced privileges
+      const userId = (req as any).session?.userId;
+      if (userId && adminTokens) {
+        const expiresAt = Date.now() + (60 * 60 * 1000); // 1 hour
+        oktaAuth.storeAdminSessionToken(userId, adminTokens.accessToken, expiresAt);
+      }
+
+      // Close popup and notify parent window
+      res.send(`
+        <script>
+          window.opener?.postMessage({
+            type: 'admin_auth_success',
+            token: '${adminTokens?.accessToken?.substring(0, 20)}...'
+          }, '*');
+          window.close();
+        </script>
+      `);
+    } catch (error) {
+      console.error('Admin callback error:', error);
+      res.send(`
+        <script>
+          window.opener?.postMessage({
+            type: 'admin_auth_error',
+            error: '${error instanceof Error ? error.message : 'Authentication failed'}'
+          }, '*');
+          window.close();
+        </script>
+      `);
+    }
   });
 
   // Store admin session token (called from frontend after admin auth)
@@ -575,8 +621,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Handle special response types
         if (llmResult.requiresAdminAuth) {
-          // Add admin session requirement handling
-          finalResponse += '\n\n🔐 **Admin authentication required**\n\nClick "Establish Admin Session" to continue with administrative operations.';
+          // Add admin session requirement handling with redirect info
+          const adminData = llmResult.data;
+          if (adminData?.adminUrl) {
+            finalResponse += `\n\n🔐 **Redirecting to admin portal...**\n\nURL: ${adminData.adminUrl}`;
+          }
         }
       } else if (llmResult.requiresAdminAuth) {
         console.log('🔐 Admin auth required, sending special response');
@@ -600,7 +649,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ 
           response: finalResponse,
           requiresAdminAuth: true,
-          adminUrl: llmResult.data?.adminUrl 
+          adminUrl: llmResult.data?.adminUrl,
+          action: llmResult.data?.action,
+          adminState: llmResult.data?.adminState
         });
       } else {
         console.log('❌ LLM processing failed, using intelligent fallback');

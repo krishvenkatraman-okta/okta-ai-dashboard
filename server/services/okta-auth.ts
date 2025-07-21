@@ -66,6 +66,23 @@ export class OktaAuthService {
     return `${baseUrl}?${params.toString()}`;
   }
 
+  getAdminAuthUrl(state: string): string {
+    // Generate admin OAuth URL for step-up authentication
+    const adminDomain = this.oktaDomain.replace('.okta.com', '-admin.okta.com');
+    const adminRedirectUri = 'https://atko.kriyahub.com/api/auth/admin-callback';
+    
+    const params = new URLSearchParams({
+      client_id: this.clientId,
+      response_type: 'code',
+      scope: 'openid profile email okta.users.read okta.groups.read okta.apps.read',
+      redirect_uri: adminRedirectUri,
+      state: state,
+      prompt: 'login' // Force step-up authentication
+    });
+
+    return `https://${adminDomain}/oauth2/default/v1/authorize?${params.toString()}`;
+  }
+
   getAdminDashboardUrl(): string {
     // Convert fcxdemo.okta.com to fcxdemo-admin.okta.com/admin/dashboard
     const domain = this.oktaDomain.replace('.okta.com', '-admin.okta.com');

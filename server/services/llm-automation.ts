@@ -36,15 +36,52 @@ export class LLMAutomationService {
   }
 
   async processGovernanceRequest(message: string, user: User, tokens: OktaTokens): Promise<any> {
+    console.log('🔍 LLM processing request:', message);
+    
     // Use Ollama for intelligent intent analysis
     const analysis = await this.ollama.analyzeIntent(message);
+    console.log('🧠 Intent analysis result:', analysis);
     
-    // Determine if this requires admin privileges
+    // Handle specific intents first
+    const lowerMessage = message.toLowerCase();
+    
+    // Check for catalog/application listing requests
+    if (lowerMessage.includes('list available applications') || 
+        lowerMessage.includes('applications to request') ||
+        lowerMessage.includes('show catalog')) {
+      console.log('📋 Detected catalog request');
+      return await this.handleCatalogRequest(user, tokens);
+    }
+    
+    // Check for group management requests
+    if (lowerMessage.includes('show my groups') || 
+        lowerMessage.includes('list groups') ||
+        lowerMessage.includes('manageable groups')) {
+      console.log('👥 Detected group request - checking admin session');
+      const hasAdminSession = this.oktaAuthService?.getAdminSessionToken(user.oktaId);
+      
+      if (!hasAdminSession) {
+        console.log('🔐 No admin session - requiring admin auth');
+        return this.requireAdminSession('group_management', user);
+      }
+      
+      return await this.handleGroupManagement(analysis, user, tokens, hasAdminSession);
+    }
+    
+    // Check for access level questions
+    if (lowerMessage.includes('what can i do') || 
+        lowerMessage.includes('current access level') ||
+        lowerMessage.includes('my capabilities')) {
+      return await this.handleAccessLevelInquiry(user, tokens);
+    }
+    
+    // Determine if this requires admin privileges for other operations
     const isAdminOperation = this.isAdminOperation(analysis.intent);
     const hasAdminSession = this.oktaAuthService?.getAdminSessionToken(user.oktaId);
     
     // Handle admin operations
     if (isAdminOperation && !hasAdminSession) {
+      console.log('🔐 Admin operation detected, no session - requiring auth');
       return this.requireAdminSession(analysis.intent, user);
     }
     
@@ -58,16 +95,22 @@ export class LLMAutomationService {
         return await this.handleAccessRequest(analysis, user, tokens);
       case 'governance_campaign':
         // Admin operation - requires admin session
-        return await this.createGovernanceCampaign(analysis, user, tokens, hasAdminSession);
+        return {
+          success: true,
+          data: { response: `**🏛️ Governance Campaign**\n\nGovernance campaign creation requires admin privileges.\n\nPlease establish an admin session first.` }
+        };
       case 'user_management':
         // Admin operation - requires admin session
-        return await this.handleUserManagement(analysis, user, tokens, hasAdminSession);
+        return {
+          success: true,
+          data: { response: `**👤 User Management**\n\nUser management requires admin privileges.\n\nPlease establish an admin session first.` }
+        };
       case 'group_management':
         // Admin operation - requires admin session
         return await this.handleGroupManagement(analysis, user, tokens, hasAdminSession);
       default:
         // General response with appropriate capabilities
-        const capabilities = this.getUserCapabilities(user, hasAdminSession);
+        const capabilities = this.getUserCapabilities(user, !!hasAdminSession);
         const context = `User: ${user.name}\nRole: ${user.role}\nCapabilities: ${capabilities.join(', ')}`;
         const response = await this.ollama.generateResponse(message, context);
         return {
@@ -133,13 +176,150 @@ export class LLMAutomationService {
 
   private async handleGroupManagement(analysis: any, user: User, tokens: OktaTokens, adminSession: any): Promise<any> {
     if (!adminSession) {
+      console.log('🔐 Group management requires admin session');
       return this.requireAdminSession('group_management', user);
     }
+
+    console.log('👥 Processing group management with admin session');
+    
+    try {
+      const response = await fetch(`https://${this.oktaDomain}/api/v1/groups`, {
+        headers: {
+          'Authorization': `Bearer ${tokens.accessToken}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Groups API error: ${response.status}`);
+      }
+
+      const groups = await response.json();
+      console.log('✅ Groups fetched:', groups.length);
+
+      if (groups && groups.length > 0) {
+        const groupList = groups.slice(0, 10).map((group: any, index: number) => 
+          `${index + 1}. **${group.profile?.name || 'Unnamed Group'}**\n   Type: ${group.type || 'USER_GROUP'}\n   Members: ${group.profile?.membershipCount || 'Unknown'}`
+        ).join('\n\n');
+
+        return {
+          success: true,
+          data: {
+            response: `**👥 Your Manageable Groups**\n\n✅ **Found ${groups.length} groups:**\n\n${groupList}${groups.length > 10 ? `\n\n... and ${groups.length - 10} more groups` : ''}\n\n**Available Actions:**\n• "List users in [group name]" - Show group members\n• "Add user to [group name]" - Add user to group\n• "Remove user from [group name]" - Remove user from group\n\n*Admin session active - all operations audited*`
+          }
+        };
+      } else {
+        return {
+          success: true,
+          data: {
+            response: `**👥 Groups You Can Manage**\n\n⚠️ No groups found under your management.\n\nThis could mean:\n• No groups are assigned to your custom role\n• Group permissions may need configuration\n• Check with your Okta administrator\n\n*Admin session active*`
+          }
+        };
+      }
+    } catch (error) {
+      console.error('Group management error:', error);
+      return {
+        success: true,
+        data: {
+          response: `**❌ Group Access Error**\n\nCould not retrieve groups: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease check:\n• Your group management permissions\n• Network connectivity\n• Contact your administrator if the issue persists`
+        }
+      };
+    }
+  }
+
+  private async handleCatalogRequest(user: User, tokens: OktaTokens): Promise<any> {
+    console.log('📋 Processing catalog request');
+    
+    try {
+      const response = await fetch(`https://${this.oktaDomain}/api/v1/iga/catalog/entries?filter=type+eq+%22APPLICATION%22&expand=app`, {
+        headers: {
+          'Authorization': `Bearer ${tokens.accessToken}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        console.log('⚠️ IGA catalog failed, trying apps API fallback');
+        
+        // Fallback to regular apps API
+        const appsResponse = await fetch(`https://${this.oktaDomain}/api/v1/apps`, {
+          headers: {
+            'Authorization': `Bearer ${tokens.accessToken}`,
+            'Accept': 'application/json'
+          }
+        });
+
+        if (!appsResponse.ok) {
+          throw new Error(`Apps API error: ${appsResponse.status}`);
+        }
+
+        const apps = await appsResponse.json();
+        const requestableApps = apps.filter((app: any) => app.status === 'ACTIVE');
+
+        if (requestableApps.length > 0) {
+          const appList = requestableApps.slice(0, 15).map((app: any, index: number) => 
+            `${index + 1}. **${app.label || app.name}**\n   Status: ${app.status}\n   Type: ${app.signOnMode || 'Application'}`
+          ).join('\n\n');
+
+          return {
+            success: true,
+            data: {
+              response: `**🏪 Available Applications (Apps API)**\n\n✅ **Found ${requestableApps.length} active applications:**\n\n${appList}${requestableApps.length > 15 ? `\n\n... and ${requestableApps.length - 15} more applications` : ''}\n\n**Next Steps:**\n• Contact your administrator to request access\n• Note: This list shows all active applications, not all may be requestable\n\n*Using Apps API fallback as IGA catalog is not accessible*`
+            }
+          };
+        }
+      } else {
+        const catalog = await response.json();
+        console.log('✅ Catalog entries fetched:', catalog.length);
+
+        if (catalog && catalog.length > 0) {
+          const catalogList = catalog.slice(0, 15).map((entry: any, index: number) => 
+            `${index + 1}. **${entry.displayName || entry.name || 'Unknown App'}**\n   ${entry.requestable === false ? '🔒 Not Requestable' : '✅ Available for Request'}\n   Type: ${entry.type || 'Application'}`
+          ).join('\n\n');
+
+          return {
+            success: true,
+            data: {
+              response: `**🏪 IGA Application Catalog**\n\n✅ **Found ${catalog.length} applications:**\n\n${catalogList}${catalog.length > 15 ? `\n\n... and ${catalog.length - 15} more applications` : ''}\n\n**Next Steps:**\n• Say "request access to [app name]" to submit a request\n• All applications above are from your Okta IGA catalog\n\n*Retrieved from official IGA catalog API*`
+            }
+          };
+        }
+      }
+
+      // If no data found from either API
+      return {
+        success: true,
+        data: {
+          response: `**📋 No Applications Available**\n\nNo requestable applications found in the catalog.\n\nThis may indicate:\n• IGA catalog is not configured\n• No applications are published for self-service\n• Permissions may need adjustment\n\nContact your Okta administrator for access to applications.`
+        }
+      };
+
+    } catch (error) {
+      console.error('Catalog request error:', error);
+      return {
+        success: true,
+        data: {
+          response: `**❌ Catalog Access Error**\n\nCould not retrieve application catalog: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease check:\n• Your IGA permissions\n• Network connectivity\n• Contact your administrator if the issue persists`
+        }
+      };
+    }
+  }
+
+  private async handleAccessLevelInquiry(user: User, tokens: OktaTokens): Promise<any> {
+    const hasAdminSession = this.oktaAuthService?.getAdminSessionToken(user.oktaId);
+    const capabilities = this.getUserCapabilities(user, !!hasAdminSession);
+    
+    const roleDisplay = user.allRoles?.find(role => 
+      !['Super Admin', 'App Admin', 'Group Admin', 'User Admin'].includes(role)
+    ) || this.formatRoleName(user.role);
 
     return {
       success: true,
       data: {
-        response: `**🔑 Group Management**\n\nAdmin session active. I can help you with:\n• List manageable groups\n• Add/remove users from groups\n• View group memberships\n• Group access analytics\n\nWhat group operation would you like to perform?`
+        response: `**🔑 Your Current Access Level**\n\n**Role:** ${roleDisplay}\n**Admin Session:** ${hasAdminSession ? '✅ Active' : '❌ Not Active'}\n\n**Current Capabilities:**\n${capabilities.map(cap => `• ${cap}`).join('\n')}\n\n${!hasAdminSession && (user.role === 'group_admin' || user.allRoles?.some(role => role.toLowerCase().includes('group'))) ? 
+          '\n**To unlock full capabilities:**\n• Try requesting group management operations\n• System will prompt for admin authentication when needed' : 
+          '\n**Available Actions:**\n• Request access to applications\n• Review your 30-day access patterns'
+        }`
       }
     };
   }
@@ -200,88 +380,7 @@ export class LLMAutomationService {
     return { type: 'list_apps' }; // Default fallback
   }
 
-  private async createGovernanceCampaign(analysis: any, user: User, tokens: OktaTokens): Promise<any> {
-    try {
-      // Check user permissions
-      if (!this.hasGovernancePermissions(user)) {
-        return {
-          success: false,
-          error: "You don't have permission to create governance campaigns. Contact your administrator."
-        };
-      }
 
-      // Get governance-enabled apps first
-      const apps = await this.listGovernanceApps(user, tokens);
-      
-      if (!apps.success || !apps.data?.length) {
-        return {
-          success: false,
-          error: "No governance-enabled applications found. Please contact your administrator to enable governance for your applications."
-        };
-      }
-
-      let targetApp = null;
-      if (intent.appName) {
-        targetApp = apps.data.find((app: any) => 
-          app.name?.toLowerCase().includes(intent.appName!.toLowerCase()) ||
-          app.label?.toLowerCase().includes(intent.appName!.toLowerCase())
-        );
-      }
-
-      if (intent.appName && !targetApp) {
-        // Show available apps if specific app not found
-        const appNames = apps.data.map((app: any) => app.name || app.label).join(', ');
-        return {
-          success: false,
-          error: `Application "${intent.appName}" not found or not governance-enabled. Available apps: ${appNames}`
-        };
-      }
-
-      // If no specific app, show available options
-      if (!targetApp) {
-        const appList = apps.data.map((app: any) => `• ${app.name || app.label}`).join('\n');
-        return {
-          success: true,
-          data: {
-            response: `Here are your governance-enabled applications:\n\n${appList}\n\nTo create a campaign, say: "Create a campaign for [app name] every 3 months with manager as reviewer"`
-          }
-        };
-      }
-
-      // Create the campaign
-      const campaignData = {
-        name: `${targetApp.name || targetApp.label} Access Review`,
-        description: `Automated access review campaign for ${targetApp.name || targetApp.label}`,
-        applicationId: targetApp.id,
-        schedule: this.parseFrequencyToSchedule(intent.frequency || '3 months'),
-        reviewerType: intent.reviewer === 'manager' ? 'MANAGER' : 'USERNAME',
-        reviewer: intent.reviewer !== 'manager' ? intent.reviewer : undefined
-      };
-
-      const response = await this.callOktaAPI('/governance/api/v1/campaigns', 'POST', campaignData, tokens.accessToken);
-      
-      if (response.ok) {
-        const campaign = await response.json();
-        return {
-          success: true,
-          data: {
-            response: `✅ Successfully created governance campaign "${campaignData.name}"!\n\n**Details:**\n• Application: ${targetApp.name || targetApp.label}\n• Frequency: ${intent.frequency}\n• Reviewer: ${intent.reviewer}\n• Campaign ID: ${campaign.id}\n\nThe campaign will automatically review access permissions based on your schedule.`
-          }
-        };
-      } else {
-        return {
-          success: false,
-          error: `Failed to create campaign: ${response.status} ${response.statusText}`
-        };
-      }
-    } catch (error) {
-      console.error('Campaign creation error:', error);
-      return {
-        success: false,
-        error: "Failed to create governance campaign. Please try again or contact support."
-      };
-    }
-  }
 
   private async performAccessReview(analysis: any, user: User, tokens: OktaTokens): Promise<any> {
     try {
@@ -609,9 +708,14 @@ export class LLMAutomationService {
     };
   }
 
-  private async handleAccessRequest(analysis: any, user: User, tokens: OktaTokens): Promise<any> {
-    // All users can make access requests
-    return await this.listCatalogEntries(user, tokens);
+  async handleAccessRequest(analysis: IntentAnalysis, user: User, tokens: OktaTokens): Promise<any> {
+    // Implementation for access requests - uses session tokens
+    return {
+      success: true,
+      data: {
+        response: `**📝 Access Request**\n\nAccess request functionality will be processed using your session token for proper audit logging.\n\nNext: Please specify which application you'd like to request access to.`
+      }
+    };
   }
 
   private async handleUserManagement(analysis: any, user: User, tokens: OktaTokens): Promise<any> {

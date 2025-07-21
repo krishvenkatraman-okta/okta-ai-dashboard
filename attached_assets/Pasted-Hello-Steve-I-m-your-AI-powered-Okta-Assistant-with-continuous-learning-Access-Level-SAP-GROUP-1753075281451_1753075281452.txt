@@ -1,0 +1,87 @@
+Hello Steve! I'm your AI-powered Okta Assistant with continuous learning.
+
+**Access Level: SAP GROUP ADMINS**
+
+You have custom group management access. I can help you with:
+• Manage groups and group memberships
+• Review group access across applications
+• Add/remove users from groups
+• Show your manageable groups
+
+**Quick Actions:**
+• "Show me apps I accessed in the last 30 days"
+• "List available applications to request"
+• "Show my groups"
+• "What can I do with my current access level?"
+
+What can I help you with today?
+**📊 30-Day Access Review**
+
+Found 2 applications to review:
+
+1. **Workday**
+   Last accessed: Never accessed
+   Days since access: 365
+
+2. **Okta Privileged Access**
+   Last accessed: Never accessed
+   Days since access: 365
+
+
+**Recommendations:**
+• Consider revoking access to applications not used in 30+ days
+• Review applications with "Never accessed" status
+• Verify access to critical applications is appropriate
+
+*Say "revoke access to [app name]" to remove unused access*
+Helpful?
+👍
+👎
+show my groups
+**👥 Groups You Can Manage**
+
+✅ **Found 0 Groups:**
+
+
+
+**Available Actions:**
+• "List users in [group name]" - Show group members with pagination
+• "Add user to [group name]" - Add user to group
+• "Remove user from [group name]" - Remove user from group
+
+*🤖 AI retrieved groups from Okta API based on your GROUP_MEMBERSHIP_ADMIN role*
+
+**Feedback:** 👍 👎
+Helpful?
+👍
+👎
+What can I do with my current access level?
+**📊 30-Day Access Review - AI Enhanced**
+
+✅ Let me check your unused applications from the last 30 days...
+
+*🤖 AI is analyzing your access patterns using System Log API*
+
+Processing authentication events and application usage...
+
+**Note:** This analysis uses real Okta System Log data to identify unused access.
+
+**Feedback:** 👍 👎 (Help AI improve accuracy)
+Helpful?
+👍
+👎
+List available applications to request
+**📊 30-Day Access Review - AI Enhanced**
+
+✅ Let me check your unused applications from the last 30 days...
+
+*🤖 AI is analyzing your access patterns using System Log API*
+
+Processing authentication events and application usage...
+
+**Note:** This analysis uses real Okta System Log data to identify unused access.
+
+**Feedback:** 👍 👎 (Help AI improve accuracy)
+Helpful?
+👍
+👎

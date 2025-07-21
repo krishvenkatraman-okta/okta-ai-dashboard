@@ -10,13 +10,38 @@ export class LocalOllamaService {
   async initialize(): Promise<void> {
     try {
       console.log('🚀 Starting Ollama service...');
+      
+      // Check if Ollama is already running first
+      const isRunning = await this.checkOllamaRunning();
+      if (isRunning) {
+        console.log('✅ Ollama already running, skipping initialization');
+        await this.pullModel('llama3.2:1b');
+        console.log('✅ Ollama service ready with Llama 3.2 1B');
+        return;
+      }
+      
       await this.startOllamaService();
       await this.waitForOllama();
-      // Try pulling a smaller, compatible model first
       await this.pullModel('llama3.2:1b');
       console.log('✅ Ollama initialized successfully with Llama 3.2 1B');
     } catch (error) {
       console.warn('⚠️ Ollama initialization failed, using fallback responses:', error);
+      // Mark service as failed but don't crash
+      this.isFailedMode = true;
+    }
+  }
+
+  private isFailedMode = false;
+
+  private async checkOllamaRunning(): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/version`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(2000)
+      });
+      return response.ok;
+    } catch (error) {
+      return false;
     }
   }
 
@@ -58,18 +83,41 @@ export class LocalOllamaService {
         // Ignore cleanup errors
       }
       
-      // Download Ollama binary for Linux
-      console.log('📥 Downloading Ollama binary...');
-      await execAsync('curl -L https://github.com/ollama/ollama/releases/download/v0.3.0/ollama-linux-amd64 -o /tmp/ollama-bin');
-      await execAsync('chmod +x /tmp/ollama-bin');
+      // Check if binary already exists and is valid
+      try {
+        const { stdout } = await execAsync('/tmp/ollama-bin --version || echo "not found"');
+        if (!stdout.includes('not found')) {
+          console.log('📁 Using existing Ollama binary');
+          this.ollamaProcess = spawn('/tmp/ollama-bin', ['serve'], {
+            detached: true,
+            stdio: ['ignore', 'pipe', 'pipe']
+          });
+          console.log('🔄 Ollama binary started');
+          return;
+        }
+      } catch (e) {
+        // Binary doesn't exist, continue with download
+      }
       
-      // Start Ollama
-      this.ollamaProcess = spawn('/tmp/ollama-bin', ['serve'], {
-        detached: true,
-        stdio: ['ignore', 'pipe', 'pipe']
-      });
+      // Download with retry logic and timeout
+      console.log('📥 Downloading Ollama binary...');
+      const downloadCmd = 'timeout 30 curl -L --connect-timeout 10 --max-time 60 https://github.com/ollama/ollama/releases/download/v0.3.0/ollama-linux-amd64 -o /tmp/ollama-bin';
+      
+      try {
+        await execAsync(downloadCmd);
+        await execAsync('chmod +x /tmp/ollama-bin');
+        
+        // Start Ollama
+        this.ollamaProcess = spawn('/tmp/ollama-bin', ['serve'], {
+          detached: true,
+          stdio: ['ignore', 'pipe', 'pipe']
+        });
 
-      console.log('🔄 Ollama binary started');
+        console.log('🔄 Ollama binary started');
+      } catch (downloadError) {
+        // If download fails, throw to trigger fallback mode
+        throw new Error(`Download failed: ${downloadError}. Will use pattern-based fallback.`);
+      }
     } catch (error) {
       throw new Error(`Failed to download/start Ollama: ${error}`);
     }
@@ -287,7 +335,78 @@ Could you tell me more specifically what you'd like to do? For example:
     parameters: Record<string, any>;
     suggestedAction: string;
   }> {
+    // If Ollama is in failed mode, use pattern-based classification immediately
+    if (this.isFailedMode) {
+      console.log('🔄 Using fallback classification due to Ollama failure');
+      return this.getPatternBasedIntent(message);
+    }
+
+    try {
+      // Try Ollama first if available
+      const ollamaResult = await this.getOllamaIntent(message);
+      if (ollamaResult) {
+        return ollamaResult;
+      }
+    } catch (error) {
+      console.log('⚠️ Ollama intent analysis failed, using pattern fallback');
+    }
+
+    // Fallback to pattern-based classification
+    return this.getPatternBasedIntent(message);
+  }
+
+  private getPatternBasedIntent(message: string): {
+    intent: string;
+    confidence: number;
+    parameters: Record<string, any>;
+    suggestedAction: string;
+  } {
     const lowerMessage = message.toLowerCase();
+    
+    // Check for entitlement requests first (highest priority)
+    if (lowerMessage.startsWith('request ') && !lowerMessage.includes('request access to ')) {
+      return {
+        intent: 'entitlement_request',
+        confidence: 0.9,
+        parameters: { entitlementName: message.substring(8).trim() },
+        suggestedAction: 'Process entitlement request'
+      };
+    }
+    
+    // Check for group management patterns
+    const groupPatterns = ['group management', 'group operations', 'show my groups', 'manage groups'];
+    if (groupPatterns.some(pattern => lowerMessage.includes(pattern))) {
+      return {
+        intent: 'group_management',
+        confidence: 0.9,
+        parameters: {},
+        suggestedAction: 'Handle group management operations'
+      };
+    }
+    
+    // Check for catalog requests
+    if (lowerMessage.includes('list available applications') || 
+        lowerMessage.includes('applications to request') ||
+        lowerMessage.includes('available apps') ||
+        lowerMessage.includes('show catalog')) {
+      return {
+        intent: 'catalog_request',
+        confidence: 0.8,
+        parameters: {},
+        suggestedAction: 'Show available applications catalog'
+      };
+    }
+    
+    // Check for access level inquiries
+    if (lowerMessage.includes('access level') || lowerMessage.includes('current access') ||
+        lowerMessage.includes('what can i do')) {
+      return {
+        intent: 'access_level_inquiry',
+        confidence: 0.8,
+        parameters: {},
+        suggestedAction: 'Show user access level and capabilities'
+      };
+    }
     
     if (lowerMessage.includes('30 days') || (lowerMessage.includes('access') && lowerMessage.includes('review'))) {
       return {
@@ -307,21 +426,74 @@ Could you tell me more specifically what you'd like to do? For example:
       };
     }
 
-    if (lowerMessage.includes('catalog') || lowerMessage.includes('request') || lowerMessage.includes('available')) {
-      return {
-        intent: 'access_request',
-        confidence: 0.8,
-        parameters: {},
-        suggestedAction: 'Show available applications to request'
-      };
-    }
-
+    // Default fallback
     return {
-      intent: 'general_query',
-      confidence: 0.6,
+      intent: 'general_inquiry',
+      confidence: 0.3,
       parameters: {},
       suggestedAction: 'Provide general assistance'
     };
+  }
+
+  private async getOllamaIntent(message: string): Promise<any> {
+    try {
+      const healthCheck = await fetch(`${this.baseUrl}/api/tags`, {
+        signal: AbortSignal.timeout(2000)
+      });
+      
+      if (!healthCheck.ok) {
+        return null;
+      }
+      
+      const modelsData = await healthCheck.json();
+      if (!modelsData.models || modelsData.models.length === 0) {
+        return null;
+      }
+      
+      const modelName = modelsData.models[0].name;
+      const prompt = `Analyze this user message and classify the intent. Return ONLY a JSON object with intent, confidence, parameters, and suggestedAction.
+
+Message: "${message}"
+
+Intent categories:
+- entitlement_request: "request [specific item]" format
+- group_management: group operations, show groups
+- catalog_request: list apps, show catalog 
+- access_level_inquiry: what can I do, access level
+- access_review: 30-day review, unused apps
+- governance_campaign: governance tasks
+- general_inquiry: everything else
+
+JSON:`;
+
+      const response = await fetch(`${this.baseUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: modelName,
+          prompt,
+          stream: false,
+          options: { temperature: 0.1, num_predict: 100 }
+        }),
+        signal: AbortSignal.timeout(5000)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.response) {
+          try {
+            return JSON.parse(data.response.trim());
+          } catch (parseError) {
+            console.log('Failed to parse Ollama JSON response');
+            return null;
+          }
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      return null;
+    }
   }
 
   cleanup(): void {

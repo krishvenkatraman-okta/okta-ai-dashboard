@@ -111,6 +111,11 @@ export class LLMAutomationService {
     }
     
     // Handle based on the analyzed intent first, then fall back to pattern matching
+    if (analysis.intent === 'admin_session_start') {
+      console.log('🔐 Admin session start request detected');
+      return await this.handleAdminSessionStart(user);
+    }
+    
     if (analysis.intent === 'entitlement_request') {
       console.log('🎯 LLM detected entitlement request');
       // Extract entitlement name from message
@@ -305,6 +310,13 @@ export class LLMAutomationService {
   private fallbackIntentClassification(message: string) {
     const lowerMessage = message.toLowerCase();
     
+    // Check for admin session requests
+    if (lowerMessage.includes('start admin session') || 
+        lowerMessage.includes('admin session') ||
+        lowerMessage.includes('establish admin session')) {
+      return { intent: 'admin_session_start', confidence: 0.9 };
+    }
+    
     // Check for entitlement requests first
     if (lowerMessage.startsWith('request ') && !lowerMessage.includes('request access to ')) {
       return { intent: 'entitlement_request', confidence: 0.9 };
@@ -362,6 +374,33 @@ export class LLMAutomationService {
     }
     
     return capabilities;
+  }
+
+  async handleAdminSessionStart(user: User): Promise<any> {
+    try {
+      console.log('🔐 Handling admin session start for user:', user.name);
+      
+      // Get actual user role for display
+      const userRole = this.getUserDisplayRole(user);
+      const adminDomain = this.oktaDomain.replace('.okta.com', '-admin.okta.com');
+      
+      return {
+        success: true,
+        data: {
+          response: `**🔐 Admin Session Setup**\n\n**Your Role:** ${userRole}\n\n**To establish an admin session:**\n\n1. **Click the link below** to open the admin portal\n2. **Authenticate** with your admin credentials\n3. **Return here** - your session will be automatically established\n\n[🔗 **Open Admin Portal**](https://${adminDomain}/admin/dashboard)\n\n*This ensures all administrative actions are properly audited in Okta system logs.*`,
+          action: 'admin_session_redirect',
+          adminUrl: `https://${adminDomain}/admin/dashboard`
+        }
+      };
+    } catch (error) {
+      console.error('❌ Error handling admin session start:', error);
+      return {
+        success: false,
+        data: {
+          response: `**❌ Admin Session Error**\n\nUnable to initiate admin session.\n\n**Error:** ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try:\n• Refreshing the page\n• Contacting your administrator\n• Checking your admin permissions`
+        }
+      };
+    }
   }
 
   private async handleGroupManagement(analysis: any, user: User, tokens: OktaTokens, adminSession: any): Promise<any> {

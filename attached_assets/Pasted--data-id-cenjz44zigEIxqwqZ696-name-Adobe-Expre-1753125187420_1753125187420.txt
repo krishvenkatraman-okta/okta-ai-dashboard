@@ -1,0 +1,68 @@
+{
+    "data": [
+        {
+            "id": "cenjz44zigEIxqwqZ696",
+            "name": "Adobe Express Bundle",
+            "description": "Adobe Express Bundle\n",
+            "parent": "cenjz3zqypzyR312w696",
+            "requestable": true,
+            "_links": {
+                "self": {
+                    "href": "https://fcxdemo.okta.com/governance/api/v2/my/catalogs/default/entries/cenjz44zigEIxqwqZ696",
+                    "hints": {}
+                },
+                "logo": [],
+                "createRequest": {
+                    "href": "https://fcxdemo.okta.com/governance/api/v2/my/catalogs/default/entries/cenjz44zigEIxqwqZ696/requests",
+                    "hints": {}
+                }
+            }
+        },
+        {
+            "id": "cenjz44zhgtXpVtEZ696",
+            "name": "Adobe Pro bundle",
+            "description": "Adobe Pro bundle\n\n",
+            "parent": "cenjz3zqypzyR312w696",
+            "requestable": true,
+            "_links": {
+                "self": {
+                    "href": "https://fcxdemo.okta.com/governance/api/v2/my/catalogs/default/entries/cenjz44zhgtXpVtEZ696",
+                    "hints": {}
+                },
+                "logo": [],
+                "createRequest": {
+                    "href": "https://fcxdemo.okta.com/governance/api/v2/my/catalogs/default/entries/cenjz44zhgtXpVtEZ696/requests",
+                    "hints": {}
+                }
+            }
+        },
+        {
+            "id": "cenjz44zjUYoZUQqn696",
+            "name": "Creative Cloud Bundle",
+            "description": "Creative Cloud Bundle",
+            "parent": "cenjz3zqypzyR312w696",
+            "requestable": true,
+            "_links": {
+                "self": {
+                    "href": "https://fcxdemo.okta.com/governance/api/v2/my/catalogs/default/entries/cenjz44zjUYoZUQqn696",
+                    "hints": {}
+                },
+                "logo": [],
+                "createRequest": {
+                    "href": "https://fcxdemo.okta.com/governance/api/v2/my/catalogs/default/entries/cenjz44zjUYoZUQqn696/requests",
+                    "hints": {}
+                }
+            }
+        }
+    ],
+    "_links": {
+        "self": {
+            "href": "https://fcxdemo.okta.com/governance/api/v2/my/catalogs/default/entries?filter=parent%20eq%20%22cenjz3zqypzyR312w696%22&limit=20",
+            "hints": {}
+        },
+        "match": {
+            "href": "https://fcxdemo.okta.com/governance/api/v2/my/catalogs/default/entries?match",
+            "hints": {}
+        }
+    }
+}

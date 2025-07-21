@@ -1062,14 +1062,15 @@ export class LLMAutomationService {
 
   async handleEntitlementRequest(entitlementName: string, user: User, tokens: OktaTokens): Promise<any> {
     try {
-      console.log('📝 Processing entitlement request for:', entitlementName);
+      console.log('🎯 Processing entitlement request for:', entitlementName);
+      
+      // CRITICAL: Always use user's session token for access requests (not management API)
+      const authHeader = `Bearer ${tokens.accessToken}`;
+      console.log('🔒 Using USER SESSION TOKEN for catalog access (user attribution required)');
 
-      const authHeader = this.oktaApiToken 
-        ? `SSWS ${this.oktaApiToken}`
-        : `Bearer ${tokens.accessToken}`;
-
-      // Search for entitlements matching the name across all applications
-      const searchResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries?filter=not%28parent+pr%29&limit=50`, {
+      // Step 1: Get all catalog items (applications)
+      console.log('📋 Step 1: Getting catalog applications...');
+      const catalogResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries?filter=not%28parent+pr%29&limit=20`, {
         headers: {
           'Authorization': authHeader,
           'Accept': 'application/json',
@@ -1077,18 +1078,22 @@ export class LLMAutomationService {
         }
       });
 
-      if (!searchResponse.ok) {
-        throw new Error(`Search API error: ${searchResponse.status}`);
+      if (!catalogResponse.ok) {
+        throw new Error(`Catalog API error: ${catalogResponse.status}`);
       }
 
-      const searchData = await searchResponse.json();
-      const allEntries = searchData.data || searchData.resources || searchData.entries || searchData;
+      const catalogData = await catalogResponse.json();
+      const applications = catalogData.data || [];
+      console.log(`📋 Found ${applications.length} applications in catalog`);
 
-      // Search through all applications for entitlements
+      // Step 2: Search through applications for the entitlement
       let foundEntitlement = null;
       let parentApp = null;
 
-      for (const app of allEntries.filter((e: any) => e.label !== 'Collection')) {
+      console.log('🔍 Step 2: Searching for entitlement in applications...');
+      for (const app of applications) {
+        console.log(`🔍 Checking app: ${app.name} (${app.id})`);
+        
         const entitlementsResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries?filter=parent+eq+%22${app.id}%22&limit=20`, {
           headers: {
             'Authorization': authHeader,
@@ -1099,18 +1104,18 @@ export class LLMAutomationService {
 
         if (entitlementsResponse.ok) {
           const entitlementsData = await entitlementsResponse.json();
-          const entitlements = entitlementsData.data || entitlementsData.resources || entitlementsData.entries || entitlementsData;
+          const entitlements = entitlementsData.data || [];
+          console.log(`📦 Found ${entitlements.length} entitlements in ${app.name}`);
 
-          if (entitlements) {
-            foundEntitlement = entitlements.find((ent: any) => 
-              ent.name?.toLowerCase() === entitlementName.toLowerCase() ||
-              ent.displayName?.toLowerCase() === entitlementName.toLowerCase()
-            );
+          foundEntitlement = entitlements.find((ent: any) => 
+            ent.name?.toLowerCase().includes(entitlementName.toLowerCase()) ||
+            entitlementName.toLowerCase().includes(ent.name?.toLowerCase())
+          );
 
-            if (foundEntitlement) {
-              parentApp = app;
-              break;
-            }
+          if (foundEntitlement) {
+            parentApp = app;
+            console.log(`✅ Found matching entitlement: ${foundEntitlement.name} in ${app.name}`);
+            break;
           }
         }
       }
@@ -1119,24 +1124,61 @@ export class LLMAutomationService {
         return {
           success: false,
           data: {
-            response: `**❌ Entitlement Not Found**\n\nCould not find "${entitlementName}" in any application catalog.\n\nPlease:\n1. Use "List available applications to request" to see applications\n2. Use "request access to [App Name]" to see available entitlements\n3. Use the exact entitlement name from the list`
+            response: `**❌ Entitlement Not Found**\n\nCould not find "${entitlementName}" in any application catalog.\n\nPlease:\n1. Use "list available applications" to see available apps\n2. Check the exact entitlement name\n3. Contact your administrator if the entitlement should be available`
           }
         };
       }
 
-      // For testing, submit request directly with default values
-      console.log('🎯 Found entitlement:', foundEntitlement.name, 'in app:', parentApp.name);
-      
-      // Submit with minimal required fields using SESSION TOKEN (not API token for proper audit)
-      console.log('🔒 Using session token for access request submission (proper user attribution)');
-      const defaultFieldValues = [
-        {
-          id: "ACCESS_DURATION",
-          value: "PT2H"
+      // Step 3: Get required fields for the entitlement
+      console.log('📝 Step 3: Getting required fields for entitlement...');
+      const fieldsResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries/${foundEntitlement.id}/request-fields`, {
+        headers: {
+          'Authorization': authHeader,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
         }
-      ];
+      });
 
-      return await this.submitAccessRequest(foundEntitlement.id, defaultFieldValues, user, tokens, parentApp.name, foundEntitlement.name);
+      if (!fieldsResponse.ok) {
+        console.error('❌ Fields API error:', fieldsResponse.status);
+        throw new Error(`Fields API error: ${fieldsResponse.status}`);
+      }
+
+      const fieldsData = await fieldsResponse.json();
+      console.log('📝 Fields data received:', JSON.stringify(fieldsData, null, 2));
+
+      const requiredFields = fieldsData.data || [];
+      const riskAssessment = fieldsData.metadata?.riskAssessment;
+
+      // Step 4: Build field values based on requirements
+      const fieldValues = [];
+      
+      for (const field of requiredFields) {
+        if (field.required) {
+          let value = field.value; // Use default value if available
+          
+          // Handle duration fields specially
+          if (field.type === 'DURATION') {
+            if (entitlementName.toLowerCase().includes('1 hour') || entitlementName.toLowerCase().includes('for 1 hour')) {
+              value = 'PT1H';
+            } else if (field.maximumValue) {
+              value = field.maximumValue; // Use maximum allowed
+            } else {
+              value = field.value || 'PT2H'; // Default to 2 hours
+            }
+          }
+          
+          fieldValues.push({
+            id: field.id,
+            value: value
+          });
+        }
+      }
+
+      console.log('📤 Step 4: Submitting request with field values:', JSON.stringify(fieldValues, null, 2));
+
+      // Submit the request
+      return await this.submitAccessRequest(foundEntitlement.id, fieldValues, user, tokens, parentApp.name, foundEntitlement.name, riskAssessment);
 
     } catch (error) {
       console.error('❌ Error processing entitlement request:', error);
@@ -1149,7 +1191,7 @@ export class LLMAutomationService {
     }
   }
 
-  async submitAccessRequest(entitlementId: string, fieldValues: any[], user: User, tokens: OktaTokens, appName: string, entitlementName: string): Promise<any> {
+  async submitAccessRequest(entitlementId: string, fieldValues: any[], user: User, tokens: OktaTokens, appName: string, entitlementName: string, riskAssessment?: any): Promise<any> {
     try {
       console.log('📤 Submitting access request for entitlement:', entitlementId);
       console.log('📄 Field values:', fieldValues);

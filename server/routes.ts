@@ -555,24 +555,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         messageType: 'user'
       });
 
-      // Import Ollama service instead of OpenAI due to quota issues
-      const { OllamaService } = await import('./services/ollama-service.ts');
-      const ollamaService = new OllamaService();
-
-      // Create contextual prompt for natural language processing
-      let contextualPrompt = `You are an expert Okta Assistant helping ${user.name} with role: ${user.role}.
-
-User asks: "${message}"
-
-Instructions:
-- Respond conversationally and helpfully
-- For "access request": Guide them through requesting application access (NOT governance campaigns)
-- For "governance/campaigns": Help with compliance and access reviews
-- For general questions: Provide relevant Okta administration help
-- Role level: ${user.role === 'super_admin' ? 'Full admin access' : user.role === 'app_owner' ? 'App management access' : 'Standard user access'}
-
-Response (be natural and concise):`;
-
       // Use enhanced LLM automation service for intelligent API handling
       const { LLMAutomationService } = await import('./services/llm-automation.ts');
       const { OktaAuthService } = await import('./services/okta-auth.ts');
@@ -597,17 +579,17 @@ Response (be natural and concise):`;
           finalResponse += '\n\n🔐 **Admin authentication required**\n\nClick "Establish Admin Session" to continue with administrative operations.';
         }
       } else {
-        console.log('❌ LLM processing failed, using fallback');
-        // Use fallback Ollama service for general responses
-        try {
-          const { OllamaService } = await import('./services/ollama-service.ts');
-          const ollamaService = new OllamaService();
-          const fallbackResponse = await ollamaService.generateResponse(contextualPrompt);
-          finalResponse = fallbackResponse || 'Unable to process request. Please try again.';
-        } catch (fallbackError) {
-          console.error('❌ Fallback also failed:', fallbackError);
-          finalResponse = 'Unable to process request. Please try again.';
-        }
+        console.log('❌ LLM processing failed, using intelligent fallback');
+        // Use intelligent fallback response
+        finalResponse = `I understand you're asking about "${message}". However, I'm currently experiencing some technical difficulties with my processing. 
+
+Please try rephrasing your request or use one of these specific commands:
+• "request [application name]" - to request access to applications
+• "show my groups" - to view your group management access
+• "list available applications" - to see available apps
+• "30-day access review" - to review recent access
+
+You can also refresh the page and try again.`;
       }
 
       // Save assistant response

@@ -12,8 +12,9 @@ export class LocalOllamaService {
       console.log('🚀 Starting Ollama service...');
       await this.startOllamaService();
       await this.waitForOllama();
-      await this.pullModel('llama3.1:8b');
-      console.log('✅ Ollama initialized successfully with Llama 3.1 8B');
+      // Try pulling a smaller, compatible model first
+      await this.pullModel('llama3.2:1b');
+      console.log('✅ Ollama initialized successfully with Llama 3.2 1B');
     } catch (error) {
       console.warn('⚠️ Ollama initialization failed, using fallback responses:', error);
     }
@@ -98,12 +99,43 @@ export class LocalOllamaService {
       });
 
       if (response.ok) {
+        // Read the streaming response to completion
+        const reader = response.body?.getReader();
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            const chunk = new TextDecoder().decode(value);
+            const lines = chunk.split('\n').filter(line => line.trim());
+            
+            for (const line of lines) {
+              try {
+                const data = JSON.parse(line);
+                if (data.status) {
+                  console.log(`📦 ${model}: ${data.status}`);
+                }
+                if (data.error) {
+                  throw new Error(data.error);
+                }
+              } catch (parseError) {
+                // Skip invalid JSON lines
+              }
+            }
+          }
+        }
         console.log(`✅ Model ${model} pulled successfully`);
       } else {
-        throw new Error(`Failed to pull model: ${response.status}`);
+        const error = await response.text();
+        throw new Error(`Failed to pull model: ${response.status} - ${error}`);
       }
     } catch (error) {
       console.warn(`⚠️ Failed to pull model ${model}:`, error);
+      // Try alternative smaller models
+      if (model === 'llama3.2:1b') {
+        console.log('🔄 Trying even smaller model: gemma2:2b');
+        await this.pullModel('gemma2:2b');
+      }
     }
   }
 
@@ -112,60 +144,38 @@ export class LocalOllamaService {
       console.log('🤖 Generating AI response for prompt:', prompt);
       console.log('🤖 Context:', context);
       
-      // For now, always use fallback responses since Ollama models aren't loading properly
+      // Check if we have models loaded and try LLM first
+      const healthCheck = await fetch(`${this.baseUrl}/api/tags`);
+      if (healthCheck.ok) {
+        const modelsData = await healthCheck.json();
+        if (modelsData.models && modelsData.models.length > 0) {
+          console.log('✅ Using loaded Ollama model for response generation');
+          const modelName = modelsData.models[0].name;
+          
+          const response = await fetch(`${this.baseUrl}/api/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: modelName,
+              prompt: `Context: ${context || 'Okta identity management assistant'}\n\nUser message: ${prompt}\n\nResponse:`,
+              stream: false,
+              options: { temperature: 0.7, num_predict: 200 }
+            })
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.response) {
+              console.log('✅ Generated LLM response');
+              return data.response;
+            }
+          }
+        }
+      }
+      
+      // Fall back to intelligent pattern-based responses
       console.log('🔄 Using intelligent fallback response system');
       return this.getFallbackResponse(prompt);
-
-      // TODO: Re-enable when Ollama models are working properly
-      /*
-      const healthCheck = await fetch(`${this.baseUrl}/api/tags`);
-      if (!healthCheck.ok) {
-        console.log('❌ Ollama not available, using fallback response');
-        return this.getFallbackResponse(prompt);
-      }
-
-      const modelsData = await healthCheck.json();
-      if (!modelsData.models || modelsData.models.length === 0) {
-        console.log('❌ No models available in Ollama, using fallback response');
-        return this.getFallbackResponse(prompt);
-      }*/
-
-      console.log('✅ Ollama models available:', modelsData.models.map((m: any) => m.name));
-
-      // Use first available model if llama3.1:8b is not available
-      const availableModel = modelsData.models.find((m: any) => m.name === 'llama3.1:8b') 
-        || modelsData.models[0];
-      
-      if (!availableModel) {
-        console.log('❌ No suitable model found, using fallback response');
-        return this.getFallbackResponse(prompt);
-      }
-
-      const modelName = availableModel.name;
-      console.log('🤖 Using model:', modelName);
-
-      const response = await fetch(`${this.baseUrl}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: modelName,
-          prompt: prompt,
-          stream: false,
-          options: {
-            temperature: 0.7,
-            num_predict: 300
-          }
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ Ollama response received');
-        return data.response || 'I apologize, but I was unable to generate a response at this time.';
-      } else {
-        console.log(`❌ Ollama API error: ${response.status}`);
-        throw new Error(`Ollama API error: ${response.status}`);
-      }
     } catch (error) {
       console.warn('⚠️ Ollama generation failed:', error);
       return this.getFallbackResponse(prompt);

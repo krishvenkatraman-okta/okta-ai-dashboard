@@ -72,11 +72,29 @@ export class LLMAutomationService {
       }
     }
 
-    // Use Ollama for intelligent intent analysis
-    const analysis = await this.ollama.analyzeIntent(message);
-    console.log('🧠 Intent analysis result:', analysis);
+    // Use Ollama for intelligent intent analysis (with fallback on failure)
+    let analysis;
+    try {
+      analysis = await this.ollama.analyzeIntent(message);
+      console.log('🧠 Intent analysis result:', analysis);
+    } catch (error) {
+      console.log('❌ LLM processing failed, using fallback classification');
+      // Fallback classification based on message content
+      analysis = this.fallbackIntentClassification(message);
+      console.log('🔄 Fallback classification result:', analysis);
+    }
     
     // Handle based on the analyzed intent first, then fall back to pattern matching
+    if (analysis.intent === 'entitlement_request') {
+      console.log('🎯 LLM detected entitlement request');
+      // Extract entitlement name from message
+      const entitlementMatch = message.match(/^request\s+(.+)$/i);
+      if (entitlementMatch) {
+        const entitlementName = entitlementMatch[1].trim();
+        return await this.handleEntitlementRequest(entitlementName, user, tokens);
+      }
+    }
+    
     if (analysis.intent === 'catalog_request') {
       console.log('📋 LLM detected catalog request');
       return await this.handleCatalogRequest(user, tokens);
@@ -218,6 +236,44 @@ export class LLMAutomationService {
 
   private formatRoleName(role: string): string {
     return role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  }
+
+  private fallbackIntentClassification(message: string) {
+    const lowerMessage = message.toLowerCase();
+    
+    // Check for entitlement requests first
+    if (lowerMessage.startsWith('request ') && !lowerMessage.includes('request access to ')) {
+      return { intent: 'entitlement_request', confidence: 0.9 };
+    }
+    
+    // Check for group management patterns
+    const groupPatterns = ['group management', 'group operations', 'show my groups', 'manage groups'];
+    if (groupPatterns.some(pattern => lowerMessage.includes(pattern))) {
+      return { intent: 'group_management', confidence: 0.9 };
+    }
+    
+    // Check for catalog requests
+    if (lowerMessage.includes('list available applications') || 
+        lowerMessage.includes('applications to request') ||
+        lowerMessage.includes('available apps') ||
+        lowerMessage.includes('show catalog')) {
+      return { intent: 'catalog_request', confidence: 0.8 };
+    }
+    
+    // Check for access level inquiries
+    if (lowerMessage.includes('access level') || lowerMessage.includes('current access') ||
+        lowerMessage.includes('what can i do')) {
+      return { intent: 'access_level_inquiry', confidence: 0.8 };
+    }
+    
+    // Check for 30-day patterns
+    if (lowerMessage.includes('30 day') || lowerMessage.includes('30-day') ||
+        lowerMessage.includes('access review') || lowerMessage.includes('unused apps')) {
+      return { intent: 'access_review', confidence: 0.7 };
+    }
+    
+    // Final fallback - don't default to access_review
+    return { intent: 'general_inquiry', confidence: 0.3 };
   }
 
   private getUserCapabilities(user: User, hasAdminSession: boolean): string[] {

@@ -1,0 +1,108 @@
+List available applications to request
+**🏪 Available Applications (Apps API)**
+
+✅ **Found 16 active applications:**
+
+1. **Okta Admin Console**
+   Status: ACTIVE
+   Type: OPENID_CONNECT
+
+2. **Okta Dashboard**
+   Status: ACTIVE
+   Type: OPENID_CONNECT
+
+3. **Okta Browser Plugin**
+   Status: ACTIVE
+   Type: OPENID_CONNECT
+
+4. **Okta Workflows**
+   Status: ACTIVE
+   Type: OPENID_CONNECT
+
+5. **Okta Workflows OAuth**
+   Status: ACTIVE
+   Type: OPENID_CONNECT
+
+6. **Okta Access Certifications**
+   Status: ACTIVE
+   Type: OPENID_CONNECT
+
+7. **Okta Access Certification Reviews**
+   Status: ACTIVE
+   Type: OPENID_CONNECT
+
+8. **Okta Access Requests**
+   Status: ACTIVE
+   Type: OPENID_CONNECT
+
+9. **SAP ERP**
+   Status: ACTIVE
+   Type: SAML_2_0
+
+10. **SAP HCM**
+   Status: ACTIVE
+   Type: Application
+
+11. **jeykrish.com**
+   Status: ACTIVE
+   Type: Application
+
+12. **SuccessFactors**
+   Status: ACTIVE
+   Type: BROWSER_PLUGIN
+
+13. **Workday**
+   Status: ACTIVE
+   Type: BROWSER_PLUGIN
+
+14. **Okta Access Requests OAuth**
+   Status: ACTIVE
+   Type: OPENID_CONNECT
+
+15. **ADP**
+   Status: ACTIVE
+   Type: Application
+
+... and 1 more applications
+
+**Next Steps:**
+• Contact your administrator to request access
+• Note: This list shows all active applications, not all may be requestable
+
+*Using Apps API fallback as IGA catalog is not accessible*
+Helpful?
+👍
+👎
+What can I do with my current access level?
+**🔑 Your Current Access Level**
+
+**Role:** Sap Group Admins
+**Admin Session:** ❌ Not Active
+
+**Current Capabilities:**
+• 30-day access review
+• access requests
+
+
+**To unlock full capabilities:**
+• Try requesting group management operations
+• System will prompt for admin authentication when needed
+Helpful?
+👍
+👎
+group management operations
+I'm your Okta Assistant! I understand you're asking about "group management operations".
+
+**I can help you with:**
+• **Access Requests**: Request access to applications and resources
+• **Application Management**: View your current applications and manage access
+• **Governance & Compliance**: Handle access reviews and governance campaigns
+• **User & Group Management**: Manage organizational users and permissions
+
+**Your Role**: Super Admin - Full administrative access enabled.
+
+Could you tell me more specifically what you'd like to do? For example:
+- "Show me available applications"
+- "Help me request access to [app name]"
+- "Create a governance campaign"
+- "Review user access"

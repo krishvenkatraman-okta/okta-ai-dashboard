@@ -68,20 +68,12 @@ export class LLMAutomationService {
     // Fallback to pattern matching for missed cases
     const lowerMessage = message.toLowerCase();
     
-    // Check for catalog/application listing requests
-    if (lowerMessage.includes('list available applications') || 
-        lowerMessage.includes('applications to request') ||
-        lowerMessage.includes('available apps') ||
-        lowerMessage.includes('show catalog')) {
-      console.log('📋 Pattern matched catalog request');
-      return await this.handleCatalogRequest(user, tokens);
-    }
-    
-    // Check for group management requests
-    if (lowerMessage.includes('show my groups') || 
-        lowerMessage.includes('list groups') ||
-        lowerMessage.includes('manageable groups')) {
-      console.log('👥 Pattern matched group request - checking admin session');
+    // Check for group management operations
+    if (lowerMessage.includes('group management') || 
+        lowerMessage.includes('show my groups') ||
+        lowerMessage.includes('manage groups') ||
+        lowerMessage.includes('group operations')) {
+      console.log('👥 Pattern matched group management - checking admin session');
       const hasAdminSession = this.oktaAuthService?.getAdminSessionToken(user.oktaId);
       
       if (!hasAdminSession) {
@@ -89,7 +81,16 @@ export class LLMAutomationService {
         return this.requireAdminSession('group_management', user);
       }
       
-      return await this.handleGroupManagement(analysis, user, tokens, hasAdminSession);
+      return await this.handleGroupManagement({ intent: 'group_management' }, user, tokens, hasAdminSession);
+    }
+    
+    // Check for catalog/application listing requests
+    if (lowerMessage.includes('list available applications') || 
+        lowerMessage.includes('applications to request') ||
+        lowerMessage.includes('available apps') ||
+        lowerMessage.includes('show catalog')) {
+      console.log('📋 Pattern matched catalog request');
+      return await this.handleCatalogRequest(user, tokens);
     }
     
     // Check for access level questions
@@ -269,7 +270,8 @@ export class LLMAutomationService {
         
       console.log('🔑 Using API authentication:', this.oktaApiToken ? 'Management API Token' : 'User Access Token');
       
-      const response = await fetch(`https://${this.oktaDomain}/api/v1/iga/catalog/entries?filter=type+eq+%22APPLICATION%22&expand=app`, {
+      // Try IGA catalog API first (proper endpoint)
+      const response = await fetch(`https://${this.oktaDomain}/api/v1/governance/catalog`, {
         headers: {
           'Authorization': authHeader,
           'Accept': 'application/json'
@@ -278,8 +280,36 @@ export class LLMAutomationService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.log(`⚠️ IGA catalog failed (${response.status}): ${errorText}`);
-        console.log('⚠️ Trying apps API fallback');
+        console.log(`⚠️ Governance catalog failed (${response.status}): ${errorText}`);
+        
+        // Try the legacy IGA endpoint
+        console.log('🔄 Trying legacy IGA catalog endpoint...');
+        const igaResponse = await fetch(`https://${this.oktaDomain}/api/v1/iga/catalog/entries?filter=type+eq+%22APPLICATION%22`, {
+          headers: {
+            'Authorization': authHeader,
+            'Accept': 'application/json'
+          }
+        });
+        
+        if (igaResponse.ok) {
+          const igaCatalog = await igaResponse.json();
+          console.log('✅ Legacy IGA catalog successful:', igaCatalog.length);
+          
+          if (igaCatalog && igaCatalog.length > 0) {
+            const catalogList = igaCatalog.slice(0, 15).map((entry: any, index: number) => 
+              `${index + 1}. **${entry.displayName || entry.name || 'Unknown App'}**\n   ${entry.requestable === false ? '🔒 Not Requestable' : '✅ Available for Request'}\n   Type: ${entry.type || 'Application'}`
+            ).join('\n\n');
+
+            return {
+              success: true,
+              data: {
+                response: `**🏪 IGA Application Catalog**\n\n✅ **Found ${igaCatalog.length} applications:**\n\n${catalogList}${igaCatalog.length > 15 ? `\n\n... and ${igaCatalog.length - 15} more applications` : ''}\n\n**Next Steps:**\n• Say "request access to [app name]" to submit a request\n• All applications above are from your Okta IGA catalog\n\n*Retrieved from IGA catalog API*`
+              }
+            };
+          }
+        }
+        
+        console.log('⚠️ Both governance and legacy IGA catalog failed, trying apps API fallback');
         
         // Fallback to regular apps API
         const appsResponse = await fetch(`https://${this.oktaDomain}/api/v1/apps`, {
@@ -349,9 +379,12 @@ export class LLMAutomationService {
     const hasAdminSession = this.oktaAuthService?.getAdminSessionToken(user.oktaId);
     const capabilities = this.getUserCapabilities(user, !!hasAdminSession);
     
-    const roleDisplay = user.allRoles?.find(role => 
-      !['Super Admin', 'App Admin', 'Group Admin', 'User Admin'].includes(role)
-    ) || this.formatRoleName(user.role);
+    // Use the most specific custom role or format the primary role
+    const roleDisplay = user.allRoles && user.allRoles.length > 0 
+      ? user.allRoles.find(role => 
+          !['Super Admin', 'App Admin', 'Group Admin', 'User Admin', 'super_admin', 'app_owner', 'group_admin'].includes(role)
+        ) || user.allRoles[0]
+      : this.formatRoleName(user.role);
 
     return {
       success: true,

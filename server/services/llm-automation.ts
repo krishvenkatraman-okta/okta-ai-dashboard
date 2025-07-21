@@ -38,13 +38,15 @@ export class LLMAutomationService {
   async processGovernanceRequest(message: string, user: User, tokens: OktaTokens): Promise<any> {
     console.log('🔍 LLM processing request:', message);
     
-    // Check for explicit group management patterns first (higher priority)
+    // Check for explicit patterns first (higher priority than LLM)
     const lowerMessage = message.toLowerCase();
+    
+    // Group management patterns - highest priority
     if (lowerMessage.includes('group management') || 
         lowerMessage.includes('group operations') ||
         lowerMessage.includes('show my groups') ||
         lowerMessage.includes('manage groups')) {
-      console.log('🎯 Direct group management pattern detected - bypassing LLM');
+      console.log('🎯 PRIORITY: Group management pattern detected - bypassing LLM');
       const hasAdminSession = this.oktaAuthService?.getAdminSessionToken(user.oktaId);
       
       if (!hasAdminSession) {
@@ -53,6 +55,16 @@ export class LLMAutomationService {
       }
       
       return await this.handleGroupManagement({ intent: 'group_management' }, user, tokens, hasAdminSession);
+    }
+    
+    // Entitlement request patterns - check for "request [specific entitlement]" format
+    if (lowerMessage.startsWith('request ') && !lowerMessage.includes('request access to ')) {
+      const entitlementMatch = message.match(/^request\s+(.+)$/i);
+      if (entitlementMatch) {
+        const entitlementName = entitlementMatch[1].trim();
+        console.log('🎯 PRIORITY: Entitlement request pattern detected:', entitlementName);
+        return await this.handleEntitlementRequest(entitlementName, user, tokens);
+      }
     }
 
     // Use Ollama for intelligent intent analysis
@@ -624,7 +636,7 @@ export class LLMAutomationService {
     }
   }
 
-  private async submitAccessRequest(intent: GovernanceAction, user: User, tokens: OktaTokens): Promise<any> {
+  private async submitGovernanceRequest(intent: GovernanceAction, user: User, tokens: OktaTokens): Promise<any> {
     try {
       if (!intent.entryId) {
         return {
@@ -918,6 +930,148 @@ export class LLMAutomationService {
         success: false,
         data: {
           response: `**❌ Error Fetching Entitlements**\n\nUnable to retrieve entitlements for ${appName}:\n\`${error}\`\n\nPlease try again or contact your administrator.`
+        }
+      };
+    }
+  }
+
+  async handleEntitlementRequest(entitlementName: string, user: User, tokens: OktaTokens): Promise<any> {
+    try {
+      console.log('📝 Processing entitlement request for:', entitlementName);
+
+      const authHeader = this.oktaApiToken 
+        ? `SSWS ${this.oktaApiToken}`
+        : `Bearer ${tokens.accessToken}`;
+
+      // Search for entitlements matching the name across all applications
+      const searchResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries?filter=not%28parent+pr%29&limit=50`, {
+        headers: {
+          'Authorization': authHeader,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!searchResponse.ok) {
+        throw new Error(`Search API error: ${searchResponse.status}`);
+      }
+
+      const searchData = await searchResponse.json();
+      const allEntries = searchData.data || searchData.resources || searchData.entries || searchData;
+
+      // Search through all applications for entitlements
+      let foundEntitlement = null;
+      let parentApp = null;
+
+      for (const app of allEntries.filter((e: any) => e.label !== 'Collection')) {
+        const entitlementsResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries?filter=parent+eq+%22${app.id}%22&limit=20`, {
+          headers: {
+            'Authorization': authHeader,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (entitlementsResponse.ok) {
+          const entitlementsData = await entitlementsResponse.json();
+          const entitlements = entitlementsData.data || entitlementsData.resources || entitlementsData.entries || entitlementsData;
+
+          if (entitlements) {
+            foundEntitlement = entitlements.find((ent: any) => 
+              ent.name?.toLowerCase() === entitlementName.toLowerCase() ||
+              ent.displayName?.toLowerCase() === entitlementName.toLowerCase()
+            );
+
+            if (foundEntitlement) {
+              parentApp = app;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!foundEntitlement || !parentApp) {
+        return {
+          success: false,
+          data: {
+            response: `**❌ Entitlement Not Found**\n\nCould not find "${entitlementName}" in any application catalog.\n\nPlease:\n1. Use "List available applications to request" to see applications\n2. Use "request access to [App Name]" to see available entitlements\n3. Use the exact entitlement name from the list`
+          }
+        };
+      }
+
+      // For testing, submit request directly with default values
+      console.log('🎯 Found entitlement:', foundEntitlement.name, 'in app:', parentApp.name);
+      
+      // Submit with minimal required fields
+      const defaultFieldValues = [
+        {
+          id: "ACCESS_DURATION",
+          value: "PT2H"
+        }
+      ];
+
+      return await this.submitAccessRequest(foundEntitlement.id, defaultFieldValues, user, tokens, parentApp.name, foundEntitlement.name);
+
+    } catch (error) {
+      console.error('❌ Error processing entitlement request:', error);
+      return {
+        success: false,
+        data: {
+          response: `**❌ Request Processing Error**\n\nUnable to process request for ${entitlementName}:\n\`${error}\`\n\nPlease try again or contact your administrator.`
+        }
+      };
+    }
+  }
+
+  async submitAccessRequest(entitlementId: string, fieldValues: any[], user: User, tokens: OktaTokens, appName: string, entitlementName: string): Promise<any> {
+    try {
+      console.log('📤 Submitting access request for entitlement:', entitlementId);
+      console.log('📄 Field values:', fieldValues);
+
+      const authHeader = this.oktaApiToken 
+        ? `SSWS ${this.oktaApiToken}`
+        : `Bearer ${tokens.accessToken}`;
+
+      const requestPayload = {
+        requesterFieldValues: fieldValues
+      };
+
+      console.log('📤 Submitting payload:', JSON.stringify(requestPayload, null, 2));
+
+      const submitResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries/${entitlementId}/requests`, {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestPayload)
+      });
+
+      console.log('📤 Submit response status:', submitResponse.status);
+
+      if (!submitResponse.ok) {
+        const errorText = await submitResponse.text();
+        console.error('❌ Submit error response:', errorText);
+        throw new Error(`Submit API error ${submitResponse.status}: ${errorText}`);
+      }
+
+      const submitData = await submitResponse.json();
+      console.log('✅ Submit success data:', submitData);
+
+      return {
+        success: true,
+        data: {
+          response: `**✅ Access Request Submitted Successfully**\n\n📱 **Application:** ${appName}\n🎯 **Entitlement:** ${entitlementName}\n🆔 **Request ID:** ${submitData.id || 'Generated'}\n\n**Status:** Your request has been submitted for approval.\n\n**Next Steps:**\n• You will receive notifications about request status\n• Check back later for approval updates\n• Contact your administrator if you have questions\n\n*Request submitted successfully through Okta Governance API*`
+        }
+      };
+
+    } catch (error) {
+      console.error('❌ Error submitting access request:', error);
+      return {
+        success: false,
+        data: {
+          response: `**❌ Submission Error**\n\nUnable to submit request:\n\`${error}\`\n\nPlease try again or contact your administrator.`
         }
       };
     }

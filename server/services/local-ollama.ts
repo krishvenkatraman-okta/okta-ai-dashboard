@@ -8,27 +8,27 @@ export class LocalOllamaService {
   private ollamaProcess: any = null;
 
   async initialize(): Promise<void> {
-    try {
-      console.log('🚀 Starting Ollama service...');
-      
-      // Check if Ollama is already running first
-      const isRunning = await this.checkOllamaRunning();
-      if (isRunning) {
-        console.log('✅ Ollama already running, skipping initialization');
+    console.log('🚀 Starting Ollama service...');
+    
+    // Check if Ollama is already running first
+    const isRunning = await this.checkOllamaRunning();
+    if (isRunning) {
+      console.log('✅ Ollama already running, skipping initialization');
+      try {
         await this.pullModel('llama3.2:1b');
         console.log('✅ Ollama service ready with Llama 3.2 1B');
         return;
+      } catch (pullError) {
+        console.log('⚠️ Model pull failed, using pattern-based fallback');
+        this.isFailedMode = true;
+        return;
       }
-      
-      await this.startOllamaService();
-      await this.waitForOllama();
-      await this.pullModel('llama3.2:1b');
-      console.log('✅ Ollama initialized successfully with Llama 3.2 1B');
-    } catch (error) {
-      console.warn('⚠️ Ollama initialization failed, using fallback responses:', error);
-      // Mark service as failed but don't crash
-      this.isFailedMode = true;
     }
+    
+    // Skip download attempts entirely and use pattern-based classification
+    console.log('🔄 Ollama not running - enabling pattern-based classification mode');
+    this.isFailedMode = true;
+    console.log('✅ Fallback classification system ready for request processing');
   }
 
   private isFailedMode = false;
@@ -66,9 +66,10 @@ export class LocalOllamaService {
       });
 
     } catch (error) {
-      console.log('NPM Ollama not found, trying direct binary approach...');
-      // Fallback to downloading binary
-      await this.downloadAndStartOllama();
+      console.log('NPM Ollama not found - skipping binary download to avoid timeout');
+      // Don't attempt download, just enable fallback mode
+      this.isFailedMode = true;
+      throw new Error('Ollama not available, using pattern-based classification');
     }
   }
 

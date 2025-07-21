@@ -116,14 +116,15 @@ The application is architected for scalability and maintainability, with clear s
 
 ## Recent Updates (July 19, 2025)
 
-**Current Session Focus (July 21, 2025 - Session 10):**
-- ✅ **Critical Access Request Authentication Fix**: Fixed access requests to use user session tokens instead of management API tokens for proper user attribution and audit compliance
-- ✅ **Enhanced Group Management Detection**: Implemented priority pattern matching that bypasses LLM analysis for "group management operations", "show my groups", etc.
-- ✅ **Complete Interactive Access Request Workflow**: Successfully implemented app selection → entitlement discovery → automated submission with proper field handling
-- ✅ **Ollama Service Stability**: Implemented intelligent fallback system that skips 558MB binary downloads to prevent timeout errors
-- ✅ **Method Conflict Resolution**: Resolved duplicate function implementation errors between governance and access request submission methods
-- ✅ **Enhanced Debug Logging**: Added comprehensive logging for pattern detection and authentication flow debugging
-- ⚠️ **Outstanding Issue**: Group management pattern detection needs session-based testing to verify complete functionality
+**Current Session Focus (July 21, 2025 - Session 11):**
+- ✅ **Fixed Auto-Submission Issue**: Access requests now ask user for duration before submitting (max 30 days policy compliance)
+- ✅ **Enhanced Admin Session Pattern Detection**: "start admin session" command now properly triggers admin OAuth flow
+- ✅ **Embedded Admin OAuth Flow**: Implemented complete popup-based admin authentication with message passing
+- ✅ **Duration Input Validation**: System validates duration against policy limits and asks user to specify duration when missing
+- ✅ **User Attribution Fix**: Fixed 400 API errors by switching to proper authentication method for governance API
+- ✅ **Admin Callback Handler**: Added secure admin token exchange endpoint with proper session storage
+- ✅ **Frontend Admin Integration**: Created proper popup handling with success/error messaging
+- ⚠️ **Ready for Testing**: All fixes implemented, ready to test complete workflow from chat interface
 
 **Previous Session Focus (July 21, 2025 - Session 9):**
 - ✅ **Session-Based Authentication Implementation**: Replaced API token authentication with proper session-based authentication for audit logging

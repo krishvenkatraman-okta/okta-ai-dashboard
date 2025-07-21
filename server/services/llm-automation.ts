@@ -43,8 +43,18 @@ export class LLMAutomationService {
       // Check for explicit patterns first (higher priority than LLM)
       const lowerMessage = message.toLowerCase().trim();
       console.log('🔍 Normalized message:', `"${lowerMessage}"`);
+
+      // Admin session start patterns - highest priority
+      const adminSessionPatterns = ['start admin session', 'admin session', 'establish admin session'];
+      const foundAdminPattern = adminSessionPatterns.find(pattern => lowerMessage.includes(pattern));
       
-      // Group management patterns - highest priority with detailed logging
+      if (foundAdminPattern) {
+        console.log('🔐 CRITICAL: Admin session start pattern detected:', foundAdminPattern);
+        console.log('🔐 BYPASSING OLLAMA - Direct admin session start');
+        return await this.handleAdminSessionStart(user);
+      }
+      
+      // Group management patterns - second highest priority with detailed logging
       const groupPatterns = ['group management', 'group operations', 'show my groups', 'manage groups'];
       const foundPattern = groupPatterns.find(pattern => lowerMessage.includes(pattern));
       
@@ -1202,6 +1212,27 @@ export class LLMAutomationService {
       const requiredFields = fieldsData.data || [];
       const riskAssessment = fieldsData.metadata?.riskAssessment;
 
+      // Step 4: Check if user specified duration in request
+      const durationMatch = entitlementName.match(/(?:for\s+)?(\d+)\s*(hour|day|week|month)s?/i);
+      
+      if (!durationMatch && requiredFields.some((f: any) => f.type === 'DURATION' && f.required)) {
+        // User needs to specify duration - don't auto-submit
+        const maxDurationField = requiredFields.find((f: any) => f.type === 'DURATION');
+        const maxAllowed = maxDurationField?.maximumValue || 'P30D';
+        
+        return {
+          success: true,
+          requiresDuration: true,
+          data: {
+            response: `**⏰ Duration Required for ${foundEntitlement.name}**\n\n${parentApp.name} requires you to specify how long you need access.\n\n**Policy Limit:** Maximum ${maxAllowed === 'P30D' ? '30 days' : maxAllowed}\n\n**Please specify duration:**\n• "request ${entitlementName} for 2 hours"\n• "request ${entitlementName} for 1 day"\n• "request ${entitlementName} for 1 week"\n\n**Risk Assessment:** ${riskAssessment?.level || 'Standard'}\n${riskAssessment?.details ? `• ${riskAssessment.details}` : ''}`,
+            entitlementId: foundEntitlement.id,
+            entitlementName: foundEntitlement.name,
+            parentApp: parentApp.name,
+            maxDuration: maxAllowed
+          }
+        };
+      }
+
       // Step 4: Build field values based on requirements
       const fieldValues = [];
       
@@ -1211,10 +1242,19 @@ export class LLMAutomationService {
           
           // Handle duration fields specially
           if (field.type === 'DURATION') {
-            if (entitlementName.toLowerCase().includes('1 hour') || entitlementName.toLowerCase().includes('for 1 hour')) {
-              value = 'PT1H';
-            } else if (field.maximumValue) {
-              value = field.maximumValue; // Use maximum allowed
+            if (durationMatch) {
+              const durationValue = parseInt(durationMatch[1]);
+              const durationUnit = durationMatch[2].toLowerCase();
+              
+              if (durationUnit === 'hour') {
+                value = `PT${durationValue}H`;
+              } else if (durationUnit === 'day') {
+                value = `P${durationValue}D`;
+              } else if (durationUnit === 'week') {
+                value = `P${durationValue}W`;
+              } else if (durationUnit === 'month') {
+                value = `P${durationValue}M`;
+              }
             } else {
               value = field.value || 'PT2H'; // Default to 2 hours
             }

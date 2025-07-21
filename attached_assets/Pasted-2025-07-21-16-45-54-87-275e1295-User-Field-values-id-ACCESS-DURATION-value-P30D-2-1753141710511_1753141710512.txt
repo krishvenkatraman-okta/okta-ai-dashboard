@@ -1,0 +1,148 @@
+2025-07-21 16:45:54.87
+275e1295
+User
+📄 Field values: [ { id: 'ACCESS_DURATION', value: 'P30D' } ]
+2025-07-21 16:45:54.87
+275e1295
+User
+🔒 Using USER SESSION TOKEN for access request (user attribution required)
+2025-07-21 16:45:54.87
+275e1295
+User
+📤 Submitting payload: {
+2025-07-21 16:45:54.87
+275e1295
+User
+"requesterFieldValues": [
+2025-07-21 16:45:54.87
+275e1295
+User
+{
+2025-07-21 16:45:54.87
+275e1295
+User
+"id": "ACCESS_DURATION",
+2025-07-21 16:45:54.87
+275e1295
+User
+"value": "P30D"
+2025-07-21 16:45:54.87
+275e1295
+User
+}
+2025-07-21 16:45:54.87
+275e1295
+User
+]
+2025-07-21 16:45:54.87
+275e1295
+User
+}
+2025-07-21 16:45:54.93
+275e1295
+User
+❌ Submit error response:
+2025-07-21 16:45:54.93
+275e1295
+User
+❌ Request URL was: https://fcxdemo.okta.com/governance/api/v2/my/catalogs/default/entries/cenjz44zigEIxqwqZ696/requests
+2025-07-21 16:45:54.93
+275e1295
+User
+❌ Request payload was: {
+2025-07-21 16:45:54.93
+275e1295
+User
+"requesterFieldValues": [
+2025-07-21 16:45:54.93
+275e1295
+User
+{
+2025-07-21 16:45:54.93
+275e1295
+User
+"id": "ACCESS_DURATION",
+2025-07-21 16:45:54.93
+275e1295
+User
+"value": "P30D"
+2025-07-21 16:45:54.93
+275e1295
+User
+}
+2025-07-21 16:45:54.93
+275e1295
+User
+]
+2025-07-21 16:45:54.93
+275e1295
+User
+}
+2025-07-21 16:45:54.93
+275e1295
+User
+❌ Request headers: {
+2025-07-21 16:45:54.93
+275e1295
+User
+"Authorization": "Bearer [REDACTED]",
+2025-07-21 16:45:54.93
+275e1295
+User
+"Accept": "application/json",
+2025-07-21 16:45:54.93
+275e1295
+User
+"Content-Type": "application/json"
+2025-07-21 16:45:54.93
+275e1295
+User
+}
+2025-07-21 16:45:54.93
+275e1295
+User
+📤 Submit response status: 400
+2025-07-21 16:45:54.93
+275e1295
+User
+🔄 Trying alternative payload format...
+2025-07-21 16:45:55.01
+275e1295
+User
+❌ Error submitting access request: Error: Submit API error 400:
+2025-07-21 16:45:55.01
+275e1295
+User
+at LLMAutomationService.submitAccessRequest (file:///home/runner/workspace/dist/index.js:2175:19)
+2025-07-21 16:45:55.01
+275e1295
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-07-21 16:45:55.01
+275e1295
+User
+at async LLMAutomationService.handleEntitlementRequest (file:///home/runner/workspace/dist/index.js:2090:18)
+2025-07-21 16:45:55.01
+275e1295
+User
+at async LLMAutomationService.processGovernanceRequest (file:///home/runner/workspace/dist/index.js:947:32)
+2025-07-21 16:45:55.01
+275e1295
+User
+at async file:///home/runner/workspace/dist/index.js:4088:25
+2025-07-21 16:45:55.01
+275e1295
+User
+✅ Entitlement request completed successfully
+2025-07-21 16:45:55.01
+275e1295
+User
+❌ LLM processing failed, using intelligent fallback
+2025-07-21 16:45:55.01
+275e1295
+User
+11:45:55 PM [express] POST /api/chat/message 200 in 2685ms :: {"response":"I understand you're asking…
+
+Wrap
+
+Colors

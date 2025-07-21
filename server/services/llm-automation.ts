@@ -270,8 +270,8 @@ export class LLMAutomationService {
         
       console.log('🔑 Using API authentication:', this.oktaApiToken ? 'Management API Token' : 'User Access Token');
       
-      // Try IGA catalog API first (proper endpoint)
-      const response = await fetch(`https://${this.oktaDomain}/api/v1/governance/catalog`, {
+      // Use the correct governance catalog endpoint
+      const response = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries?filter=not%28parent+pr%29&limit=20`, {
         headers: {
           'Authorization': authHeader,
           'Accept': 'application/json'
@@ -282,8 +282,8 @@ export class LLMAutomationService {
         const errorText = await response.text();
         console.log(`⚠️ Governance catalog failed (${response.status}): ${errorText}`);
         
-        // Try the legacy IGA endpoint
-        console.log('🔄 Trying legacy IGA catalog endpoint...');
+        // Try alternative catalog endpoints
+        console.log('🔄 Trying alternative IGA catalog endpoint...');
         const igaResponse = await fetch(`https://${this.oktaDomain}/api/v1/iga/catalog/entries?filter=type+eq+%22APPLICATION%22`, {
           headers: {
             'Authorization': authHeader,
@@ -309,7 +309,7 @@ export class LLMAutomationService {
           }
         }
         
-        console.log('⚠️ Both governance and legacy IGA catalog failed, trying apps API fallback');
+        console.log('⚠️ Both governance catalog endpoints failed, trying apps API fallback');
         
         // Fallback to regular apps API
         const appsResponse = await fetch(`https://${this.oktaDomain}/api/v1/apps`, {
@@ -339,18 +339,21 @@ export class LLMAutomationService {
           };
         }
       } else {
-        const catalog = await response.json();
-        console.log('✅ Catalog entries fetched:', catalog.length);
+        const catalogResponse = await response.json();
+        console.log('✅ Governance catalog response:', catalogResponse);
+        
+        const catalog = catalogResponse.resources || catalogResponse.entries || catalogResponse;
+        console.log('✅ Catalog entries fetched:', catalog?.length);
 
         if (catalog && catalog.length > 0) {
           const catalogList = catalog.slice(0, 15).map((entry: any, index: number) => 
-            `${index + 1}. **${entry.displayName || entry.name || 'Unknown App'}**\n   ${entry.requestable === false ? '🔒 Not Requestable' : '✅ Available for Request'}\n   Type: ${entry.type || 'Application'}`
+            `${index + 1}. **${entry.displayName || entry.name || entry.label || 'Unknown App'}**\n   ${entry.requestable === false ? '🔒 Not Requestable' : '✅ Available for Request'}\n   Type: ${entry.type || entry.entryType || 'Application'}`
           ).join('\n\n');
 
           return {
             success: true,
             data: {
-              response: `**🏪 IGA Application Catalog**\n\n✅ **Found ${catalog.length} applications:**\n\n${catalogList}${catalog.length > 15 ? `\n\n... and ${catalog.length - 15} more applications` : ''}\n\n**Next Steps:**\n• Say "request access to [app name]" to submit a request\n• All applications above are from your Okta IGA catalog\n\n*Retrieved from official IGA catalog API*`
+              response: `**🏪 Governance Catalog**\n\n✅ **Found ${catalog.length} requestable entries:**\n\n${catalogList}${catalog.length > 15 ? `\n\n... and ${catalog.length - 15} more entries` : ''}\n\n**Next Steps:**\n• Say "request access to [entry name]" to submit a request\n• All entries above are from your Okta Governance catalog\n\n*Retrieved from official Governance catalog API*`
             }
           };
         }

@@ -15,12 +15,12 @@ export class McpServerService {
   private readonly pamTeamName: string;
   private readonly llmAutomation: LLMAutomationService;
 
-  constructor() {
+  constructor(oktaAuthService?: any) {
     this.oktaDomain = process.env.OKTA_DOMAIN || 'fcxdemo.okta.com';
     this.oktaApiToken = process.env.OKTA_API_TOKEN || '';
     this.pamDomain = process.env.OKTA_PAM_DOMAIN || `${this.oktaDomain}`;
     this.pamTeamName = process.env.OKTA_PAM_TEAM || '';
-    this.llmAutomation = new LLMAutomationService();
+    this.llmAutomation = new LLMAutomationService(oktaAuthService);
 
     if (!this.oktaApiToken) {
       console.warn('Okta API token not configured. Set OKTA_API_TOKEN environment variable for MCP server operations.');

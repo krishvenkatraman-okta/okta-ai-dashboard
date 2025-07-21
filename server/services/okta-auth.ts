@@ -8,6 +8,11 @@ interface OktaTokens {
   expiresIn: number;
 }
 
+interface AdminSessionTokens {
+  sessionToken: string;
+  expiresAt: number;
+}
+
 interface PkceChallenge {
   codeVerifier: string;
   codeChallenge: string;
@@ -19,6 +24,7 @@ export class OktaAuthService {
   private readonly clientId: string;
   private readonly redirectUri: string;
   private pkceStore: Map<string, PkceChallenge> = new Map();
+  private adminSessionStore: Map<string, AdminSessionTokens> = new Map();
 
   constructor() {
     this.oktaDomain = process.env.OKTA_DOMAIN || 'fcxdemo.okta.com';
@@ -58,6 +64,34 @@ export class OktaAuthService {
     });
 
     return `${baseUrl}?${params.toString()}`;
+  }
+
+  getAdminDashboardUrl(): string {
+    // Convert fcxdemo.okta.com to fcxdemo-admin.okta.com/admin/dashboard
+    const domain = this.oktaDomain.replace('.okta.com', '-admin.okta.com');
+    return `https://${domain}/admin/dashboard`;
+  }
+
+  storeAdminSessionToken(userId: string, sessionToken: string, expiresAt: number): void {
+    this.adminSessionStore.set(userId, {
+      sessionToken,
+      expiresAt
+    });
+  }
+
+  getAdminSessionToken(userId: string): AdminSessionTokens | null {
+    const session = this.adminSessionStore.get(userId);
+    if (!session || Date.now() > session.expiresAt) {
+      this.adminSessionStore.delete(userId);
+      return null;
+    }
+    return session;
+  }
+
+  setAdminSessionToken(userId: string, sessionToken: string): void {
+    // Store token with 1 hour expiration
+    const expiresAt = Date.now() + (60 * 60 * 1000);
+    this.adminSessionStore.set(userId, { sessionToken, expiresAt });
   }
 
   private generatePkceChallenge(): PkceChallenge {

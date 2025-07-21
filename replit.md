@@ -31,10 +31,12 @@ The application follows a modern full-stack architecture with clear separation b
 ## Key Components
 
 ### Authentication System
-- **Provider**: Okta OIDC with authorization code flow
+- **Provider**: Okta OIDC with authorization code flow (PKCE)
 - **Session Management**: Cookie-based sessions with PostgreSQL storage
 - **Authorization**: Role-based access control (super_admin, app_owner, regular_user)
 - **Security**: Secure token handling and automatic session refresh
+- **Admin Authentication**: Dual-mode authentication system where end-user operations use session tokens and admin operations require redirect to admin portal for proper audit logging
+- **Admin Session Storage**: In-memory storage of admin session tokens with 1-hour expiration for admin operations
 
 ### Database Schema
 - **Users**: Stores Okta user information, roles, and group memberships
@@ -114,7 +116,16 @@ The application is architected for scalability and maintainability, with clear s
 
 ## Recent Updates (July 19, 2025)
 
-**Current Session Focus (July 20, 2025 - Session 8):**
+**Current Session Focus (July 21, 2025 - Session 9):**
+- ✅ **Session-Based Authentication Implementation**: Replaced API token authentication with proper session-based authentication for audit logging
+- ✅ **Admin Session Management**: Created AdminSessionHandler component for redirecting to admin portal when admin operations are required
+- ✅ **End-User vs Admin Operation Distinction**: LLM automation service now differentiates between operations that can use regular session tokens vs requiring admin authentication
+- ✅ **Admin Domain Redirect Pattern**: Implements redirect to {domain}-admin.okta.com/admin/dashboard for proper admin audit trail
+- ✅ **Frontend Admin Session UI**: Created components to handle admin session establishment with popup authentication flow
+- ✅ **Audit Trail Compliance**: End-user operations (30-day reviews, access requests) use session tokens while admin operations require separate admin session
+- ✅ **Role Display Fix**: Custom roles now properly display in chat interface instead of defaulting to "REGULAR USER"
+
+**Previous Session Focus (July 20, 2025 - Session 8):**
 - ✅ **Complete Custom Role Support**: Implemented full Okta IAM custom role detection with resource set integration
 - ✅ **Resource Set API Integration**: Added `/api/v1/iam/resource-sets/{resourceSetId}` endpoint support for custom role permissions
 - ✅ **Enhanced Group Management**: Custom roles with group resource sets now fetch all manageable groups via `/api/v1/groups` API

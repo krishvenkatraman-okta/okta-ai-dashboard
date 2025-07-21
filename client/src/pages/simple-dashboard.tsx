@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Grid, Monitor } from "lucide-react";
+import AdminSessionHandler from "@/components/admin-session-handler";
 
 interface User {
   id: number;
@@ -468,6 +469,23 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }) {
                 : 'bg-gray-100 text-gray-900'
             }`}>
               <pre className="whitespace-pre-wrap text-sm font-sans">{message.content}</pre>
+              
+              {/* Admin session handler for assistant messages requiring admin auth */}
+              {message.role === 'assistant' && message.data?.requiresAdminAuth && (
+                <div className="mt-3">
+                  <AdminSessionHandler 
+                    adminUrl={message.data.adminUrl}
+                    intent={message.data.intent}
+                    onSessionEstablished={() => {
+                      // Retry the original request
+                      const originalMessage = messages[messages.length - 2]?.content;
+                      if (originalMessage) {
+                        handleSendMessage(originalMessage);
+                      }
+                    }}
+                  />
+                </div>
+              )}
               
               {/* Feedback buttons for assistant messages */}
               {message.role === 'assistant' && message.id !== 'welcome' && (

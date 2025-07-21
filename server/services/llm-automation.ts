@@ -23,50 +23,125 @@ export class LLMAutomationService {
   private readonly oktaDomain: string;
   private readonly oktaApiToken: string;
   private readonly ollama: LocalOllamaService;
+  private oktaAuthService: any; // Will be injected
 
-  constructor() {
+  constructor(oktaAuthService?: any) {
     this.oktaDomain = process.env.OKTA_DOMAIN || 'fcxdemo.okta.com';
     this.oktaApiToken = process.env.OKTA_API_TOKEN || '';
     this.ollama = new LocalOllamaService();
+    this.oktaAuthService = oktaAuthService;
     
     // Initialize Ollama in background
     this.ollama.initialize().catch(console.warn);
   }
 
   async processGovernanceRequest(message: string, user: User, tokens: OktaTokens): Promise<any> {
-    // Check user access level first
-    const accessLevel = this.getUserAccessLevel(user);
-    if (accessLevel === 'no_access') {
-      return await this.handleNoAccessUser(message, user, tokens);
-    }
-
     // Use Ollama for intelligent intent analysis
     const analysis = await this.ollama.analyzeIntent(message);
     
+    // Determine if this requires admin privileges
+    const isAdminOperation = this.isAdminOperation(analysis.intent);
+    const hasAdminSession = this.oktaAuthService?.getAdminSessionToken(user.oktaId);
+    
+    // Handle admin operations
+    if (isAdminOperation && !hasAdminSession) {
+      return this.requireAdminSession(analysis.intent, user);
+    }
+    
+    // Handle based on intent
     switch (analysis.intent) {
       case 'access_review':
+        // End-user operation - use regular tokens
         return await this.performAccessReview(analysis, user, tokens);
-      case 'governance_campaign':
-        if (accessLevel === 'regular_user') {
-          return await this.suggestAccessRequest(user, 'governance campaign creation');
-        }
-        return await this.createGovernanceCampaign(analysis, user, tokens);
       case 'access_request':
+        // End-user operation - use regular tokens
         return await this.handleAccessRequest(analysis, user, tokens);
+      case 'governance_campaign':
+        // Admin operation - requires admin session
+        return await this.createGovernanceCampaign(analysis, user, tokens, hasAdminSession);
       case 'user_management':
-        if (accessLevel === 'regular_user') {
-          return await this.suggestAccessRequest(user, 'user management');
-        }
-        return await this.handleUserManagement(analysis, user, tokens);
+        // Admin operation - requires admin session
+        return await this.handleUserManagement(analysis, user, tokens, hasAdminSession);
+      case 'group_management':
+        // Admin operation - requires admin session
+        return await this.handleGroupManagement(analysis, user, tokens, hasAdminSession);
       default:
-        // Use Ollama for general responses with access level context
-        const context = `User Access Level: ${accessLevel}\nAvailable Actions: ${this.getAvailableActions(accessLevel).join(', ')}`;
+        // General response with appropriate capabilities
+        const capabilities = this.getUserCapabilities(user, hasAdminSession);
+        const context = `User: ${user.name}\nRole: ${user.role}\nCapabilities: ${capabilities.join(', ')}`;
         const response = await this.ollama.generateResponse(message, context);
         return {
           success: true,
           data: { response }
         };
     }
+  }
+
+  private isAdminOperation(intent: string): boolean {
+    const adminOperations = [
+      'governance_campaign',
+      'user_management', 
+      'group_management',
+      'policy_management',
+      'app_management'
+    ];
+    return adminOperations.includes(intent);
+  }
+
+  private requireAdminSession(intent: string, user: User): any {
+    const adminDomain = this.oktaDomain.replace('.okta.com', '-admin.okta.com');
+    
+    return {
+      success: false,
+      requiresAdminAuth: true,
+      data: {
+        response: `**🔐 Admin Session Required**\n\nTo perform ${intent.replace('_', ' ')} operations, you need an active admin session.\n\n**Your Current Access:**\n• Role: ${this.formatRoleName(user.role)}\n• Can perform: 30-day access reviews, access requests\n\n**To unlock admin capabilities:**\n1. Click "Start Admin Session" below\n2. Authenticate in the admin portal\n3. Return here to continue\n\nThis ensures all admin actions are properly audited in Okta system logs.`,
+        action: 'admin_auth_required',
+        adminUrl: `https://${adminDomain}/admin/dashboard`,
+        intent: intent
+      }
+    };
+  }
+
+  private formatRoleName(role: string): string {
+    return role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  }
+
+  private getUserCapabilities(user: User, hasAdminSession: boolean): string[] {
+    const capabilities = ['30-day access review', 'access requests'];
+    
+    if (hasAdminSession) {
+      switch (user.role) {
+        case 'super_admin':
+          capabilities.push('full admin operations', 'user management', 'governance campaigns', 'system configuration');
+          break;
+        case 'app_owner':
+          capabilities.push('application management', 'governance campaigns', 'user access reviews');
+          break;
+        case 'group_admin':
+          capabilities.push('group management', 'group memberships', 'group access reviews');
+          break;
+        default:
+          if (user.allRoles?.some(role => role.toLowerCase().includes('group'))) {
+            capabilities.push('group management', 'group memberships');
+          }
+      }
+    }
+    
+    return capabilities;
+  }
+
+  private async handleGroupManagement(analysis: any, user: User, tokens: OktaTokens, adminSession: any): Promise<any> {
+    if (!adminSession) {
+      return this.requireAdminSession('group_management', user);
+    }
+
+    return {
+      success: true,
+      data: {
+        response: `**🔑 Group Management**\n\nAdmin session active. I can help you with:\n• List manageable groups\n• Add/remove users from groups\n• View group memberships\n• Group access analytics\n\nWhat group operation would you like to perform?`
+      }
+    };
   }
 
   private parseGovernanceIntent(message: string): GovernanceAction {

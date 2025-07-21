@@ -9,13 +9,44 @@ import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const oktaAuth = new OktaAuthService();
-  const mcpServer = new McpServerService();
+  const mcpServer = new McpServerService(oktaAuth); // Inject auth service
   const oktaApi = new OktaApiService();
 
   // Authentication routes
   app.get('/api/auth/login', (req, res) => {
     const authUrl = oktaAuth.getAuthUrl();
     res.redirect(authUrl);
+  });
+
+  // Admin session route
+  app.get('/api/auth/admin-login', (req, res) => {
+    if (!req.session?.userId) {
+      return res.status(401).json({ error: 'Must be logged in to access admin session' });
+    }
+    
+    const adminUrl = oktaAuth.getAdminDashboardUrl();
+    res.json({ 
+      adminUrl,
+      message: 'Please complete admin authentication in the popup window'
+    });
+  });
+
+  // Store admin session token (called from frontend after admin auth)
+  app.post('/api/auth/admin-session', (req, res) => {
+    if (!req.session?.userId) {
+      return res.status(401).json({ error: 'Must be logged in' });
+    }
+
+    const { sessionToken } = req.body;
+    if (!sessionToken) {
+      return res.status(400).json({ error: 'Session token required' });
+    }
+
+    // Store session token with 1 hour expiry
+    const expiresAt = Date.now() + (60 * 60 * 1000);
+    oktaAuth.storeAdminSessionToken(req.session.userId, sessionToken, expiresAt);
+    
+    res.json({ success: true, message: 'Admin session established' });
   });
 
   app.get('/api/auth/callback', async (req, res) => {
@@ -1220,6 +1251,39 @@ Response (be natural and concise):`;
     } catch (error) {
       console.error('Training stats error:', error);
       res.status(500).json({ error: 'Failed to get training statistics' });
+    }
+  });
+
+  // Admin session management
+  app.post('/api/auth/admin-session', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const { sessionToken } = req.body;
+      if (!sessionToken) {
+        return res.status(400).json({ error: 'Session token required' });
+      }
+
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      // Store admin session token in auth service
+      oktaAuth.setAdminSessionToken(user.oktaId, sessionToken);
+      
+      res.json({ success: true, message: 'Admin session established' });
+    } catch (error) {
+      console.error('Admin session error:', error);
+      res.status(500).json({ error: 'Failed to establish admin session' });
     }
   });
 

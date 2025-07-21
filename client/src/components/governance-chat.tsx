@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Send, User, Bot, Calendar, ShieldCheck, ArrowRight, CheckCircle, XCircle } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import AdminSessionHandler from "./admin-session-handler";
 
 interface ChatMessage {
   id: string;
@@ -165,6 +166,28 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
 
   const renderMessage = (msg: ChatMessage) => {
     const isUser = msg.role === 'user';
+    
+    // Check if message requires admin session
+    if (msg.data?.requiresAdminAuth) {
+      return (
+        <div className="mr-4">
+          <div className="bg-gray-100 text-gray-900 p-3 rounded-lg">
+            <pre className="whitespace-pre-wrap text-sm font-sans mb-3">{msg.content}</pre>
+            <AdminSessionHandler 
+              adminUrl={msg.data.adminUrl}
+              intent={msg.data.intent}
+              onSessionEstablished={() => {
+                // Retry the original request
+                const originalMessage = messages[messages.length - 2]?.content;
+                if (originalMessage) {
+                  sendMessageMutation.mutate(originalMessage);
+                }
+              }}
+            />
+          </div>
+        </div>
+      );
+    }
     
     return (
       <div key={msg.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>

@@ -92,6 +92,16 @@ export class LLMAutomationService {
       console.log('📋 Pattern matched catalog request');
       return await this.handleCatalogRequest(user, tokens);
     }
+
+    // Check for specific application access requests
+    if (lowerMessage.includes('request access to ')) {
+      const appMatch = message.match(/request access to (.+?)(?:\s|$)/i);
+      if (appMatch) {
+        const appName = appMatch[1].trim();
+        console.log('🎯 Pattern matched application access request:', appName);
+        return await this.handleApplicationEntitlements(appName, user, tokens);
+      }
+    }
     
     // Check for catalog/application listing requests
     if (lowerMessage.includes('list available applications') || 
@@ -127,6 +137,13 @@ export class LLMAutomationService {
         return await this.performAccessReview(analysis, user, tokens);
       case 'access_request':
         // End-user operation - use regular tokens
+        // Check if specific application is mentioned
+        const appMatch = message.match(/request access to (.+?)(?:\s|$)/i);
+        if (appMatch) {
+          const appName = appMatch[1].trim();
+          console.log('🎯 Application specified:', appName);
+          return await this.handleApplicationEntitlements(appName, user, tokens);
+        }
         return await this.handleAccessRequest(analysis, user, tokens);
       case 'governance_campaign':
         // Admin operation - requires admin session
@@ -356,19 +373,17 @@ export class LLMAutomationService {
         console.log('✅ Catalog entries fetched:', catalog?.length);
 
         if (catalog && catalog.length > 0) {
-          const requestableCount = catalog.filter((entry: any) => entry.requestable !== false).length;
-          const catalogList = catalog.slice(0, 15).map((entry: any, index: number) => 
-            `${index + 1}. **${entry.name || entry.displayName || entry.label || 'Unknown App'}**\n   ${entry.requestable === false ? '🔒 Not Requestable (Admin Managed)' : '✅ Self-Service Request Available'}\n   Type: ${entry.label || entry.type || entry.entryType || 'Application'}`
+          // Filter out Collections, show only Applications as requestable
+          const applications = catalog.filter((entry: any) => entry.label !== 'Collection');
+          
+          const catalogList = applications.slice(0, 15).map((entry: any, index: number) => 
+            `${index + 1}. **${entry.name || entry.displayName || 'Unknown App'}**\n   ✅ Available for Access Request\n   Type: ${entry.label || entry.type || entry.entryType || 'Application'}\n   ID: \`${entry.id}\``
           ).join('\n\n');
-
-          const statusMessage = requestableCount > 0 
-            ? `**Next Steps:**\n• Say "request access to [entry name]" to submit a request\n• ${requestableCount} of ${catalog.length} entries are available for self-service requests`
-            : `**Status:**\n• All ${catalog.length} applications require administrator approval\n• Contact your administrator to request access to these applications\n• Self-service requests are not enabled for these entries`;
 
           return {
             success: true,
             data: {
-              response: `**🏪 Governance Catalog**\n\n📋 **Found ${catalog.length} catalog entries:**\n\n${catalogList}${catalog.length > 15 ? `\n\n... and ${catalog.length - 15} more entries` : ''}\n\n${statusMessage}\n\n*Retrieved from official Governance catalog API*`
+              response: `**🏪 Available Applications**\n\n📋 **Found ${applications.length} requestable applications:**\n\n${catalogList}${applications.length > 15 ? `\n\n... and ${applications.length - 15} more applications` : ''}\n\n**Next Steps:**\n• Say "request access to [application name]" to start the request process\n• Example: "request access to Adobe" or "request access to Salesforce.com"\n\n*All applications above support access requests through the governance workflow*`
             }
           };
         }
@@ -819,5 +834,92 @@ export class LLMAutomationService {
       success: true,
       data: { response }
     };
+  }
+
+  // Interactive access request workflow methods
+  async handleApplicationEntitlements(appName: string, user: User, tokens: OktaTokens): Promise<any> {
+    try {
+      console.log('🔍 Fetching application entitlements for:', appName);
+
+      // First, get the catalog to find the app ID
+      const authHeader = this.oktaApiToken 
+        ? `SSWS ${this.oktaApiToken}`
+        : `Bearer ${tokens.accessToken}`;
+
+      const catalogResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries?filter=not%28parent+pr%29&limit=20`, {
+        headers: {
+          'Authorization': authHeader,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!catalogResponse.ok) {
+        throw new Error(`Catalog API error: ${catalogResponse.status}`);
+      }
+
+      const catalogData = await catalogResponse.json();
+      const catalog = catalogData.data || catalogData.resources || catalogData.entries || catalogData;
+      
+      // Find the application by name (case-insensitive)
+      const app = catalog.find((entry: any) => 
+        entry.name?.toLowerCase() === appName.toLowerCase() ||
+        entry.displayName?.toLowerCase() === appName.toLowerCase()
+      );
+
+      if (!app) {
+        return {
+          success: false,
+          data: {
+            response: `**❌ Application Not Found**\n\nCould not find "${appName}" in the catalog.\n\n**Available applications:**\n${catalog.filter((e: any) => e.label !== 'Collection').map((e: any) => `• ${e.name}`).join('\n')}\n\nPlease try again with the exact application name.`
+          }
+        };
+      }
+
+      // Fetch entitlements for this application
+      const entitlementsResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries?filter=parent+eq+%22${app.id}%22&limit=20`, {
+        headers: {
+          'Authorization': authHeader,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!entitlementsResponse.ok) {
+        throw new Error(`Entitlements API error: ${entitlementsResponse.status}`);
+      }
+
+      const entitlementsData = await entitlementsResponse.json();
+      const entitlements = entitlementsData.data || entitlementsData.resources || entitlementsData.entries || entitlementsData;
+
+      if (!entitlements || entitlements.length === 0) {
+        return {
+          success: false,
+          data: {
+            response: `**📱 ${app.name}**\n\n❌ **No Available Entitlements**\n\nThis application has no available entitlements for self-service requests.\n\nPlease contact your administrator to request access to ${app.name}.`
+          }
+        };
+      }
+
+      const entitlementsList = entitlements.slice(0, 10).map((ent: any, index: number) => 
+        `${index + 1}. **${ent.name || ent.displayName || 'Unknown Entitlement'}**\n   ID: \`${ent.id}\`\n   ${ent.description || 'Standard access entitlement'}`
+      ).join('\n\n');
+
+      return {
+        success: true,
+        data: {
+          response: `**📱 ${app.name} - Available Entitlements**\n\n🎯 **Found ${entitlements.length} available entitlements:**\n\n${entitlementsList}${entitlements.length > 10 ? `\n\n... and ${entitlements.length - 10} more entitlements` : ''}\n\n**Next Steps:**\n• Say "request [entitlement name]" to proceed with the request\n• Example: "request ${entitlements[0]?.name || 'Standard Access'}"\n\n*Select the entitlement that best matches your access needs*`
+        }
+      };
+
+    } catch (error) {
+      console.error('❌ Error fetching entitlements:', error);
+      return {
+        success: false,
+        data: {
+          response: `**❌ Error Fetching Entitlements**\n\nUnable to retrieve entitlements for ${appName}:\n\`${error}\`\n\nPlease try again or contact your administrator.`
+        }
+      };
+    }
   }
 }

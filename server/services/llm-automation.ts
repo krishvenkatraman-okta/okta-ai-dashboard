@@ -38,6 +38,23 @@ export class LLMAutomationService {
   async processGovernanceRequest(message: string, user: User, tokens: OktaTokens): Promise<any> {
     console.log('🔍 LLM processing request:', message);
     
+    // Check for explicit group management patterns first (higher priority)
+    const lowerMessage = message.toLowerCase();
+    if (lowerMessage.includes('group management') || 
+        lowerMessage.includes('group operations') ||
+        lowerMessage.includes('show my groups') ||
+        lowerMessage.includes('manage groups')) {
+      console.log('🎯 Direct group management pattern detected - bypassing LLM');
+      const hasAdminSession = this.oktaAuthService?.getAdminSessionToken(user.oktaId);
+      
+      if (!hasAdminSession) {
+        console.log('🔐 No admin session - requiring admin auth');
+        return this.requireAdminSession('group_management', user);
+      }
+      
+      return await this.handleGroupManagement({ intent: 'group_management' }, user, tokens, hasAdminSession);
+    }
+
     // Use Ollama for intelligent intent analysis
     const analysis = await this.ollama.analyzeIntent(message);
     console.log('🧠 Intent analysis result:', analysis);
@@ -65,23 +82,15 @@ export class LLMAutomationService {
       return await this.handleAccessLevelInquiry(user, tokens);
     }
     
-    // Fallback to pattern matching for missed cases
-    const lowerMessage = message.toLowerCase();
+    // Fallback to pattern matching for missed cases (lowerMessage already declared above)
     
-    // Check for group management operations
-    if (lowerMessage.includes('group management') || 
-        lowerMessage.includes('show my groups') ||
-        lowerMessage.includes('manage groups') ||
-        lowerMessage.includes('group operations')) {
-      console.log('👥 Pattern matched group management - checking admin session');
-      const hasAdminSession = this.oktaAuthService?.getAdminSessionToken(user.oktaId);
-      
-      if (!hasAdminSession) {
-        console.log('🔐 No admin session - requiring admin auth');
-        return this.requireAdminSession('group_management', user);
-      }
-      
-      return await this.handleGroupManagement({ intent: 'group_management' }, user, tokens, hasAdminSession);
+    // Additional catalog/application listing requests
+    if (lowerMessage.includes('list available applications') || 
+        lowerMessage.includes('applications to request') ||
+        lowerMessage.includes('available apps') ||
+        lowerMessage.includes('show catalog')) {
+      console.log('📋 Pattern matched catalog request');
+      return await this.handleCatalogRequest(user, tokens);
     }
     
     // Check for catalog/application listing requests
@@ -269,6 +278,7 @@ export class LLMAutomationService {
         : `Bearer ${tokens.accessToken}`;
         
       console.log('🔑 Using API authentication:', this.oktaApiToken ? 'Management API Token' : 'User Access Token');
+      console.log('📋 Fetching catalog from:', `https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries?filter=not%28parent+pr%29&limit=20`);
       
       // Use the correct governance catalog endpoint
       const response = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries?filter=not%28parent+pr%29&limit=20`, {
@@ -340,20 +350,25 @@ export class LLMAutomationService {
         }
       } else {
         const catalogResponse = await response.json();
-        console.log('✅ Governance catalog response:', catalogResponse);
+        console.log('✅ Governance catalog response:', JSON.stringify(catalogResponse, null, 2));
         
-        const catalog = catalogResponse.resources || catalogResponse.entries || catalogResponse;
+        const catalog = catalogResponse.data || catalogResponse.resources || catalogResponse.entries || catalogResponse;
         console.log('✅ Catalog entries fetched:', catalog?.length);
 
         if (catalog && catalog.length > 0) {
+          const requestableCount = catalog.filter((entry: any) => entry.requestable !== false).length;
           const catalogList = catalog.slice(0, 15).map((entry: any, index: number) => 
-            `${index + 1}. **${entry.displayName || entry.name || entry.label || 'Unknown App'}**\n   ${entry.requestable === false ? '🔒 Not Requestable' : '✅ Available for Request'}\n   Type: ${entry.type || entry.entryType || 'Application'}`
+            `${index + 1}. **${entry.name || entry.displayName || entry.label || 'Unknown App'}**\n   ${entry.requestable === false ? '🔒 Not Requestable (Admin Managed)' : '✅ Self-Service Request Available'}\n   Type: ${entry.label || entry.type || entry.entryType || 'Application'}`
           ).join('\n\n');
+
+          const statusMessage = requestableCount > 0 
+            ? `**Next Steps:**\n• Say "request access to [entry name]" to submit a request\n• ${requestableCount} of ${catalog.length} entries are available for self-service requests`
+            : `**Status:**\n• All ${catalog.length} applications require administrator approval\n• Contact your administrator to request access to these applications\n• Self-service requests are not enabled for these entries`;
 
           return {
             success: true,
             data: {
-              response: `**🏪 Governance Catalog**\n\n✅ **Found ${catalog.length} requestable entries:**\n\n${catalogList}${catalog.length > 15 ? `\n\n... and ${catalog.length - 15} more entries` : ''}\n\n**Next Steps:**\n• Say "request access to [entry name]" to submit a request\n• All entries above are from your Okta Governance catalog\n\n*Retrieved from official Governance catalog API*`
+              response: `**🏪 Governance Catalog**\n\n📋 **Found ${catalog.length} catalog entries:**\n\n${catalogList}${catalog.length > 15 ? `\n\n... and ${catalog.length - 15} more entries` : ''}\n\n${statusMessage}\n\n*Retrieved from official Governance catalog API*`
             }
           };
         }

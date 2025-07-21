@@ -277,7 +277,9 @@ export class LLMAutomationService {
       });
 
       if (!response.ok) {
-        console.log('⚠️ IGA catalog failed, trying apps API fallback');
+        const errorText = await response.text();
+        console.log(`⚠️ IGA catalog failed (${response.status}): ${errorText}`);
+        console.log('⚠️ Trying apps API fallback');
         
         // Fallback to regular apps API
         const appsResponse = await fetch(`https://${this.oktaDomain}/api/v1/apps`, {

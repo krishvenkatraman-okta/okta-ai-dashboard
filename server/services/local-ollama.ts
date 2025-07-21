@@ -49,9 +49,18 @@ export class LocalOllamaService {
 
   private async downloadAndStartOllama(): Promise<void> {
     try {
+      // Clean up any existing Ollama processes/files first
+      console.log('🧹 Cleaning up existing Ollama processes...');
+      try {
+        await execAsync('pkill -f ollama || true');
+        await execAsync('rm -f /tmp/ollama-bin || true');
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+      
       // Download Ollama binary for Linux
       console.log('📥 Downloading Ollama binary...');
-      await execAsync('curl -L https://github.com/ollama/ollama/releases/download/v0.1.17/ollama-linux-amd64 -o /tmp/ollama-bin');
+      await execAsync('curl -L https://github.com/ollama/ollama/releases/download/v0.3.0/ollama-linux-amd64 -o /tmp/ollama-bin');
       await execAsync('chmod +x /tmp/ollama-bin');
       
       // Start Ollama

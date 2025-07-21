@@ -37,16 +37,19 @@ export class LLMAutomationService {
 
   async processGovernanceRequest(message: string, user: User, tokens: OktaTokens): Promise<any> {
     console.log('🔍 LLM processing request:', message);
+    console.log('🔍 Message type:', typeof message, 'Length:', message.length);
     
     // Check for explicit patterns first (higher priority than LLM)
-    const lowerMessage = message.toLowerCase();
+    const lowerMessage = message.toLowerCase().trim();
+    console.log('🔍 Normalized message:', `"${lowerMessage}"`);
     
-    // Group management patterns - highest priority
-    if (lowerMessage.includes('group management') || 
-        lowerMessage.includes('group operations') ||
-        lowerMessage.includes('show my groups') ||
-        lowerMessage.includes('manage groups')) {
-      console.log('🎯 PRIORITY: Group management pattern detected - bypassing LLM');
+    // Group management patterns - highest priority with detailed logging
+    const groupPatterns = ['group management', 'group operations', 'show my groups', 'manage groups'];
+    const foundPattern = groupPatterns.find(pattern => lowerMessage.includes(pattern));
+    
+    if (foundPattern) {
+      console.log('🎯 CRITICAL: Group management pattern detected:', foundPattern);
+      console.log('🎯 BYPASSING OLLAMA - Direct pattern match');
       const hasAdminSession = this.oktaAuthService?.getAdminSessionToken(user.oktaId);
       
       if (!hasAdminSession) {
@@ -56,6 +59,8 @@ export class LLMAutomationService {
       
       return await this.handleGroupManagement({ intent: 'group_management' }, user, tokens, hasAdminSession);
     }
+    
+    console.log('🔍 No group management pattern found, continuing to other checks...');
     
     // Entitlement request patterns - check for "request [specific entitlement]" format
     if (lowerMessage.startsWith('request ') && !lowerMessage.includes('request access to ')) {
@@ -1002,7 +1007,8 @@ export class LLMAutomationService {
       // For testing, submit request directly with default values
       console.log('🎯 Found entitlement:', foundEntitlement.name, 'in app:', parentApp.name);
       
-      // Submit with minimal required fields
+      // Submit with minimal required fields using SESSION TOKEN (not API token for proper audit)
+      console.log('🔒 Using session token for access request submission (proper user attribution)');
       const defaultFieldValues = [
         {
           id: "ACCESS_DURATION",
@@ -1028,9 +1034,10 @@ export class LLMAutomationService {
       console.log('📤 Submitting access request for entitlement:', entitlementId);
       console.log('📄 Field values:', fieldValues);
 
-      const authHeader = this.oktaApiToken 
-        ? `SSWS ${this.oktaApiToken}`
-        : `Bearer ${tokens.accessToken}`;
+      // CRITICAL: Always use user's session token for access requests (not management API)
+      // This ensures proper user attribution and audit logging
+      const authHeader = `Bearer ${tokens.accessToken}`;
+      console.log('🔒 Using USER SESSION TOKEN for access request (user attribution required)');
 
       const requestPayload = {
         requesterFieldValues: fieldValues

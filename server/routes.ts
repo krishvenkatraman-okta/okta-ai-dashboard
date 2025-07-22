@@ -835,8 +835,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             command: 'chat'
           });
 
+          console.log('🏛️ Sending governance auth response:', {
+            action: 'governance_auth_required',
+            requiresGovernanceAuth: true,
+            authUrl: llmResult.data?.authUrl
+          });
+
           return res.json({ 
             response: finalResponse,
+            action: 'governance_auth_required',
+            requiresGovernanceAuth: true,
+            authUrl: llmResult.data?.authUrl,
             data: {
               response: finalResponse,
               action: 'governance_auth_required',

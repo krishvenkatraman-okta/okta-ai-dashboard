@@ -271,7 +271,7 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
     
     // Check if message requires admin session (check both data level and response level)
     const needsAdminAuth = msg.data?.requiresAdminAuth;
-    const needsGovernanceAuth = msg.data?.action === 'governance_auth_required';
+    const needsGovernanceAuth = msg.data?.action === 'governance_auth_required' || msg.data?.requiresGovernanceAuth;
     const needsAdminOAuth = msg.data?.action === 'admin_oauth_required';
     const hasAdminAction = msg.data?.action === 'admin_oauth_flow';
     

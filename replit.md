@@ -116,15 +116,15 @@ The application is architected for scalability and maintainability, with clear s
 
 ## Recent Updates (July 19, 2025)
 
-**Current Session Focus (July 21, 2025 - Session 11):**
-- ✅ **Fixed POST Request Format**: Corrected API payload from "fieldId"/"fieldValue" to "id"/"value" per Okta documentation
-- ✅ **Enhanced Admin Session Popup Flow**: Fixed direct button connection to handleAdminOAuthFlow() function  
-- ✅ **Duration Input Validation**: System validates duration against policy limits and asks user to specify duration when missing
-- ✅ **User Attribution Fix**: Fixed 400 API errors by switching to proper authentication method for governance API
-- ✅ **Admin Callback Handler**: Added secure admin token exchange endpoint with proper session storage
-- ✅ **Frontend Admin Integration**: Created proper popup handling with success/error messaging
-- ✅ **Pattern Detection Fix**: "start admin session" and "show my groups" now properly trigger admin flows
-- ⚠️ **Ready for Testing**: All critical fixes implemented - test both access requests and admin session flows
+**Current Session Focus (July 22, 2025 - Session 12):**
+- ✅ **CRITICAL: User Session Token Authentication**: Implemented exclusive use of user's browser session bearer token for all governance operations
+- ✅ **Eliminated "Okta Admin" Requests**: Removed management API fallback that was causing requests to appear as API key owner instead of actual user
+- ✅ **User Attribution Fixed**: Access requests now properly submit as the logged-in user (steve.rogers) with correct scoping
+- ✅ **Admin Session Button Fixed**: Corrected action field mismatch (admin_auth_required → admin_oauth_flow) between frontend and backend
+- ✅ **Governance API User Context**: Catalog requests now use user session token for proper user scoping and permissions
+- ✅ **Enhanced Error Logging**: Clear distinction between user session token vs management API usage in logs
+- ✅ **Proper Request Attribution**: Added requestedFor.externalId, requestedBy.externalId, and requested.entryId fields per Okta docs
+- ✅ **Authentication Strategy**: User session tokens for governance/access requests, management API only for role extraction and 30-day usage
 
 **Previous Session Focus (July 21, 2025 - Session 9):**
 - ✅ **Session-Based Authentication Implementation**: Replaced API token authentication with proper session-based authentication for audit logging

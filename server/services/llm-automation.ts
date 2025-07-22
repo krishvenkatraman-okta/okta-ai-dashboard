@@ -475,12 +475,14 @@ export class LLMAutomationService {
     console.log('📋 Processing catalog request');
     
     try {
-      // Use Management API token instead of user's access token for API calls
-      const authHeader = this.oktaApiToken 
-        ? `SSWS ${this.oktaApiToken}`
-        : `Bearer ${tokens.accessToken}`;
-        
-      console.log('🔑 Using API authentication:', this.oktaApiToken ? 'Management API Token' : 'User Access Token');
+      // ALWAYS use user session token for governance catalog (per user feedback)
+      // This ensures proper user context and scoping instead of showing as "okta admin"
+      if (!tokens.accessToken) {
+        throw new Error('User session token required for catalog access. Please refresh your session.');
+      }
+      
+      const authHeader = `Bearer ${tokens.accessToken}`;
+      console.log('🔑 Using USER SESSION TOKEN for catalog (proper user scoping)');
       console.log('📋 Fetching catalog from:', `https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries?filter=not%28parent+pr%29&limit=20`);
       
       // Use the correct governance catalog endpoint
@@ -495,11 +497,11 @@ export class LLMAutomationService {
         const errorText = await response.text();
         console.log(`⚠️ Governance catalog failed (${response.status}): ${errorText}`);
         
-        // Try alternative catalog endpoints
-        console.log('🔄 Trying alternative IGA catalog endpoint...');
+        // Try alternative catalog endpoints (still using user session token)
+        console.log('🔄 Trying alternative IGA catalog endpoint with user token...');
         const igaResponse = await fetch(`https://${this.oktaDomain}/api/v1/iga/catalog/entries?filter=type+eq+%22APPLICATION%22`, {
           headers: {
-            'Authorization': authHeader,
+            'Authorization': authHeader, // Still user session token
             'Accept': 'application/json'
           }
         });
@@ -522,12 +524,14 @@ export class LLMAutomationService {
           }
         }
         
-        console.log('⚠️ Both governance catalog endpoints failed, trying apps API fallback');
+        console.log('⚠️ Both governance catalog endpoints failed');
         
-        // Fallback to regular apps API
+        // For fallback to regular apps API, use management token (only for non-governance operations)
+        console.log('🔄 Falling back to Apps API with management token (non-governance operation)');
+        const managementAuthHeader = this.oktaApiToken ? `SSWS ${this.oktaApiToken}` : authHeader;
         const appsResponse = await fetch(`https://${this.oktaDomain}/api/v1/apps`, {
           headers: {
-            'Authorization': authHeader,
+            'Authorization': managementAuthHeader,
             'Accept': 'application/json'
           }
         });
@@ -1288,28 +1292,21 @@ export class LLMAutomationService {
       console.log('📤 Submitting access request for entitlement:', entitlementId);
       console.log('📄 Field values:', fieldValues);
 
-      // Try user session token first, fallback to management API with user impersonation
-      let authHeader: string;
-      let authMethod: string;
-      let headers: any = {
+      // ALWAYS use user session token for access requests (never management API)
+      // This ensures proper user context and scoping as mentioned by user
+      if (!tokens.accessToken) {
+        throw new Error('User session token required for access requests. Please refresh your session.');
+      }
+      
+      const authHeader = `Bearer ${tokens.accessToken}`;
+      const authMethod = 'User session token (user scoped)';
+      const headers = {
         'Accept': 'application/json',
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': authHeader
       };
       
-      if (tokens.accessToken) {
-        authHeader = `Bearer ${tokens.accessToken}`;
-        authMethod = 'User session token';
-        headers['Authorization'] = authHeader;
-        console.log('🔒 Using USER SESSION TOKEN for access request (user attribution)');
-      } else if (this.oktaApiToken) {
-        authHeader = `SSWS ${this.oktaApiToken}`;
-        authMethod = 'Management API with user context';
-        headers['Authorization'] = authHeader;
-        headers['X-Okta-User'] = user.id; // Impersonate user for proper attribution
-        console.log('🔒 Using MANAGEMENT API with user impersonation for access request');
-      } else {
-        throw new Error('No authentication token available for access request');
-      }
+      console.log('🔒 Using USER SESSION TOKEN ONLY for access request (proper user scoping)');
 
       // Use correct API format per Okta documentation with proper user attribution
       const requestPayload = {
@@ -1365,55 +1362,13 @@ export class LLMAutomationService {
           console.error('❌ Could not parse error response as JSON - response may be HTML or empty');
         }
         
-        // If user session token failed, try management API with user impersonation
-        if (submitResponse.status === 400 && tokens.accessToken && this.oktaApiToken) {
-          console.log('🔄 User session failed, trying Management API with user impersonation...');
-          
-          const mgmtHeaders = {
-            'Authorization': `SSWS ${this.oktaApiToken}`,
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'X-Okta-User': user.id
-          };
-          
-          const mgmtResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries/${entitlementId}/requests`, {
-            method: 'POST',
-            headers: mgmtHeaders,
-            body: JSON.stringify({
-              requestedFor: {
-                externalId: user.id // The user who needs access
-              },
-              requestedBy: {
-                externalId: user.sub || user.id // The OIDC sub claim or user ID who is submitting
-              },
-              requested: {
-                entryId: entitlementId // The catalog entry ID
-              },
-              requesterFieldValues: fieldValues.map(field => ({
-                id: field.id,
-                value: field.value
-              }))
-            })
-          });
-          
-          if (mgmtResponse.ok) {
-            console.log('✅ Management API with user impersonation worked!');
-            const mgmtData = await mgmtResponse.json();
-            return {
-              success: true,
-              data: {
-                response: `**✅ Access Request Submitted Successfully**\n\n📱 **Application:** ${appName}\n🎯 **Entitlement:** ${entitlementName}\n🆔 **Request ID:** ${mgmtData.id || 'Generated'}\n\n**Status:** Your request has been submitted for approval.\n\n**Next Steps:**\n• You will receive notifications about request status\n• Check back later for approval updates\n• Contact your administrator if you have questions\n\n*Request submitted successfully through Okta Governance API with user attribution*`
-              }
-            };
-          } else {
-            const mgmtErrorText = await mgmtResponse.text();
-            console.error('❌ Management API also failed:', mgmtErrorText);
-          }
-        }
+        // DO NOT fallback to management API - this causes requests to appear as "okta admin"
+        // User session token is required for proper user attribution as per user feedback
+        console.log('❌ User session token failed - NO FALLBACK to management API (would show as okta admin)');
         
-        // Try alternative payload format if 400 error
+        // Try alternative payload format if 400 error (still using user session token only)
         if (submitResponse.status === 400) {
-          console.log('🔄 Trying with justification field...');
+          console.log('🔄 Trying with justification field using user session token...');
           
           const alternativePayload = {
             requestedFor: {
@@ -1434,19 +1389,22 @@ export class LLMAutomationService {
           
           const retryResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries/${entitlementId}/requests`, {
             method: 'POST',
-            headers: headers,
+            headers: headers, // Still using user session token headers
             body: JSON.stringify(alternativePayload)
           });
           
           if (retryResponse.ok) {
-            console.log('✅ Alternative payload format worked!');
+            console.log('✅ Alternative payload format worked with user session token!');
             const retryData = await retryResponse.json();
             return {
               success: true,
               data: {
-                response: `**✅ Access Request Submitted Successfully**\n\n📱 **Application:** ${appName}\n🎯 **Entitlement:** ${entitlementName}\n🆔 **Request ID:** ${retryData.id || 'Generated'}\n\n**Status:** Your request has been submitted for approval.\n\n**Next Steps:**\n• You will receive notifications about request status\n• Check back later for approval updates\n• Contact your administrator if you have questions\n\n*Request submitted successfully through Okta Governance API*`
+                response: `**✅ Access Request Submitted Successfully**\n\n📱 **Application:** ${appName}\n🎯 **Entitlement:** ${entitlementName}\n🆔 **Request ID:** ${retryData.id || 'Generated'}\n\n**Status:** Your request has been submitted for approval.\n\n**Next Steps:**\n• You will receive notifications about request status\n• Check back later for approval updates\n• Contact your administrator if you have questions\n\n*Request submitted successfully using your session token*`
               }
             };
+          } else {
+            const retryErrorText = await retryResponse.text();
+            console.error('❌ Alternative format also failed with user session token:', retryErrorText);
           }
         }
         

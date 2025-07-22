@@ -100,8 +100,8 @@ The application follows a modern full-stack architecture with clear separation b
   - `OKTA_DOMAIN` (e.g., fcxdemo.okta.com)
   - `OKTA_CLIENT_ID` (OIDC application client ID - public client)
   - `OKTA_REDIRECT_URI` (Custom domain: https://atko.kriyahub.com/api/auth/callback)
-  - **OAuth scopes**: `openid profile email okta.users.read.self okta.users.manage.self okta.internal.enduser.read okta.internal.enduser.manage okta.enduser.dashboard.read okta.enduser.dashboard.manage okta.myAccount.sessions.manage okta.internal.navigation.enduser.read`
-  - **Admin OAuth scopes**: Includes additional `okta.users.read okta.groups.read okta.apps.read okta.governance.read okta.governance.manage` for elevated operations
+  - **OAuth scopes**: `openid profile email okta.users.read.self okta.users.manage.self okta.enduser.read okta.enduser.manage okta.enduser.dashboard.read okta.enduser.dashboard.manage okta.myAccount.sessions.manage`
+  - **Admin Authentication**: Simple redirect to admin dashboard (no additional OAuth scopes needed)
 - **Okta API & PAM Configuration**:
   - `OKTA_API_TOKEN` (Management API token for MCP server operations)
   - `OKTA_PAM_DOMAIN` (PAM-specific domain, defaults to OKTA_DOMAIN)
@@ -119,7 +119,7 @@ The application is architected for scalability and maintainability, with clear s
 
 **Current Session Focus (July 22, 2025 - Session 12):**
 - ✅ **Enhanced OAuth Scopes**: Updated OIDC scopes to include governance and enduser permissions for proper catalog access
-- ✅ **Governance API Compatibility**: Added `okta.internal.enduser.read`, `okta.internal.enduser.manage`, `okta.enduser.dashboard.read`, etc.
+- ✅ **Governance API Compatibility**: Updated to use correct public API scopes: `okta.enduser.read`, `okta.enduser.manage`, `okta.enduser.dashboard.read`, etc.
 - ✅ **Admin Session Scopes**: Enhanced admin auth flow with `okta.governance.read` and `okta.governance.manage` permissions
 - ✅ **Eliminated Apps API Fallback**: System now properly handles governance permission issues instead of falling back to Apps API
 - ✅ **Session Token Governance**: All governance operations (catalog, access requests) now use expanded user session token scopes

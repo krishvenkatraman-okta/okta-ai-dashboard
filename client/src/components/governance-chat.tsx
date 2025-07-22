@@ -8,6 +8,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import AdminSessionHandler from "./admin-session-handler";
 import { GovernanceAuthHandler } from "./governance-auth-handler";
+import { AdminOAuthHandler } from "./admin-oauth-handler";
 
 interface ChatMessage {
   id: string;
@@ -265,6 +266,7 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
     // Check if message requires admin session (check both data level and response level)
     const needsAdminAuth = msg.data?.requiresAdminAuth || msg.requiresAdminAuth;
     const needsGovernanceAuth = msg.data?.action === 'governance_auth_required';
+    const needsAdminOAuth = msg.data?.action === 'admin_oauth_required';
     const hasAdminAction = msg.data?.action === 'admin_oauth_flow';
     
     // Handle governance authentication requirement
@@ -289,6 +291,37 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
                   id: Date.now().toString(),
                   role: 'assistant',
                   content: `❌ **Governance Authentication Failed**\n\nError: ${error}\n\nPlease try again or contact your administrator for governance access.`,
+                  timestamp: new Date(),
+                };
+                setMessages(prev => [...prev, errorMessage]);
+              }}
+            />
+          </div>
+        </div>
+      );
+    }
+    
+    // Handle admin OAuth authentication requirement
+    if (needsAdminOAuth) {
+      return (
+        <div className="mr-4">
+          <div className="bg-red-50 dark:bg-red-950/20 text-red-900 dark:text-red-100 p-3 rounded-lg border border-red-200 dark:border-red-800">
+            <pre className="whitespace-pre-wrap text-sm font-sans mb-3">{msg.content}</pre>
+            <AdminOAuthHandler
+              onAuthSuccess={() => {
+                const successMessage: ChatMessage = {
+                  id: Date.now().toString(),
+                  role: 'assistant',
+                  content: '✅ **Admin OAuth Authentication Successful!**\n\nYou now have admin privileges with proper OAuth tokens for:\n• Group management operations\n• User administration\n• Governance administration\n\nTry your admin command again.',
+                  timestamp: new Date(),
+                };
+                setMessages(prev => [...prev, successMessage]);
+              }}
+              onAuthError={(error) => {
+                const errorMessage: ChatMessage = {
+                  id: Date.now().toString(),
+                  role: 'assistant',
+                  content: `❌ **Admin OAuth Authentication Failed**\n\nError: ${error}\n\nPlease try again or contact your administrator for admin OAuth access.`,
                   timestamp: new Date(),
                 };
                 setMessages(prev => [...prev, errorMessage]);

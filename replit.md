@@ -118,7 +118,17 @@ The application is architected for scalability and maintainability, with clear s
 
 ## Recent Updates (July 19, 2025)
 
-**Current Session Focus (July 22, 2025 - Session 12):**
+**Current Session Focus (July 22, 2025 - Session 13):**
+- ✅ **Admin OAuth Implementation**: Created comprehensive admin OAuth flow using dedicated admin app (client_id=okta.b58d5b75-07d4-5f25-bf59-368a1261a405)
+- ✅ **Three-Tier OAuth System**: Regular session + governance OAuth + admin OAuth for complete separation of privileges
+- ✅ **Admin OAuth Routes**: Added /api/admin/auth-url and /api/auth/admin/callback for dedicated admin authentication
+- ✅ **AdminOAuthHandler Component**: Frontend popup-based OAuth handler with proper window messaging for admin operations
+- ✅ **Enhanced LLM Automation**: Updated service to prioritize admin OAuth tokens for group management and admin operations
+- ✅ **Token Hierarchy**: Admin OAuth tokens > Management API tokens > User session tokens for admin operations
+- ✅ **Admin Scopes**: okta.governance.read/manage, okta.groups.read/manage, okta.users.read/manage
+- ✅ **Improved Error Handling**: Clear distinction between admin OAuth, governance OAuth, and regular session requirements
+
+**Previous Session Focus (July 22, 2025 - Session 12):**
 - ✅ **Enhanced OAuth Scopes**: Updated OIDC scopes to include governance and enduser permissions for proper catalog access
 - ✅ **Governance API Compatibility**: Updated to use correct public API scopes: `okta.enduser.read`, `okta.enduser.manage`, `okta.enduser.dashboard.read`, etc.
 - ✅ **Admin Session Scopes**: Enhanced admin auth flow with `okta.governance.read` and `okta.governance.manage` permissions

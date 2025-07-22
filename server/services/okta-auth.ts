@@ -31,6 +31,11 @@ export class OktaAuthService {
   private readonly governanceClientId = 'okta.91d77ef1-82a4-5bed-b146-a1bea222f083';
   private readonly governanceRedirectUri: string;
   private governanceTokenStore: Map<string, OktaTokens> = new Map();
+  
+  // Admin OAuth app configuration
+  private readonly adminClientId = 'okta.b58d5b75-07d4-5f25-bf59-368a1261a405';
+  private readonly adminRedirectUri: string;
+  private adminTokenStore: Map<string, OktaTokens> = new Map();
 
   constructor() {
     this.oktaDomain = process.env.OKTA_DOMAIN || 'fcxdemo.okta.com';
@@ -39,6 +44,7 @@ export class OktaAuthService {
     // Use custom domain for production deployment
     this.redirectUri = 'https://atko.kriyahub.com/api/auth/callback';
     this.governanceRedirectUri = 'https://atko.kriyahub.com/api/auth/governance/callback';
+    this.adminRedirectUri = 'https://atko.kriyahub.com/api/auth/admin/callback';
     
     console.log('🔧 Okta Auth Service initialized:');
     console.log('  Domain:', this.oktaDomain);
@@ -46,6 +52,8 @@ export class OktaAuthService {
     console.log('  Redirect URI:', this.redirectUri);
     console.log('  Governance Client ID:', this.governanceClientId);
     console.log('  Governance Redirect URI:', this.governanceRedirectUri);
+    console.log('  Admin Client ID:', this.adminClientId);
+    console.log('  Admin Redirect URI:', this.adminRedirectUri);
     console.log('  Custom Domain: atko.kriyahub.com');
 
     if (!this.clientId) {
@@ -89,6 +97,29 @@ export class OktaAuthService {
       response_type: 'code',
       scope: 'openid profile email online_access okta.accessRequests.catalog.read okta.accessRequests.request.manage okta.accessRequests.request.read',
       redirect_uri: this.governanceRedirectUri,
+      state,
+      code_challenge: pkceChallenge.codeChallenge,
+      code_challenge_method: 'S256'
+    });
+
+    return `${baseUrl}?${params.toString()}`;
+  }
+
+  getAdminOAuthUrl(): string {
+    const pkceChallenge = this.generatePkceChallenge();
+    const state = pkceChallenge.state;
+    
+    // Store PKCE challenge for later verification
+    this.pkceStore.set(state, pkceChallenge);
+    
+    const baseUrl = `https://${this.oktaDomain}/oauth2/v1/authorize`;
+    
+    const params = new URLSearchParams({
+      client_id: this.adminClientId,
+      response_type: 'code',
+      response_mode: 'query',
+      scope: 'openid okta.governance.read okta.governance.manage okta.groups.manage okta.groups.read okta.users.manage okta.users.read',
+      redirect_uri: this.adminRedirectUri,
       state,
       code_challenge: pkceChallenge.codeChallenge,
       code_challenge_method: 'S256'
@@ -728,6 +759,64 @@ export class OktaAuthService {
     return tokens;
   }
 
+  async exchangeAdminCodeForTokens(code: string, state: string): Promise<OktaTokens> {
+    const pkceChallenge = this.pkceStore.get(state);
+    if (!pkceChallenge) {
+      throw new Error('Invalid state parameter - PKCE challenge not found');
+    }
+
+    const tokenUrl = `https://${this.oktaDomain}/oauth2/v1/token`;
+    
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: this.adminClientId,
+      code,
+      redirect_uri: this.adminRedirectUri,
+      code_verifier: pkceChallenge.codeVerifier
+    });
+
+    console.log('🔐 Exchanging admin authorization code for tokens');
+    console.log('  - Token URL:', tokenUrl);
+    console.log('  - Client ID:', this.adminClientId);
+    console.log('  - Redirect URI:', this.adminRedirectUri);
+
+    const response = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
+      },
+      body: body.toString()
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Admin token exchange failed:', response.status, errorText);
+      throw new Error(`Admin token exchange failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    console.log('🔐 Admin token exchange successful:');
+    console.log('  - Access token length:', data.access_token?.length || 0);
+    console.log('  - Scopes granted:', data.scope || 'NOT RETURNED');
+    console.log('  - Token type:', data.token_type);
+    console.log('  - Expires in:', data.expires_in, 'seconds');
+
+    // Clean up PKCE challenge
+    this.pkceStore.delete(state);
+
+    const tokens = {
+      accessToken: data.access_token,
+      idToken: data.id_token,
+      refreshToken: data.refresh_token,
+      expiresIn: data.expires_in,
+      scope: data.scope
+    };
+
+    return tokens;
+  }
+
   setGovernanceTokens(userId: string, tokens: OktaTokens): void {
     this.governanceTokenStore.set(userId, tokens);
     console.log('🏛️ Stored governance tokens for user:', userId);
@@ -739,6 +828,24 @@ export class OktaAuthService {
 
   hasGovernanceTokens(userId: string): boolean {
     const tokens = this.governanceTokenStore.get(userId);
+    if (!tokens) return false;
+    
+    // Check if token is not expired (with 5 minute buffer)
+    const expiresAt = Date.now() + (tokens.expiresIn * 1000);
+    return expiresAt > Date.now() + (5 * 60 * 1000);
+  }
+
+  setAdminOAuthTokens(userId: string, tokens: OktaTokens): void {
+    this.adminTokenStore.set(userId, tokens);
+    console.log('🔐 Stored admin OAuth tokens for user:', userId);
+  }
+
+  getAdminOAuthTokens(userId: string): OktaTokens | undefined {
+    return this.adminTokenStore.get(userId);
+  }
+
+  hasAdminOAuthTokens(userId: string): boolean {
+    const tokens = this.adminTokenStore.get(userId);
     if (!tokens) return false;
     
     // Check if token is not expired (with 5 minute buffer)

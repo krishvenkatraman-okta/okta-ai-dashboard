@@ -424,6 +424,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin OAuth routes
+  app.get('/api/admin/auth-url', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+      
+      // Check if user already has admin OAuth tokens
+      if (oktaAuth.hasAdminOAuthTokens(user.oktaId)) {
+        return res.json({
+          action: 'admin_already_authenticated',
+          status: 'success',
+          message: 'User already has admin OAuth access'
+        });
+      }
+      
+      // Generate admin OAuth URL
+      const authUrl = oktaAuth.getAdminOAuthUrl();
+      
+      res.json({
+        action: 'admin_oauth_flow',
+        status: 'redirect_required',
+        message: 'Admin OAuth authentication required for admin operations',
+        authUrl: authUrl
+      });
+    } catch (error) {
+      console.error('❌ Admin OAuth URL generation failed:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to generate admin OAuth URL' 
+      });
+    }
+  });
+
+  app.get('/api/auth/admin/callback', async (req, res) => {
+    try {
+      const { code, state } = req.query;
+      
+      if (!code || !state) {
+        return res.status(400).json({ error: 'Missing authorization code or state' });
+      }
+      
+      // Exchange code for admin OAuth tokens
+      const tokens = await oktaAuth.exchangeAdminCodeForTokens(code as string, state as string);
+      
+      // Store tokens (we'll need to get user ID from session)
+      const sessionId = req.cookies.session_id;
+      if (sessionId) {
+        const session = await storage.getSession(sessionId);
+        if (session) {
+          const user = await storage.getUser(session.userId);
+          if (user) {
+            oktaAuth.setAdminOAuthTokens(user.oktaId, tokens);
+            console.log('✅ Admin OAuth tokens stored for user:', user.name);
+          }
+        }
+      }
+      
+      // Return success page or close popup
+      res.send(`
+        <html>
+          <body>
+            <script>
+              if (window.opener) {
+                window.opener.postMessage({ type: 'ADMIN_OAUTH_SUCCESS' }, '*');
+                window.close();
+              } else {
+                window.location.href = '/';
+              }
+            </script>
+            <p>Admin OAuth authentication successful. You now have admin privileges.</p>
+          </body>
+        </html>
+      `);
+    } catch (error) {
+      console.error('❌ Admin OAuth callback failed:', error);
+      res.status(500).send(`
+        <html>
+          <body>
+            <script>
+              if (window.opener) {
+                window.opener.postMessage({ type: 'ADMIN_OAUTH_ERROR', error: '${error instanceof Error ? error.message : 'Unknown error'}' }, '*');
+                window.close();
+              }
+            </script>
+            <p>Admin OAuth authentication failed. Please try again.</p>
+          </body>
+        </html>
+      `);
+    }
+  });
+
   // Governance API routes
   app.get('/api/governance/catalog', async (req, res) => {
     try {

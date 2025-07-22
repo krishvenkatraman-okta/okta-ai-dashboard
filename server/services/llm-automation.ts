@@ -63,14 +63,19 @@ export class LLMAutomationService {
         console.log('🎯 CRITICAL: Group management pattern detected:', foundPattern);
         console.log('🎯 BYPASSING OLLAMA - Direct pattern match');
         try {
+          // Check for admin OAuth tokens first, then fall back to admin session
+          const hasAdminOAuth = this.oktaAuthService?.hasAdminOAuthTokens(user.oktaId);
           const hasAdminSession = this.oktaAuthService?.getAdminSessionToken(user.oktaId);
           
-          if (!hasAdminSession) {
-            console.log('🔐 No admin session - requiring admin auth');
-            return this.requireAdminSession('group_management', user);
+          if (!hasAdminOAuth && !hasAdminSession) {
+            console.log('🔐 No admin OAuth or session - requiring admin OAuth');
+            return this.requireAdminOAuth('group_management', user);
           }
           
-          return await this.handleGroupManagement({ intent: 'group_management' }, user, tokens, hasAdminSession);
+          console.log('✅ Admin authentication found - processing group management request');
+          // Use admin OAuth tokens if available, otherwise use management API token
+          const adminTokens = hasAdminOAuth ? this.oktaAuthService.getAdminOAuthTokens(user.oktaId) : null;
+          return await this.handleGroupManagement(user, tokens, adminTokens);
         } catch (groupError) {
           console.error('❌ Group management handling failed:', groupError);
           return {
@@ -289,6 +294,20 @@ export class LLMAutomationService {
     };
   }
 
+  private requireAdminOAuth(intent: string, user: User): any {
+    // Get actual user roles for proper display
+    const userRole = this.getUserDisplayRole(user);
+    
+    return {
+      success: true,
+      data: {
+        response: `**🔐 Admin OAuth Authentication Required**\n\nTo perform ${intent.replace('_', ' ')} operations, you need to authenticate with Okta's dedicated admin app.\n\n**Your Current Access:**\n• Role: ${userRole}\n• Can perform: 30-day access reviews, access requests\n\n**To unlock admin capabilities:**\n1. Click "Authenticate with Admin OAuth" below\n2. Complete the OAuth flow with admin permissions\n3. Return here to continue\n\n**Admin OAuth provides:**\n• okta.governance.read/manage\n• okta.groups.read/manage\n• okta.users.read/manage\n\nThis ensures proper token-based authentication for admin operations.`,
+        action: 'admin_oauth_required',
+        intent: intent
+      }
+    };
+  }
+
   private getUserDisplayRole(user: User): string {
     // Check if user has allRoles (custom roles) property
     if (user.allRoles && Array.isArray(user.allRoles) && user.allRoles.length > 0) {
@@ -413,19 +432,27 @@ export class LLMAutomationService {
     }
   }
 
-  private async handleGroupManagement(analysis: any, user: User, tokens: OktaTokens, adminSession: any): Promise<any> {
-    if (!adminSession) {
-      console.log('🔐 Group management requires admin session');
-      return this.requireAdminSession('group_management', user);
-    }
-
-    console.log('👥 Processing group management with admin session');
+  private async handleGroupManagement(user: User, tokens: OktaTokens, adminTokens?: OktaTokens | null): Promise<any> {
+    console.log('👥 Processing group management request');
     
     try {
-      // Use Management API token for groups API
-      const authHeader = this.oktaApiToken 
-        ? `SSWS ${this.oktaApiToken}`
-        : `Bearer ${tokens.accessToken}`;
+      // Prioritize admin OAuth tokens, then management API token, then user session token
+      let authHeader: string;
+      let authSource: string;
+      
+      if (adminTokens?.accessToken) {
+        authHeader = `Bearer ${adminTokens.accessToken}`;
+        authSource = 'Admin OAuth Token';
+        console.log('🔐 Using admin OAuth token for group operations');
+      } else if (this.oktaApiToken) {
+        authHeader = `SSWS ${this.oktaApiToken}`;
+        authSource = 'Management API Token';
+        console.log('🔐 Using management API token for group operations');
+      } else {
+        authHeader = `Bearer ${tokens.accessToken}`;
+        authSource = 'User Session Token';
+        console.log('🔐 Using user session token for group operations');
+      }
         
       const response = await fetch(`https://${this.oktaDomain}/api/v1/groups`, {
         headers: {
@@ -439,24 +466,26 @@ export class LLMAutomationService {
       }
 
       const groups = await response.json();
-      console.log('✅ Groups fetched:', groups.length);
+      console.log(`✅ Groups fetched: ${groups.length} (using ${authSource})`);
 
       if (groups && groups.length > 0) {
         const groupList = groups.slice(0, 10).map((group: any, index: number) => 
           `${index + 1}. **${group.profile?.name || 'Unnamed Group'}**\n   Type: ${group.type || 'USER_GROUP'}\n   Members: ${group.profile?.membershipCount || 'Unknown'}`
         ).join('\n\n');
 
+        const authStatus = adminTokens ? 'Admin OAuth authenticated' : 'Management API access';
+
         return {
           success: true,
           data: {
-            response: `**👥 Your Manageable Groups**\n\n✅ **Found ${groups.length} groups:**\n\n${groupList}${groups.length > 10 ? `\n\n... and ${groups.length - 10} more groups` : ''}\n\n**Available Actions:**\n• "List users in [group name]" - Show group members\n• "Add user to [group name]" - Add user to group\n• "Remove user from [group name]" - Remove user from group\n\n*Admin session active - all operations audited*`
+            response: `**👥 Your Manageable Groups**\n\n✅ **Found ${groups.length} groups:**\n\n${groupList}${groups.length > 10 ? `\n\n... and ${groups.length - 10} more groups` : ''}\n\n**Available Actions:**\n• "List users in [group name]" - Show group members\n• "Add user to [group name]" - Add user to group\n• "Remove user from [group name]" - Remove user from group\n\n*${authStatus} - all operations audited*`
           }
         };
       } else {
         return {
           success: true,
           data: {
-            response: `**👥 Groups You Can Manage**\n\n⚠️ No groups found under your management.\n\nThis could mean:\n• No groups are assigned to your custom role\n• Group permissions may need configuration\n• Check with your Okta administrator\n\n*Admin session active*`
+            response: `**👥 Groups You Can Manage**\n\n⚠️ No groups found under your management.\n\nThis could mean:\n• No groups are assigned to your custom role\n• Group permissions may need configuration\n• Check with your Okta administrator\n\n*Authentication: ${authSource}*`
           }
         };
       }

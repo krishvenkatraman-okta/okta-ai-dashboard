@@ -518,10 +518,10 @@ export class LLMAutomationService {
       console.log('❌ No governance tokens found - requiring governance authentication');
       return {
         success: true,
-        requiresGovernanceAuth: true,
         data: {
           response: `**🏛️ Governance Authentication Required**\n\nTo access the application catalog and make access requests, you need to authenticate with Okta's governance system.\n\n**Steps:**\n1. Click "Authenticate for Governance" below\n2. Complete the OAuth flow\n3. Return here to view available applications\n\nThis uses Okta's dedicated governance app with specific scopes:\n• okta.accessRequests.catalog.read\n• okta.accessRequests.request.manage\n• okta.accessRequests.request.read`,
           action: 'governance_auth_required',
+          requiresGovernanceAuth: true,
           authUrl: '/api/governance/auth-url'
         }
       };

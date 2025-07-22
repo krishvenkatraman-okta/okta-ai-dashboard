@@ -1,0 +1,113 @@
+
+2025-07-22 00:13:09.41
+8ec8e3ac
+User
+"x-replit-user-id": "",
+2025-07-22 00:13:21.69
+8ec8e3ac
+User
+💬 Chat request received
+2025-07-22 00:13:21.69
+8ec8e3ac
+User
+Cookies: {
+2025-07-22 00:13:21.69
+8ec8e3ac
+User
+session_id: '19d7e22be555d3db68b0351036354e7797f63f992d71ccd8fbc2744c2fc00dbb'
+2025-07-22 00:13:21.69
+8ec8e3ac
+User
+}
+2025-07-22 00:13:21.69
+8ec8e3ac
+User
+🔍 Session ID found: 19d7e22b...
+2025-07-22 00:13:21.69
+8ec8e3ac
+User
+🔧 Okta Auth Service initialized:
+2025-07-22 00:13:21.69
+8ec8e3ac
+User
+Domain: fcxdemo.okta.com
+2025-07-22 00:13:21.69
+8ec8e3ac
+User
+Client ID: ✓ Configured
+2025-07-22 00:13:21.69
+8ec8e3ac
+User
+Redirect URI: https://atko.kriyahub.com/api/auth/callback
+2025-07-22 00:13:21.69
+8ec8e3ac
+User
+Governance Client ID: okta.91d77ef1-82a4-5bed-b146-a1bea222f083
+2025-07-22 00:13:21.69
+8ec8e3ac
+User
+Governance Redirect URI: https://atko.kriyahub.com/api/auth/governance/callback
+2025-07-22 00:13:21.69
+8ec8e3ac
+User
+Admin Client ID: okta.b58d5b75-07d4-5f25-bf59-368a1261a405
+2025-07-22 00:13:21.69
+8ec8e3ac
+User
+Admin Redirect URI: https://atko.kriyahub.com/api/auth/admin/callback
+2025-07-22 00:13:21.69
+8ec8e3ac
+User
+Custom Domain: atko.kriyahub.com
+2025-07-22 00:13:21.69
+8ec8e3ac
+User
+🚀 Starting Ollama service...
+2025-07-22 00:13:21.70
+8ec8e3ac
+User
+🤖 Using enhanced LLM processing for: List available applications to request
+2025-07-22 00:13:21.70
+8ec8e3ac
+User
+🔍 LLM processing request: List available applications to request
+2025-07-22 00:13:21.70
+8ec8e3ac
+User
+🔍 Message type: string Length: 38
+2025-07-22 00:13:21.70
+8ec8e3ac
+User
+🔍 Normalized message: "list available applications to request"
+2025-07-22 00:13:21.70
+8ec8e3ac
+User
+🔍 No group management pattern found, continuing to other checks...
+2025-07-22 00:13:21.70
+8ec8e3ac
+User
+🔍 No priority patterns matched, continuing to LLM analysis...
+2025-07-22 00:13:21.70
+8ec8e3ac
+User
+🔄 Ollama not running - enabling pattern-based classification mode
+2025-07-22 00:13:21.70
+8ec8e3ac
+User
+✅ Fallback classification system ready for request processing
+2025-07-22 00:13:21.70
+8ec8e3ac
+User
+🧠 Intent analysis result: {
+2025-07-22 00:13:21.70
+8ec8e3ac
+User
+intent: 'catalog_request',
+2025-07-22 00:13:21.70
+8ec8e3ac
+User
+confidence: 0.8,
+2025-07-22 00:13:21.70
+8ec8e3ac
+User
+parameters: {},

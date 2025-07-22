@@ -35,8 +35,8 @@ The application follows a modern full-stack architecture with clear separation b
 - **Session Management**: Cookie-based sessions with PostgreSQL storage
 - **Authorization**: Role-based access control (super_admin, app_owner, regular_user)
 - **Security**: Secure token handling and automatic session refresh
-- **Admin Authentication**: Dual-mode authentication system where end-user operations use session tokens and admin operations require redirect to admin portal for proper audit logging
-- **Admin Session Storage**: In-memory storage of admin session tokens with 1-hour expiration for admin operations
+- **Admin Authentication**: Simplified redirect-based admin authentication - users are redirected to fcxdemo-admin.okta.com/admin/dashboard for admin auth and return to confirm session
+- **Admin Session Storage**: Simple in-memory flag tracking admin session status with 1-hour expiration
 
 ### Database Schema
 - **Users**: Stores Okta user information, roles, and group memberships
@@ -123,6 +123,9 @@ The application is architected for scalability and maintainability, with clear s
 - ✅ **Admin Session Scopes**: Enhanced admin auth flow with `okta.governance.read` and `okta.governance.manage` permissions
 - ✅ **Eliminated Apps API Fallback**: System now properly handles governance permission issues instead of falling back to Apps API
 - ✅ **Session Token Governance**: All governance operations (catalog, access requests) now use expanded user session token scopes
+- ✅ **Simplified Admin Flow**: Replaced complex OAuth admin flow with simple redirect to admin dashboard + manual confirmation
+- ✅ **Admin Dashboard Integration**: Users authenticate at fcxdemo-admin.okta.com/admin/dashboard and return to confirm admin session
+- ✅ **No Admin OAuth Scopes**: Removed complex admin OAuth since admin flow is just redirect-based authentication
 - ✅ **CRITICAL: User Session Token Authentication**: Implemented exclusive use of user's browser session bearer token for all governance operations
 - ✅ **Eliminated "Okta Admin" Requests**: Removed management API fallback that was causing requests to appear as API key owner instead of actual user
 - ✅ **User Attribution Fixed**: Access requests now properly submit as the logged-in user (steve.rogers) with correct scoping

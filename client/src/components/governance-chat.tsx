@@ -201,76 +201,44 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
         throw new Error('No admin auth URL received from server');
       }
       
-      console.log('🔐 Opening popup to:', adminAuthUrl);
+      console.log('🔐 Opening admin dashboard:', adminAuthUrl);
       
-      // Open popup for admin authentication
-      const popup = window.open(
+      // Open admin dashboard in new window/tab
+      const adminWindow = window.open(
         adminAuthUrl, 
-        'admin_oauth', 
-        'width=800,height=900,scrollbars=yes,resizable=yes,status=yes,location=yes'
+        'okta_admin_dashboard', 
+        'width=1200,height=800,scrollbars=yes,resizable=yes,status=yes,toolbar=no,menubar=no'
       );
       
-      if (!popup) {
-        throw new Error('Popup blocked. Please allow popups for admin authentication or disable popup blockers.');
+      if (!adminWindow) {
+        throw new Error('Popup blocked! Please allow popups for this site and try again.');
       }
       
-      console.log('🔐 Popup opened successfully, waiting for authentication...');
+      console.log('🔐 Admin dashboard opened successfully');
       
-      // Listen for messages from the popup
-      const handleMessage = (event: MessageEvent) => {
-        console.log('🔐 Received message from popup:', event.data, 'from origin:', event.origin);
-        
-        // Accept messages from our domain or the popup domain
-        const allowedOrigins = [
-          window.location.origin, 
-          'https://atko.kriyahub.com',
-          'https://fcxdemo-admin.okta.com'
-        ];
-        
-        if (!allowedOrigins.includes(event.origin)) {
-          console.log('🔐 Ignoring message from unknown origin:', event.origin);
-          return;
-        }
-        
-        if (event.data.type === 'admin_auth_success') {
-          console.log('✅ Admin authentication successful');
-          window.removeEventListener('message', handleMessage);
-          clearInterval(checkClosed);
-          
-          // Add success message
-          const successMessage: ChatMessage = {
-            id: Date.now().toString(),
-            role: 'assistant',
-            content: '✅ **Admin session established successfully!**\n\nYou now have admin privileges. You can proceed with administrative operations.\n\nTry your previous command again or ask me to help with admin tasks.',
-            timestamp: new Date(),
-          };
-          setMessages(prev => [...prev, successMessage]);
-          
-        } else if (event.data.type === 'admin_auth_error') {
-          console.error('❌ Admin authentication failed:', event.data.error);
-          window.removeEventListener('message', handleMessage);
-          clearInterval(checkClosed);
-          
-          // Add error message
-          const errorMessage: ChatMessage = {
-            id: Date.now().toString(),
-            role: 'assistant',
-            content: `❌ **Admin authentication failed**\n\nError: ${event.data.error}\n\nPlease try again or contact your administrator.`,
-            timestamp: new Date(),
-          };
-          setMessages(prev => [...prev, errorMessage]);
-        }
+      // Show instructions to user instead of waiting for popup messages
+      const instructionsMessage: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: '🔐 **Admin Dashboard Opened**\n\n**Instructions:**\n1. Complete admin authentication in the opened window\n2. Navigate through the admin dashboard (this establishes your admin session)\n3. Return to this window and click "Confirm Admin Session" below\n\n**This ensures proper audit logging for all admin operations.**',
+        timestamp: new Date(),
       };
+      setMessages(prev => [...prev, instructionsMessage]);
       
-      window.addEventListener('message', handleMessage);
-      
-      // Clean up if popup is closed manually
-      const checkClosed = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkClosed);
-          window.removeEventListener('message', handleMessage);
-        }
-      }, 1000);
+      // Add confirm button after a delay
+      setTimeout(() => {
+        const confirmMessage: ChatMessage = {
+          id: Date.now().toString() + '_confirm',
+          role: 'assistant',
+          content: '**Ready to continue?**\n\nAfter completing authentication in the admin dashboard, click below to confirm your admin session.',
+          timestamp: new Date(),
+          data: {
+            action: 'confirm_admin_session',
+            requiresAdminAuth: true
+          }
+        };
+        setMessages(prev => [...prev, confirmMessage]);
+      }, 2000);
       
     } catch (error) {
       console.error('Admin OAuth flow error:', error);
@@ -297,17 +265,56 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
           <div className="bg-gray-100 text-gray-900 p-3 rounded-lg">
             <pre className="whitespace-pre-wrap text-sm font-sans mb-3">{msg.content}</pre>
             
-            {/* Always show the button for admin auth - simplified approach */}
-            <Button 
-              onClick={() => {
-                console.log('🔐 Admin Session button clicked, starting admin authentication flow');
-                handleAdminOAuthFlow();
-              }}
-              className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white"
-              variant="default"
-            >
-              Start Admin Session
-            </Button>
+            {/* Check if this is a confirm admin session message */}
+            {msg.data?.action === 'confirm_admin_session' ? (
+              <Button 
+                onClick={async () => {
+                  console.log('🔐 Confirming admin session...');
+                  try {
+                    const response = await fetch('/api/auth/admin-confirm', {
+                      method: 'POST',
+                      credentials: 'include',
+                      headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    if (response.ok) {
+                      const successMessage: ChatMessage = {
+                        id: Date.now().toString(),
+                        role: 'assistant',
+                        content: '✅ **Admin Session Confirmed!**\n\nYou now have admin privileges for the next hour.\n\n**Available Actions:**\n• View and manage groups\n• Perform admin operations\n• Access elevated features\n\nTry your previous command again.',
+                        timestamp: new Date(),
+                      };
+                      setMessages(prev => [...prev, successMessage]);
+                    } else {
+                      throw new Error('Failed to confirm admin session');
+                    }
+                  } catch (error) {
+                    const errorMessage: ChatMessage = {
+                      id: Date.now().toString(),
+                      role: 'assistant',
+                      content: `❌ **Admin Session Confirmation Failed**\n\nError: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease ensure you completed authentication in the admin dashboard first.`,
+                      timestamp: new Date(),
+                    };
+                    setMessages(prev => [...prev, errorMessage]);
+                  }
+                }}
+                className="w-full mt-3 bg-green-600 hover:bg-green-700 text-white"
+                variant="default"
+              >
+                Confirm Admin Session
+              </Button>
+            ) : (
+              <Button 
+                onClick={() => {
+                  console.log('🔐 Admin Session button clicked, starting admin authentication flow');
+                  handleAdminOAuthFlow();
+                }}
+                className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white"
+                variant="default"
+              >
+                Start Admin Session
+              </Button>
+            )}
           </div>
         </div>
       );

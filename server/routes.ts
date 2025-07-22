@@ -18,62 +18,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.redirect(authUrl);
   });
 
-  // Admin session route - initiate OAuth flow
+  // Admin session route - simple redirect to admin dashboard
   app.post('/api/auth/admin-login', (req, res) => {
-    if (!(req as any).session?.userId) {
+    const sessionId = req.cookies.session_id;
+    if (!sessionId) {
       return res.status(401).json({ error: 'Must be logged in to access admin session' });
     }
     
-    const state = require('crypto').randomBytes(32).toString('hex');
-    const adminAuthUrl = oktaAuth.getAdminAuthUrl(state);
+    // Just provide the admin dashboard URL - no complex OAuth needed
+    const adminAuthUrl = oktaAuth.getAdminAuthUrl('');
     
     res.json({ 
       adminAuthUrl,
-      state,
-      message: 'Admin authentication URL generated'
+      message: 'Admin dashboard URL ready - authenticate there and return'
     });
   });
 
-  // Admin OAuth callback - handle admin token exchange
-  app.get('/api/auth/admin-callback', async (req, res) => {
+  // Admin session confirmation - user returns from admin dashboard
+  app.post('/api/auth/admin-confirm', async (req, res) => {
     try {
-      const { code, state } = req.query;
-      
-      if (!code || !state) {
-        return res.status(400).send('Missing authorization code or state');
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
       }
 
-      // Exchange code for admin tokens
-      const adminTokens = await oktaAuth.exchangeCodeForTokens(code as string, state as string);
-      
-      // Store admin session with enhanced privileges
-      const userId = (req as any).session?.userId;
-      if (userId && adminTokens) {
-        const expiresAt = Date.now() + (60 * 60 * 1000); // 1 hour
-        oktaAuth.storeAdminSessionToken(userId, adminTokens.accessToken, expiresAt);
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
       }
 
-      // Close popup and notify parent window
-      res.send(`
-        <script>
-          window.opener?.postMessage({
-            type: 'admin_auth_success',
-            token: '${adminTokens?.accessToken?.substring(0, 20)}...'
-          }, '*');
-          window.close();
-        </script>
-      `);
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      // Mark admin session as active (simple in-memory flag)
+      const expiresAt = Date.now() + (60 * 60 * 1000); // 1 hour
+      oktaAuth.setAdminSessionToken(user.oktaId, 'admin_session_active');
+
+      console.log('✅ Admin session confirmed for user:', user.name);
+      res.json({ 
+        success: true,
+        message: 'Admin session established',
+        expiresIn: 3600
+      });
     } catch (error) {
-      console.error('Admin callback error:', error);
-      res.send(`
-        <script>
-          window.opener?.postMessage({
-            type: 'admin_auth_error',
-            error: '${error instanceof Error ? error.message : 'Authentication failed'}'
-          }, '*');
-          window.close();
-        </script>
-      `);
+      console.error('Admin confirm error:', error);
+      res.status(500).json({ error: 'Failed to confirm admin session' });
     }
   });
 

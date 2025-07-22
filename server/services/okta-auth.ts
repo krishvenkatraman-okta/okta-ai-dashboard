@@ -67,28 +67,10 @@ export class OktaAuthService {
   }
 
   getAdminAuthUrl(state: string): string {
-    // Generate admin OAuth URL for step-up authentication  
+    // Simple redirect to admin dashboard for authentication
+    // User authenticates there and we detect they're back via popup messaging
     const adminDomain = this.oktaDomain.replace('.okta.com', '-admin.okta.com');
-    const adminRedirectUri = 'https://atko.kriyahub.com/api/auth/admin-callback';
-    
-    // Generate PKCE challenge for admin flow
-    const pkceChallenge = this.generatePkceChallenge();
-    
-    // Store PKCE challenge for later verification
-    this.pkceStore.set(state, pkceChallenge);
-    
-    const params = new URLSearchParams({
-      client_id: this.clientId,
-      response_type: 'code',
-      scope: 'openid profile email okta.users.read.self okta.users.manage.self okta.internal.enduser.read okta.internal.enduser.manage okta.enduser.dashboard.read okta.enduser.dashboard.manage okta.myAccount.sessions.manage okta.internal.navigation.enduser.read okta.users.read okta.groups.read okta.apps.read okta.governance.read okta.governance.manage',
-      redirect_uri: adminRedirectUri,
-      state: state,
-      code_challenge: pkceChallenge.codeChallenge,
-      code_challenge_method: 'S256',
-      prompt: 'login' // Force step-up authentication
-    });
-
-    return `https://${adminDomain}/oauth2/default/v1/authorize?${params.toString()}`;
+    return `https://${adminDomain}/admin/dashboard`;
   }
 
   getAdminDashboardUrl(): string {

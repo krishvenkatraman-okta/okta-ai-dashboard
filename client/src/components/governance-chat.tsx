@@ -287,38 +287,27 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
   const renderMessage = (msg: ChatMessage) => {
     const isUser = msg.role === 'user';
     
-    // Check if message requires admin session
-    if (msg.data?.requiresAdminAuth) {
+    // Check if message requires admin session (check both data level and response level)
+    const needsAdminAuth = msg.data?.requiresAdminAuth || msg.requiresAdminAuth;
+    const hasAdminAction = msg.data?.action === 'admin_oauth_flow';
+    
+    if (needsAdminAuth) {
       return (
         <div className="mr-4">
           <div className="bg-gray-100 text-gray-900 p-3 rounded-lg">
             <pre className="whitespace-pre-wrap text-sm font-sans mb-3">{msg.content}</pre>
             
-            {/* Direct admin OAuth flow trigger */}
-            {msg.data?.action === 'admin_oauth_flow' ? (
-              <Button 
-                onClick={() => {
-                  console.log('🔐 Admin OAuth button clicked, triggering popup flow');
-                  handleAdminOAuthFlow();
-                }}
-                className="w-full mt-3"
-                variant="default"
-              >
-                Start Admin Session
-              </Button>
-            ) : (
-              <AdminSessionHandler 
-                adminUrl={msg.data.adminUrl}
-                intent={msg.data.intent}
-                onSessionEstablished={() => {
-                  // Retry the original request
-                  const originalMessage = messages[messages.length - 2]?.content;
-                  if (originalMessage) {
-                    sendMessageMutation.mutate(originalMessage);
-                  }
-                }}
-              />
-            )}
+            {/* Always show the button for admin auth - simplified approach */}
+            <Button 
+              onClick={() => {
+                console.log('🔐 Admin Session button clicked, starting admin authentication flow');
+                handleAdminOAuthFlow();
+              }}
+              className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white"
+              variant="default"
+            >
+              Start Admin Session
+            </Button>
           </div>
         </div>
       );

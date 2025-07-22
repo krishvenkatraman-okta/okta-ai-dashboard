@@ -635,9 +635,6 @@ export class LLMAutomationService {
   }
 
   private async handleAccessLevelInquiry(user: User, tokens: OktaTokens): Promise<any> {
-    const hasAdminSession = this.oktaAuthService?.getAdminSessionToken(user.oktaId);
-    const capabilities = this.getUserCapabilities(user, !!hasAdminSession);
-    
     // Use the most specific custom role or format the primary role
     const roleDisplay = user.allRoles && user.allRoles.length > 0 
       ? user.allRoles.find(role => 
@@ -645,12 +642,40 @@ export class LLMAutomationService {
         ) || user.allRoles[0]
       : this.formatRoleName(user.role);
 
+    // Comprehensive governance capabilities with session token
+    const governanceCapabilities = [
+      '🏪 **Governance Catalog**: View available applications and entitlements',
+      '📋 **Access Requests**: Submit requests for application access with duration',
+      '🚀 **Smart Access Requests**: Use natural language like "need adobe express 1 hour access"',
+      '📊 **30-Day Access Reviews**: Analyze your application usage patterns',
+      '🔍 **Access History**: Review your recent access activities',
+      '⏰ **Duration Management**: Request access for specific time periods (hours/days/weeks)',
+      '📈 **Usage Analytics**: Track which applications you use most frequently'
+    ];
+
+    // Additional capabilities based on role
+    const roleBasedCapabilities = [];
+    const hasAdminSession = this.oktaAuthService?.getAdminSessionToken(user.oktaId);
+    
+    if (hasAdminSession) {
+      roleBasedCapabilities.push('🔐 **Admin Operations**: Enhanced admin session active');
+      if (user.role === 'super_admin' || user.allRoles?.includes('Super Admin')) {
+        roleBasedCapabilities.push('👤 **User Management**: Full user administration capabilities');
+        roleBasedCapabilities.push('🏛️ **Governance Campaigns**: Create and manage governance workflows');
+      }
+      if (user.role === 'group_admin' || user.allRoles?.some(role => role.toLowerCase().includes('group'))) {
+        roleBasedCapabilities.push('👥 **Group Management**: Manage group memberships and access');
+      }
+    }
+
+    const allCapabilities = [...governanceCapabilities, ...roleBasedCapabilities];
+
     return {
       success: true,
       data: {
-        response: `**🔑 Your Current Access Level**\n\n**Role:** ${roleDisplay}\n**Admin Session:** ${hasAdminSession ? '✅ Active' : '❌ Not Active'}\n\n**Current Capabilities:**\n${capabilities.map(cap => `• ${cap}`).join('\n')}\n\n${!hasAdminSession && (user.role === 'group_admin' || user.allRoles?.some(role => role.toLowerCase().includes('group'))) ? 
-          '\n**To unlock full capabilities:**\n• Try requesting group management operations\n• System will prompt for admin authentication when needed' : 
-          '\n**Available Actions:**\n• Request access to applications\n• Review your 30-day access patterns'
+        response: `**🔑 Your Current Access Level**\n\n**User:** ${user.name}\n**Role:** ${roleDisplay}\n**Session Token:** ✅ Active with Comprehensive Governance Scopes\n\n**Available Capabilities:**\n${allCapabilities.join('\n')}\n\n**Example Commands:**\n• "list available applications to request"\n• "need adobe express 2 hour access"\n• "what apps haven't I used in 30 days?"\n• "request access to salesforce"\n\n${!hasAdminSession && (user.role === 'group_admin' || user.allRoles?.some(role => role.toLowerCase().includes('group'))) ? 
+          '**Additional Admin Features:**\nFor group management operations, say "start admin session" to unlock additional capabilities.' : 
+          '**Single Authentication:**\nNo additional authentication needed - your session token provides full governance access!'
         }`
       }
     };

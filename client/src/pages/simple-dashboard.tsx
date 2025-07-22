@@ -294,8 +294,9 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }) {
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
-      role: 'assistant',
-      content: `Hello ${user.name.split(' ')[0]}! I'm your AI-powered Okta Assistant with continuous learning.\n\n${getAccessLevelMessage(user)}\n\n**Quick Actions:**\n• "Show me apps I accessed in the last 30 days"\n• "List available applications to request"\n• "Show my groups"\n• "What can I do with my current access level?"\n\nWhat can I help you with today?`
+      role: 'assistant' as const,
+      content: `Hello ${user.name.split(' ')[0]}! I'm your AI-powered Okta Assistant with continuous learning.\n\n${getAccessLevelMessage(user)}\n\n**Quick Actions:**\n• "Show me apps I accessed in the last 30 days"\n• "List available applications to request"\n• "Show my groups"\n• "What can I do with my current access level?"\n\nWhat can I help you with today?`,
+      data: undefined
     }
   ]);
   const [input, setInput] = useState('');
@@ -382,7 +383,7 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }) {
 
     const userMessage = input.trim();
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setMessages(prev => [...prev, { id: `user-${Date.now()}`, role: 'user', content: userMessage }]);
     setLoading(true);
 
     try {
@@ -480,7 +481,7 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }) {
                       // Retry the original request
                       const originalMessage = messages[messages.length - 2]?.content;
                       if (originalMessage) {
-                        handleSendMessage(originalMessage);
+                        sendMessage();
                       }
                     }}
                   />
@@ -565,27 +566,92 @@ export default function SimpleDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [governanceAuthStatus, setGovernanceAuthStatus] = useState<'pending' | 'authenticated' | 'failed' | 'skipped'>('pending');
 
   useEffect(() => {
-    // Simple fetch without React Query
-    fetch('/api/auth/user', { credentials: 'include' })
-      .then(async (res) => {
-        if (res.ok) {
-          const userData = await res.json();
-          console.log('User data received:', userData);
-          setUser(userData);
-        } else {
-          console.log('Auth failed:', res.status);
-          setError(`Auth failed: ${res.status}`);
+    const initializeUserAndGovernance = async () => {
+      try {
+        // First, get user data
+        const userRes = await fetch('/api/auth/user', { credentials: 'include' });
+        if (!userRes.ok) {
+          setError(`Auth failed: ${userRes.status}`);
+          return;
         }
-      })
-      .catch((err) => {
-        console.error('Fetch error:', err);
-        setError(err.message);
-      })
-      .finally(() => {
+        
+        const userData = await userRes.json();
+        console.log('User data received:', userData);
+        setUser(userData);
+        
+        // After successful user auth, automatically initiate governance auth
+        console.log('🏛️ Auto-initiating governance authentication...');
+        const govRes = await fetch('/api/governance/auth-url', { credentials: 'include' });
+        
+        if (govRes.ok) {
+          const govData = await govRes.json();
+          
+          if (govData.action === 'governance_already_authenticated') {
+            console.log('✅ Governance already authenticated');
+            setGovernanceAuthStatus('authenticated');
+          } else if (govData.authUrl) {
+            console.log('🚀 Opening governance OAuth popup automatically...');
+            
+            // Open governance OAuth popup automatically
+            const popup = window.open(
+              govData.authUrl,
+              'governance-auth',
+              'width=500,height=600,scrollbars=yes,resizable=yes'
+            );
+            
+            if (popup) {
+              // Monitor popup for completion
+              const checkClosed = setInterval(() => {
+                if (popup.closed) {
+                  clearInterval(checkClosed);
+                  console.log('🏛️ Governance OAuth popup closed - checking auth status...');
+                  
+                  // Verify governance auth was successful
+                  fetch('/api/governance/auth-url', { credentials: 'include' })
+                    .then(res => res.json())
+                    .then(data => {
+                      if (data.action === 'governance_already_authenticated') {
+                        console.log('✅ Governance authentication successful!');
+                        setGovernanceAuthStatus('authenticated');
+                      } else {
+                        console.log('⚠️ Governance authentication may not have completed');
+                        setGovernanceAuthStatus('failed');
+                      }
+                    })
+                    .catch(err => console.error('Error checking governance auth:', err));
+                }
+              }, 1000);
+              
+              // Timeout after 5 minutes
+              setTimeout(() => {
+                if (!popup.closed) {
+                  popup.close();
+                  clearInterval(checkClosed);
+                  console.log('⏱️ Governance OAuth popup timed out');
+                }
+              }, 300000);
+            } else {
+              console.log('❌ Failed to open governance OAuth popup - popups may be blocked');
+              setGovernanceAuthStatus('failed');
+            }
+          }
+        } else {
+          console.log('⚠️ Could not initiate governance auth:', govRes.status);
+          setGovernanceAuthStatus('skipped');
+        }
+        
+      } catch (err) {
+        console.error('Initialization error:', err);
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+
+    initializeUserAndGovernance();
   }, []);
 
   const handleSignOut = async () => {

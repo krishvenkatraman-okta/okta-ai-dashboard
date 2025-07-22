@@ -692,14 +692,11 @@ export class OktaAuthService {
     const params = new URLSearchParams({
       client_id: this.governanceClientId,
       response_type: 'code',
-      response_mode: 'okta_post_message',
       scope: scopes,
       redirect_uri: this.governanceRedirectUri,
       state: state,
       code_challenge: pkceChallenge.codeChallenge,
-      code_challenge_method: 'S256',
-      prompt: 'none', // Same as Okta dashboard - silent auth
-      nonce: randomBytes(32).toString('hex')
+      code_challenge_method: 'S256'
     });
 
     console.log('🏛️ Generated governance auth URL with scopes:', scopes);

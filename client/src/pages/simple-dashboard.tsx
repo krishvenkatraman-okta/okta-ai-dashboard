@@ -609,10 +609,30 @@ export default function SimpleDashboard() {
             );
             
             if (popup) {
-              // Monitor popup for completion
+              // Listen for messages from the popup
+              const messageListener = (event: MessageEvent) => {
+                if (event.origin !== window.location.origin) return;
+                
+                console.log('🏛️ Received popup message:', event.data);
+                
+                if (event.data.type === 'GOVERNANCE_AUTH_SUCCESS') {
+                  console.log('✅ Governance authentication successful via popup message!');
+                  setGovernanceAuthStatus('authenticated');
+                  window.removeEventListener('message', messageListener);
+                } else if (event.data.type === 'GOVERNANCE_AUTH_ERROR') {
+                  console.log('❌ Governance authentication failed via popup message:', event.data.error);
+                  setGovernanceAuthStatus('failed');
+                  window.removeEventListener('message', messageListener);
+                }
+              };
+              
+              window.addEventListener('message', messageListener);
+              
+              // Monitor popup for completion (fallback)
               const checkClosed = setInterval(() => {
                 if (popup.closed) {
                   clearInterval(checkClosed);
+                  window.removeEventListener('message', messageListener);
                   console.log('🏛️ Governance OAuth popup closed - checking auth status...');
                   
                   // Verify governance auth was successful

@@ -42,8 +42,8 @@ export class OktaGovernanceService {
 
   async getCatalogEntries(accessToken?: string): Promise<CatalogEntry[]> {
     try {
-      // Use the verified working IGA catalog API endpoint
-      const url = `https://${this.domain}/governance/api/v2/my/catalogs/default/entries?filter=status eq "ACTIVE"&limit=50`;
+      // Try the correct governance catalog endpoint for end users
+      const url = `https://${this.domain}/api/v1/governance/catalog/entries?filter=status eq "ACTIVE"&limit=50`;
       
       console.log('🏪 Fetching real IGA catalog from:', url);
       

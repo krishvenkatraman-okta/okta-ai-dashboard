@@ -121,6 +121,31 @@ export class OktaAuthService {
       .replace(/=/g, '');
   }
 
+  private async introspectToken(accessToken: string): Promise<any> {
+    const introspectionUrl = `https://${this.oktaDomain}/oauth2/v1/introspect`;
+    
+    const body = new URLSearchParams({
+      token: accessToken,
+      token_type_hint: 'access_token'
+    });
+
+    const response = await fetch(introspectionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+        'Authorization': `Basic ${Buffer.from(`${this.clientId}:`).toString('base64')}`
+      },
+      body: body.toString()
+    });
+
+    if (!response.ok) {
+      throw new Error(`Token introspection failed: ${response.status}`);
+    }
+
+    return await response.json();
+  }
+
   async exchangeCode(code: string, state: string): Promise<OktaTokens> {
     const tokenUrl = `https://${this.oktaDomain}/oauth2/v1/token`;
     
@@ -157,19 +182,33 @@ export class OktaAuthService {
 
     const data = await response.json();
     
-    // Debug: Log token scopes
+    // Debug: Log token scopes and full response
     console.log('🔑 Token exchange successful:');
     console.log('  - Access token length:', data.access_token?.length || 0);
-    console.log('  - Scopes granted:', data.scope);
+    console.log('  - Scopes granted:', data.scope || 'NOT RETURNED');
     console.log('  - Token type:', data.token_type);
     console.log('  - Expires in:', data.expires_in, 'seconds');
+    console.log('  - Full token response keys:', Object.keys(data));
     
+    // If scope is not returned, try to introspect the token to get scopes
+    let finalScope = data.scope;
+    if (!finalScope) {
+      try {
+        console.log('🔍 Scope not returned in token response, trying introspection...');
+        const introspectionResult = await this.introspectToken(data.access_token);
+        finalScope = introspectionResult?.scope;
+        console.log('🔍 Introspection result scope:', finalScope);
+      } catch (introspectionError) {
+        console.warn('⚠️ Token introspection failed:', introspectionError);
+      }
+    }
+
     return {
       accessToken: data.access_token,
       idToken: data.id_token,
       refreshToken: data.refresh_token,
       expiresIn: data.expires_in,
-      scope: data.scope
+      scope: finalScope
     };
   }
 

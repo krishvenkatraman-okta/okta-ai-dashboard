@@ -1,0 +1,144 @@
+2025-07-21 23:35:24.64
+8ead67ad
+User
+🔍 No priority patterns matched, continuing to LLM analysis...
+2025-07-21 23:35:24.64
+8ead67ad
+User
+🔄 Ollama not running - enabling pattern-based classification mode
+2025-07-21 23:35:24.64
+8ead67ad
+User
+✅ Fallback classification system ready for request processing
+2025-07-21 23:35:24.64
+8ead67ad
+User
+🧠 Intent analysis result: {
+2025-07-21 23:35:24.64
+8ead67ad
+User
+intent: 'catalog_request',
+2025-07-21 23:35:24.64
+8ead67ad
+User
+confidence: 0.8,
+2025-07-21 23:35:24.64
+8ead67ad
+User
+parameters: {},
+2025-07-21 23:35:24.64
+8ead67ad
+User
+suggestedAction: 'Show available applications catalog'
+2025-07-21 23:35:24.64
+8ead67ad
+User
+}
+2025-07-21 23:35:24.64
+8ead67ad
+User
+📋 LLM detected catalog request
+2025-07-21 23:35:24.64
+8ead67ad
+User
+📋 Processing catalog request for user: Steve Rogers
+2025-07-21 23:35:24.64
+8ead67ad
+User
+🔑 Token details for catalog request:
+2025-07-21 23:35:24.64
+8ead67ad
+User
+- Access token length: 1236
+2025-07-21 23:35:24.64
+8ead67ad
+User
+- Token scopes: Not available
+2025-07-21 23:35:24.64
+8ead67ad
+User
+- Token expires in: undefined seconds
+2025-07-21 23:35:24.64
+8ead67ad
+User
+🔑 Using USER SESSION TOKEN for catalog (proper user scoping)
+2025-07-21 23:35:24.64
+8ead67ad
+User
+📋 Fetching catalog from: https://fcxdemo.okta.com/governance/api/v2/my/catalogs/default/entries?filter=not%28parent+pr%29&limit=20
+2025-07-21 23:35:24.91
+8ead67ad
+User
+⚠️ Governance catalog failed (403):
+2025-07-21 23:35:24.91
+8ead67ad
+User
+🔍 Error details for user session token on governance catalog: {
+2025-07-21 23:35:24.91
+8ead67ad
+User
+url: 'https://fcxdemo.okta.com/governance/api/v2/my/catalogs/default/entries?filter=not%28parent+pr%29&limit=20',
+2025-07-21 23:35:24.91
+8ead67ad
+User
+status: 403,
+2025-07-21 23:35:24.91
+8ead67ad
+User
+authHeader: 'Bearer eyJraWQiOiJZV...',
+2025-07-21 23:35:24.91
+8ead67ad
+User
+errorPreview: ''
+2025-07-21 23:35:24.91
+8ead67ad
+User
+}
+2025-07-21 23:35:24.91
+8ead67ad
+User
+🔄 Trying alternative IGA catalog endpoint with user token...
+2025-07-21 23:35:25.05
+8ead67ad
+User
+⚠️ IGA catalog also failed (405): {"errorCode":"E0000022","errorSummary":"The endpoint does not support the provided HTTP method","errorLink":"E0000022","errorId":"oaeueK8me_uQMOBTmRYTXZx9Q","errorCauses":[]}
+2025-07-21 23:35:25.05
+8ead67ad
+User
+🔍 IGA Error details for user session token: {
+2025-07-21 23:35:25.05
+8ead67ad
+User
+url: 'https://fcxdemo.okta.com/api/v1/iga/catalog/entries?filter=type+eq+%22APPLICATION%22',
+2025-07-21 23:35:25.05
+8ead67ad
+User
+status: 405,
+2025-07-21 23:35:25.05
+8ead67ad
+User
+errorPreview: '{"errorCode":"E0000022","errorSummary":"The endpoint does not support the provided HTTP method","errorLink":"E0000022","errorId":"oaeueK8me_uQMOBTmRYTXZx9Q","errorCauses":[]}'
+2025-07-21 23:35:25.05
+8ead67ad
+User
+}
+2025-07-21 23:35:25.05
+8ead67ad
+User
+⚠️ Both governance catalog endpoints failed with user session token
+2025-07-21 23:35:25.05
+8ead67ad
+User
+ℹ️ This likely means the user does not have governance permissions or the catalog is empty
+2025-07-21 23:35:25.05
+8ead67ad
+User
+✅ LLM handled request successfully
+2025-07-21 23:35:25.05
+8ead67ad
+User
+6:35:25 AM [express] POST /api/chat/message 200 in 419ms :: {"response":"**🔒 Governance Catalog Acc…
+
+Wrap
+
+Colors

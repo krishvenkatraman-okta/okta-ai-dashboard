@@ -487,10 +487,10 @@ export class LLMAutomationService {
       
       const authHeader = `Bearer ${tokens.accessToken}`;
       console.log('🔑 Using USER SESSION TOKEN for catalog (proper user scoping)');
-      console.log('📋 Fetching catalog from:', `https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries?filter=not%28parent+pr%29&limit=20`);
+      console.log('📋 Fetching catalog from:', `https://${this.oktaDomain}/api/v1/governance/catalog/entries?filter=status eq "ACTIVE"&limit=20`);
       
-      // Use the correct governance catalog endpoint
-      const response = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries?filter=not%28parent+pr%29&limit=20`, {
+      // Use the correct governance catalog endpoint for end users
+      const response = await fetch(`https://${this.oktaDomain}/api/v1/governance/catalog/entries?filter=status eq "ACTIVE"&limit=20`, {
         headers: {
           'Authorization': authHeader,
           'Accept': 'application/json'
@@ -501,15 +501,15 @@ export class LLMAutomationService {
         const errorText = await response.text();
         console.log(`⚠️ Governance catalog failed (${response.status}): ${errorText}`);
         console.log('🔍 Error details for user session token on governance catalog:', {
-          url: `https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries?filter=not%28parent+pr%29&limit=20`,
+          url: `https://${this.oktaDomain}/api/v1/governance/catalog/entries?filter=status eq "ACTIVE"&limit=20`,
           status: response.status,
           authHeader: authHeader.substring(0, 20) + '...',
           errorPreview: errorText.substring(0, 200)
         });
         
-        // Try alternative catalog endpoints (still using user session token)
-        console.log('🔄 Trying alternative IGA catalog endpoint with user token...');
-        const igaResponse = await fetch(`https://${this.oktaDomain}/api/v1/iga/catalog/entries?filter=type+eq+%22APPLICATION%22`, {
+        // Try alternative Apps API endpoint as fallback (still using user session token)
+        console.log('🔄 Trying Apps API as fallback with user token...');
+        const igaResponse = await fetch(`https://${this.oktaDomain}/api/v1/apps?filter=status eq "ACTIVE"&limit=20`, {
           headers: {
             'Authorization': authHeader, // Still user session token
             'Accept': 'application/json'
@@ -536,7 +536,7 @@ export class LLMAutomationService {
           const igaErrorText = await igaResponse.text();
           console.log(`⚠️ IGA catalog also failed (${igaResponse.status}): ${igaErrorText}`);
           console.log('🔍 IGA Error details for user session token:', {
-            url: `https://${this.oktaDomain}/api/v1/iga/catalog/entries?filter=type+eq+%22APPLICATION%22`,
+            url: `https://${this.oktaDomain}/api/v1/apps?filter=status eq "ACTIVE"&limit=20`,
             status: igaResponse.status,
             errorPreview: igaErrorText.substring(0, 200)
           });

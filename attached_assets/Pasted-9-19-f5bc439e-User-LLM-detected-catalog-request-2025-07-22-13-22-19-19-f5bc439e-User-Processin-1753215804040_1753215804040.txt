@@ -1,0 +1,92 @@
+9.19
+f5bc439e
+User
+📋 LLM detected catalog request
+2025-07-22 13:22:19.19
+f5bc439e
+User
+📋 Processing catalog request for user: Steve Rogers
+2025-07-22 13:22:19.19
+f5bc439e
+User
+🔑 Using session token with comprehensive governance scopes
+2025-07-22 13:22:19.20
+f5bc439e
+User
+📋 Processing catalog request with session token for user: Steve Rogers
+2025-07-22 13:22:19.20
+f5bc439e
+User
+🔑 Using SESSION TOKEN with comprehensive governance scopes
+2025-07-22 13:22:19.20
+f5bc439e
+User
+📋 Fetching catalog from: https://fcxdemo.okta.com/api/v1/governance/catalog/entries?filter=status eq "ACTIVE"&limit=20
+2025-07-22 13:22:19.32
+f5bc439e
+User
+⚠️ Governance catalog failed (405): {"errorCode":"E0000022","errorSummary":"The endpoint does not support the provided HTTP method","errorLink":"E0000022","errorId":"oaeTP11-3z7Tzaj2N8RVgw88w","errorCauses":[]}
+2025-07-22 13:22:19.32
+f5bc439e
+User
+🔍 Error details for user session token on governance catalog: {
+2025-07-22 13:22:19.32
+f5bc439e
+User
+url: 'https://fcxdemo.okta.com/api/v1/governance/catalog/entries?filter=status eq "ACTIVE"&limit=20',
+2025-07-22 13:22:19.32
+f5bc439e
+User
+status: 405,
+2025-07-22 13:22:19.32
+f5bc439e
+User
+authHeader: 'Bearer eyJraWQiOiJZV...',
+2025-07-22 13:22:19.32
+f5bc439e
+User
+errorPreview: '{"errorCode":"E0000022","errorSummary":"The endpoint does not support the provided HTTP method","errorLink":"E0000022","errorId":"oaeTP11-3z7Tzaj2N8RVgw88w","errorCauses":[]}'
+2025-07-22 13:22:19.32
+f5bc439e
+User
+}
+2025-07-22 13:22:19.32
+f5bc439e
+User
+🔄 Trying Apps API as fallback with user token...
+2025-07-22 13:22:19.64
+f5bc439e
+User
+⚠️ IGA catalog also failed (403):
+2025-07-22 13:22:19.64
+f5bc439e
+User
+🔍 IGA Error details for user session token: {
+2025-07-22 13:22:19.64
+f5bc439e
+User
+url: 'https://fcxdemo.okta.com/api/v1/apps?filter=status eq "ACTIVE"&limit=20',
+2025-07-22 13:22:19.64
+f5bc439e
+User
+status: 403,
+2025-07-22 13:22:19.64
+f5bc439e
+User
+errorPreview: ''
+2025-07-22 13:22:19.64
+f5bc439e
+User
+}
+2025-07-22 13:22:19.64
+f5bc439e
+User
+⚠️ Both governance catalog endpoints failed with user session token
+2025-07-22 13:22:19.64
+f5bc439e
+User
+ℹ️ This likely means the user does not have governance permissions or the catalog is empty
+2025-07-22 13:22:19.64
+f5bc439e
+User
+✅ LLM handled request successfully

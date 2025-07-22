@@ -913,10 +913,31 @@ export class LLMAutomationService {
 
       if (response.ok) {
         const request = await response.json();
+        
+        // Record gamification for successful access request
+        let gamificationResult = { points: 0, badgesEarned: [] };
+        try {
+          gamificationResult = await gamificationService.recordAccessRequest(user.oktaId, intent.appName || 'application');
+          console.log('🎮 Access request gamification recorded:', gamificationResult);
+        } catch (error) {
+          console.warn('⚠️ Access request gamification failed:', error);
+        }
+
+        let successMessage = `✅ **Access request submitted successfully!**\n\n**Request Details:**\n• Request ID: ${request.id}\n• Status: ${request.requestStatus}\n• Justification: ${requestBody.justification}\n\nYour request has been sent for approval. You'll be notified when it's processed.`;
+
+        // Add gamification rewards
+        if (gamificationResult.points > 0) {
+          successMessage += `\n\n🎮 **Great work! You earned ${gamificationResult.points} points** for submitting an access request!`;
+          
+          if (gamificationResult.badgesEarned.length > 0) {
+            successMessage += `\n🏆 **New Badge${gamificationResult.badgesEarned.length > 1 ? 's' : ''}:** ${gamificationResult.badgesEarned.join(', ')}`;
+          }
+        }
+
         return {
           success: true,
           data: {
-            response: `✅ **Access request submitted successfully!**\n\n**Request Details:**\n• Request ID: ${request.id}\n• Status: ${request.requestStatus}\n• Justification: ${requestBody.justification}\n\nYour request has been sent for approval. You'll be notified when it's processed.`
+            response: successMessage
           }
         };
       } else {

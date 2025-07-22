@@ -574,6 +574,12 @@ export default function SimpleDashboard() {
         // First, get user data
         const userRes = await fetch('/api/auth/user', { credentials: 'include' });
         if (!userRes.ok) {
+          console.log('❌ User authentication failed:', userRes.status);
+          // If user is not authenticated, don't try governance auth
+          if (userRes.status === 401) {
+            setError(`Please sign in first at the home page (/)`);
+            return;
+          }
           setError(`Auth failed: ${userRes.status}`);
           return;
         }
@@ -583,7 +589,7 @@ export default function SimpleDashboard() {
         setUser(userData);
         
         // After successful user auth, automatically initiate governance auth
-        console.log('🏛️ Auto-initiating governance authentication...');
+        console.log('🏛️ Auto-initiating governance authentication for user:', userData.name);
         const govRes = await fetch('/api/governance/auth-url', { credentials: 'include' });
         
         if (govRes.ok) {

@@ -496,6 +496,12 @@ export class LLMAutomationService {
       if (!response.ok) {
         const errorText = await response.text();
         console.log(`⚠️ Governance catalog failed (${response.status}): ${errorText}`);
+        console.log('🔍 Error details for user session token on governance catalog:', {
+          url: `https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries?filter=not%28parent+pr%29&limit=20`,
+          status: response.status,
+          authHeader: authHeader.substring(0, 20) + '...',
+          errorPreview: errorText.substring(0, 200)
+        });
         
         // Try alternative catalog endpoints (still using user session token)
         console.log('🔄 Trying alternative IGA catalog endpoint with user token...');
@@ -508,7 +514,7 @@ export class LLMAutomationService {
         
         if (igaResponse.ok) {
           const igaCatalog = await igaResponse.json();
-          console.log('✅ Legacy IGA catalog successful:', igaCatalog.length);
+          console.log('✅ Legacy IGA catalog successful with user token:', igaCatalog.length);
           
           if (igaCatalog && igaCatalog.length > 0) {
             const catalogList = igaCatalog.slice(0, 15).map((entry: any, index: number) => 
@@ -518,43 +524,30 @@ export class LLMAutomationService {
             return {
               success: true,
               data: {
-                response: `**🏪 IGA Application Catalog**\n\n✅ **Found ${igaCatalog.length} applications:**\n\n${catalogList}${igaCatalog.length > 15 ? `\n\n... and ${igaCatalog.length - 15} more applications` : ''}\n\n**Next Steps:**\n• Say "request access to [app name]" to submit a request\n• All applications above are from your Okta IGA catalog\n\n*Retrieved from IGA catalog API*`
+                response: `**🏪 IGA Application Catalog (User Session)**\n\n✅ **Found ${igaCatalog.length} applications:**\n\n${catalogList}${igaCatalog.length > 15 ? `\n\n... and ${igaCatalog.length - 15} more applications` : ''}\n\n**Next Steps:**\n• Say "request access to [app name]" to submit a request\n• All applications above are from your Okta IGA catalog\n• Requests will be submitted as your user account\n\n*Retrieved using your session token for proper user context*`
               }
             };
           }
+        } else {
+          const igaErrorText = await igaResponse.text();
+          console.log(`⚠️ IGA catalog also failed (${igaResponse.status}): ${igaErrorText}`);
+          console.log('🔍 IGA Error details for user session token:', {
+            url: `https://${this.oktaDomain}/api/v1/iga/catalog/entries?filter=type+eq+%22APPLICATION%22`,
+            status: igaResponse.status,
+            errorPreview: igaErrorText.substring(0, 200)
+          });
         }
         
-        console.log('⚠️ Both governance catalog endpoints failed');
+        console.log('⚠️ Both governance catalog endpoints failed with user session token');
+        console.log('ℹ️ This likely means the user does not have governance permissions or the catalog is empty');
         
-        // For fallback to regular apps API, use management token (only for non-governance operations)
-        console.log('🔄 Falling back to Apps API with management token (non-governance operation)');
-        const managementAuthHeader = this.oktaApiToken ? `SSWS ${this.oktaApiToken}` : authHeader;
-        const appsResponse = await fetch(`https://${this.oktaDomain}/api/v1/apps`, {
-          headers: {
-            'Authorization': managementAuthHeader,
-            'Accept': 'application/json'
+        // Instead of falling back to Apps API, inform user about governance permissions
+        return {
+          success: true,
+          data: {
+            response: `**🔒 Governance Catalog Access Required**\n\n⚠️ **Access Issue:** Unable to access the governance catalog with your current session.\n\n**This could mean:**\n• Your user account doesn't have governance permissions\n• The governance catalog is empty or not configured\n• Your session token doesn't include the required scopes\n\n**Solutions:**\n• Contact your Okta administrator to:\n  - Grant you governance catalog permissions\n  - Configure applications in the governance catalog\n  - Verify your user roles include governance access\n\n**Alternative:** Try starting an admin session if you have admin privileges.\n\n*Using governance catalog requires proper user permissions and scopes*`
           }
-        });
-
-        if (!appsResponse.ok) {
-          throw new Error(`Apps API error: ${appsResponse.status}`);
-        }
-
-        const apps = await appsResponse.json();
-        const requestableApps = apps.filter((app: any) => app.status === 'ACTIVE');
-
-        if (requestableApps.length > 0) {
-          const appList = requestableApps.slice(0, 15).map((app: any, index: number) => 
-            `${index + 1}. **${app.label || app.name}**\n   Status: ${app.status}\n   Type: ${app.signOnMode || 'Application'}`
-          ).join('\n\n');
-
-          return {
-            success: true,
-            data: {
-              response: `**🏪 Available Applications (Apps API)**\n\n✅ **Found ${requestableApps.length} active applications:**\n\n${appList}${requestableApps.length > 15 ? `\n\n... and ${requestableApps.length - 15} more applications` : ''}\n\n**Next Steps:**\n• Contact your administrator to request access\n• Note: This list shows all active applications, not all may be requestable\n\n*Using Apps API fallback as IGA catalog is not accessible*`
-            }
-          };
-        }
+        };
       } else {
         const catalogResponse = await response.json();
         console.log('✅ Governance catalog response:', JSON.stringify(catalogResponse, null, 2));

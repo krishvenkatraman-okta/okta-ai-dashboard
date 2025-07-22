@@ -7,7 +7,7 @@ import { Trophy, Coins, Flame, Target, Star, TrendingUp } from 'lucide-react';
 interface UserStats {
   totalPoints: number;
   dailyStreak: number;
-  totalCostSaved: string;
+  totalLicenseSeatsSaved: number;
   accessRequestsSubmitted: number;
   accessRevocations: number;
   governanceReviewsCompleted: number;
@@ -22,7 +22,7 @@ interface ActivityLog {
   id: number;
   activityType: string;
   pointsEarned: number;
-  costSaved: string;
+  licenseSeatsSaved: number;
   description: string;
   createdAt: string;
 }
@@ -31,7 +31,7 @@ interface LeaderboardEntry {
   oktaId: string;
   userName: string;
   totalPoints: number;
-  totalCostSaved: string;
+  totalLicenseSeatsSaved: number;
   rank: number;
 }
 
@@ -89,14 +89,8 @@ export function GamificationWidget() {
     return null;
   }
 
-  const formatCurrency = (amount: string | number) => {
-    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(num);
+  const formatLicenseSeats = (seats: number) => {
+    return seats === 1 ? '1 license seat' : `${seats} license seats`;
   };
 
   return (
@@ -132,8 +126,8 @@ export function GamificationWidget() {
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-green-500" />
               <div>
-                <p className="text-sm text-gray-600">Cost Saved</p>
-                <p className="text-2xl font-bold text-green-600">{formatCurrency(stats.totalCostSaved || 0)}</p>
+                <p className="text-sm text-gray-600">License Seats Saved</p>
+                <p className="text-2xl font-bold text-green-600">{stats.totalLicenseSeatsSaved || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -226,9 +220,9 @@ export function GamificationWidget() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold text-green-600">+{activity.pointsEarned}</p>
-                      {parseFloat(activity.costSaved) > 0 && (
+                      {activity.licenseSeatsSaved > 0 && (
                         <p className="text-xs text-gray-600">
-                          {formatCurrency(activity.costSaved)} saved
+                          {formatLicenseSeats(activity.licenseSeatsSaved)} saved
                         </p>
                       )}
                     </div>
@@ -281,7 +275,7 @@ export function GamificationWidget() {
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-blue-600">{entry.totalPoints.toLocaleString()} pts</p>
-                    <p className="text-xs text-gray-600">{formatCurrency(entry.totalCostSaved)} saved</p>
+                    <p className="text-xs text-gray-600">{formatLicenseSeats(entry.totalLicenseSeatsSaved)} saved</p>
                   </div>
                 </div>
               ))}

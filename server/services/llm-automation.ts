@@ -1308,7 +1308,7 @@ export class LLMAutomationService {
       }
 
       // Step 6: Record gamification and return comprehensive results
-      let gamificationResult = { points: 0, costSaved: 0, badgesEarned: [] };
+      let gamificationResult = { points: 0, licenseSeatsSaved: 0, badgesEarned: [] };
       
       if (successCount > 0) {
         // Record successful access revocation for gamification
@@ -1335,7 +1335,7 @@ export class LLMAutomationService {
       let successMessage = `**🚫 Access Revocation Complete for ${targetApp.label}**\n\n**Revocation Summary:**\n• Operations performed: ${totalOperations}\n• Successful: ${successCount}\n• Failed: ${errorCount}\n\n**Details:**\n${revocationResults.join('\n')}\n\n**Assignment Analysis:**\n• Direct assignment: ${isDirectlyAssigned ? 'Was assigned (now removed)' : 'Not assigned'}\n• Group assignments: ${userGroupsWithAccess.length > 0 ? `${userGroupsWithAccess.length} group(s) (processed)` : 'None found'}`;
 
       if (successCount > 0) {
-        successMessage += `\n\n🎉 **Great Work! We both saved $${gamificationResult.costSaved}/month for our company by reducing license costs!**\n\n**🎮 Rewards Earned:**\n• +${gamificationResult.points} points\n• Cost savings: $${gamificationResult.costSaved}/month`;
+        successMessage += `\n\n🎉 **Great Work! We saved ${gamificationResult.licenseSeatsSaved} license seat${gamificationResult.licenseSeatsSaved > 1 ? 's' : ''} for our company!**\n\n**🎮 Rewards Earned:**\n• +${gamificationResult.points} points\n• License seats saved: ${gamificationResult.licenseSeatsSaved}`;
         
         if (gamificationResult.badgesEarned.length > 0) {
           successMessage += `\n• New badges: ${gamificationResult.badgesEarned.join(', ')}`;

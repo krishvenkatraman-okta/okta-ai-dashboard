@@ -2,7 +2,7 @@
 interface UserStats {
   totalPoints: number;
   dailyStreak: number;
-  totalCostSaved: number;
+  totalLicenseSeatsSaved: number;
   accessRequestsSubmitted: number;
   accessRevocations: number;
   governanceReviewsCompleted: number;
@@ -18,7 +18,7 @@ interface ActivityLog {
   id: number;
   activityType: string;
   pointsEarned: number;
-  costSaved: number;
+  licenseSeatsSaved: number;
   description: string;
   createdAt: string;
 }
@@ -27,13 +27,13 @@ interface LeaderboardEntry {
   oktaId: string;
   userName: string;
   totalPoints: number;
-  totalCostSaved: number;
+  totalLicenseSeatsSaved: number;
   rank: number;
 }
 
 interface GamificationResult {
   points: number;
-  costSaved: number;
+  licenseSeatsSaved: number;
   badgesEarned: string[];
 }
 
@@ -54,7 +54,7 @@ class SimpleGamificationService {
       this.userStats.set(oktaId, {
         totalPoints: 0,
         dailyStreak: 0,
-        totalCostSaved: 0,
+        totalLicenseSeatsSaved: 0,
         accessRequestsSubmitted: 0,
         accessRevocations: 0,
         governanceReviewsCompleted: 0,
@@ -74,13 +74,13 @@ class SimpleGamificationService {
     return { level, progress };
   }
 
-  private addActivity(oktaId: string, activityType: string, points: number, costSaved: number, description: string) {
+  private addActivity(oktaId: string, activityType: string, points: number, licenseSeatsSaved: number, description: string) {
     const stats = this.getOrCreateUserStats(oktaId);
     const activity: ActivityLog = {
       id: Date.now(),
       activityType,
       pointsEarned: points,
-      costSaved,
+      licenseSeatsSaved,
       description,
       createdAt: new Date().toISOString()
     };
@@ -104,8 +104,8 @@ class SimpleGamificationService {
       newBadges.push('Daily Warrior');
     }
     
-    // Cost savings badge
-    if (!stats.badgesEarned.includes('Cost Conscious') && stats.totalCostSaved >= 100) {
+    // License seats saved badge
+    if (!stats.badgesEarned.includes('Cost Conscious') && stats.totalLicenseSeatsSaved >= 5) {
       newBadges.push('Cost Conscious');
     }
     
@@ -120,7 +120,7 @@ class SimpleGamificationService {
     }
     
     // Super saver badge
-    if (!stats.badgesEarned.includes('Super Saver') && stats.totalCostSaved >= 1000) {
+    if (!stats.badgesEarned.includes('Super Saver') && stats.totalLicenseSeatsSaved >= 25) {
       newBadges.push('Super Saver');
     }
     
@@ -180,7 +180,7 @@ class SimpleGamificationService {
     
     return {
       points: pointsEarned,
-      costSaved: 0,
+      licenseSeatsSaved: 0,
       badgesEarned: newBadges
     };
   }
@@ -204,7 +204,7 @@ class SimpleGamificationService {
     
     return {
       points: pointsEarned,
-      costSaved: 0,
+      licenseSeatsSaved: 0,
       badgesEarned: newBadges
     };
   }
@@ -212,25 +212,25 @@ class SimpleGamificationService {
   async recordAccessRevocation(oktaId: string, applicationName: string): Promise<GamificationResult> {
     const stats = this.getOrCreateUserStats(oktaId);
     const pointsEarned = 50;
-    const costSaved = Math.floor(Math.random() * 200) + 50; // Random cost savings between $50-250
+    const licenseSeatsSaved = 1; // Each revocation saves exactly 1 license seat
     
     stats.totalPoints += pointsEarned;
     stats.experiencePoints += pointsEarned;
     stats.accessRevocations++;
-    stats.totalCostSaved += costSaved;
+    stats.totalLicenseSeatsSaved += licenseSeatsSaved;
     
     // Update level
     const { level, progress } = this.calculateLevel(stats.experiencePoints);
     stats.level = level;
     stats.nextLevelProgress = progress;
     
-    this.addActivity(oktaId, 'access_revocation', pointsEarned, costSaved, `Revoked unused access to ${applicationName}`);
+    this.addActivity(oktaId, 'access_revocation', pointsEarned, licenseSeatsSaved, `Revoked unused access to ${applicationName} (saved 1 license seat)`);
     
     const newBadges = this.checkForNewBadges(oktaId, stats);
     
     return {
       points: pointsEarned,
-      costSaved,
+      licenseSeatsSaved,
       badgesEarned: newBadges
     };
   }
@@ -254,7 +254,7 @@ class SimpleGamificationService {
     
     return {
       points: pointsEarned,
-      costSaved: 0,
+      licenseSeatsSaved: 0,
       badgesEarned: newBadges
     };
   }
@@ -266,12 +266,12 @@ class SimpleGamificationService {
   async getLeaderboard(period: 'weekly' | 'monthly' | 'all_time' = 'all_time', limit: number = 10): Promise<LeaderboardEntry[]> {
     const leaderboard: LeaderboardEntry[] = [];
     
-    for (const [oktaId, stats] of this.userStats.entries()) {
+    for (const [oktaId, stats] of Array.from(this.userStats.entries())) {
       leaderboard.push({
         oktaId,
         userName: oktaId.substring(0, 8) + '...', // Masked user name
         totalPoints: stats.totalPoints,
-        totalCostSaved: stats.totalCostSaved,
+        totalLicenseSeatsSaved: stats.totalLicenseSeatsSaved,
         rank: 0
       });
     }

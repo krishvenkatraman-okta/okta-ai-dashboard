@@ -1288,19 +1288,11 @@ export class LLMAutomationService {
       console.log('📤 Submitting access request for entitlement:', entitlementId);
       console.log('📄 Field values:', fieldValues);
 
-      // Try different authentication methods for governance API
-      let authHeader: string;
-      let authMethod: string;
-      
-      if (this.oktaApiToken) {
-        authHeader = `SSWS ${this.oktaApiToken}`;
-        authMethod = 'Management API (SSWS)';
-        console.log('🔒 Using MANAGEMENT API token for governance request (required for API access)');
-      } else {
-        authHeader = `Bearer ${tokens.accessToken}`;
-        authMethod = 'User session token';
-        console.log('🔒 Using USER SESSION TOKEN for access request (fallback)');
-      }
+      // CRITICAL: Always use user session token for access requests (not management API)
+      // This ensures proper user attribution and audit logging
+      const authHeader = `Bearer ${tokens.accessToken}`;
+      const authMethod = 'User session token';
+      console.log('🔒 Using USER SESSION TOKEN for access request (user attribution required)');
 
       // Use correct API format per Okta documentation
       const requestPayload = {

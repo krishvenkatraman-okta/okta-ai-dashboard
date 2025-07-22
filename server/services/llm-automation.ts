@@ -515,10 +515,10 @@ export class LLMAutomationService {
     try {
       const authHeader = `Bearer ${tokens.accessToken}`;
       console.log('🔑 Using SESSION TOKEN with comprehensive governance scopes');
-      console.log('📋 Fetching catalog from:', `https://${this.oktaDomain}/api/v1/governance/catalog/entries?filter=status eq "ACTIVE"&limit=20`);
+      console.log('📋 Fetching catalog from:', `https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries?filter=not(parent pr)&limit=20`);
       
-      // Use the correct governance catalog endpoint with governance tokens
-      const response = await fetch(`https://${this.oktaDomain}/api/v1/governance/catalog/entries?filter=status eq "ACTIVE"&limit=20`, {
+      // Use the correct IGA catalog endpoint with session token (end-user API)
+      const response = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries?filter=not(parent pr)&limit=20`, {
         headers: {
           'Authorization': authHeader,
           'Accept': 'application/json'
@@ -529,7 +529,7 @@ export class LLMAutomationService {
         const errorText = await response.text();
         console.log(`⚠️ Governance catalog failed (${response.status}): ${errorText}`);
         console.log('🔍 Error details for user session token on governance catalog:', {
-          url: `https://${this.oktaDomain}/api/v1/governance/catalog/entries?filter=status eq "ACTIVE"&limit=20`,
+          url: `https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries?filter=not(parent pr)&limit=20`,
           status: response.status,
           authHeader: authHeader.substring(0, 20) + '...',
           errorPreview: errorText.substring(0, 200)

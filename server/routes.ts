@@ -247,6 +247,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log('✅ User fetch success:', user.name);
+      
+      // Debug: Log token scopes to verify comprehensive governance access
+      console.log('🔍 Token scopes for debugging:', {
+        hasAccessToken: !!session.oktaTokens.accessToken,
+        tokenScope: session.oktaTokens.scope || 'NO_SCOPE_INFO',
+        accessTokenLength: session.oktaTokens.accessToken?.length || 0
+      });
+      
       res.json(user);
     } catch (error) {
       console.error('Get user error:', error);

@@ -278,9 +278,9 @@ export class LLMAutomationService {
     
     return {
       success: false,
-      requiresAdminAuth: true,
       data: {
         response: `**🔐 Admin Session Required**\n\nTo perform ${intent.replace('_', ' ')} operations, you need an active admin session.\n\n**Your Current Access:**\n• Role: ${userRole}\n• Can perform: 30-day access reviews, access requests\n\n**To unlock admin capabilities:**\n1. Click "Start Admin Session" below\n2. Authenticate in the admin portal\n3. Return here to continue\n\nThis ensures all admin actions are properly audited in Okta system logs.`,
+        requiresAdminAuth: true,
         action: 'admin_oauth_flow',
         adminUrl: `https://${adminDomain}/admin/dashboard`,
         intent: intent
@@ -395,11 +395,10 @@ export class LLMAutomationService {
       
       return {
         success: true,
-        requiresAdminAuth: true,
         data: {
           response: `**🔐 Admin Authentication Required**\n\n**Your Role:** ${userRole}\n\n**Starting admin session...**\n\nI'm opening the admin authentication flow. Please:\n\n1. Complete the step-up authentication\n2. Grant admin permissions\n3. Return here when authentication is complete\n\n*This creates a secure admin session with proper audit logging.*`,
-          action: 'admin_oauth_flow',
-          needsAdminAuth: true
+          requiresAdminAuth: true,
+          action: 'admin_oauth_flow'
         }
       };
     } catch (error) {

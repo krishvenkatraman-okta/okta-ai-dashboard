@@ -205,6 +205,15 @@ export class LLMAutomationService {
       return await this.handleCatalogRequest(user, tokens);
     }
     
+    // Enhanced pattern: Access revocation requests (e.g., "revoke access to Salesforce.com")
+    const revokeAccessPattern = /(?:revoke|remove|disable)\s+access\s+(?:to|from)\s+(.+?)(?:\s|$)/i;
+    const revokeAccessMatch = message.match(revokeAccessPattern);
+    if (revokeAccessMatch) {
+      const appName = revokeAccessMatch[1].trim();
+      console.log('🚫 REVOKE REQUEST: Access revocation detected for:', appName);
+      return await this.handleAccessRevocation(appName, user, tokens);
+    }
+
     // Check for access level questions
     if (lowerMessage.includes('what can i do') || 
         lowerMessage.includes('current access level') ||
@@ -1087,6 +1096,69 @@ export class LLMAutomationService {
         return `P${durationNum}M`;
       default:
         return `PT${durationNum}H`; // Default to hours
+    }
+  }
+
+  private async handleAccessRevocation(appName: string, user: User, tokens: OktaTokens): Promise<any> {
+    try {
+      console.log('🚫 Processing access revocation request for:', appName);
+      
+      // Step 1: Get user's current app assignments
+      const authHeader = `Bearer ${tokens.accessToken}`;
+      const userAppsResponse = await fetch(`https://${this.oktaDomain}/api/v1/users/me/appLinks`, {
+        headers: {
+          'Authorization': authHeader,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!userAppsResponse.ok) {
+        throw new Error(`Failed to fetch user apps: ${userAppsResponse.status}`);
+      }
+
+      const userApps = await userAppsResponse.json();
+      console.log(`📱 Found ${userApps.length} assigned applications for user`);
+
+      // Step 2: Find matching application (case-insensitive partial match)
+      const matchingApp = userApps.find((app: any) => 
+        (app.label || app.linkText || '').toLowerCase().includes(appName.toLowerCase())
+      );
+
+      if (!matchingApp) {
+        // List available apps for revocation
+        const appList = userApps.slice(0, 10).map((app: any, index: number) => 
+          `${index + 1}. ${app.label || app.linkText}`
+        ).join('\n');
+
+        return {
+          success: true,
+          data: {
+            response: `**❌ Application Not Found**\n\n"${appName}" is not currently assigned to your account.\n\n**Your current applications:**\n${appList}\n\n**Try again with:** "revoke access to [exact app name]"\n\n*Note: You can only revoke access to applications currently assigned to you.*`
+          }
+        };
+      }
+
+      console.log('✅ Found matching application for revocation:', matchingApp.label);
+
+      // Step 3: Check if this requires admin privileges for revocation
+      // For now, provide guidance on how to revoke access since direct revocation may require admin privileges
+      const adminDomain = this.oktaDomain.replace('.okta.com', '-admin.okta.com');
+      
+      return {
+        success: true,
+        data: {
+          response: `**🚫 Access Revocation for ${matchingApp.label}**\n\n**Current Status:** Application is assigned to your account\n**App Type:** ${matchingApp.type || 'Application'}\n**Link:** ${matchingApp.linkUrl || 'N/A'}\n\n**To revoke access:**\n\n**Option 1: Self-Service (if available)**\n• Visit the application directly and remove your account\n• Check application settings for "Remove Access" option\n\n**Option 2: Request Administrative Removal**\n• Contact your administrator to remove this assignment\n• Provide App Name: "${matchingApp.label}"\n• Reference your User ID: ${user.oktaId}\n\n**Option 3: Admin Console (if you have admin access)**\n• Visit: ${adminDomain}/admin/dashboard\n• Navigate to Applications > ${matchingApp.label} > Assignments\n• Remove your user assignment\n\n**Important:** Direct API-based access revocation requires administrative privileges. This ensures proper audit trails and compliance with organizational policies.\n\n*Found application successfully - contact administrator for removal*`
+        }
+      };
+
+    } catch (error) {
+      console.error('❌ Access revocation failed:', error);
+      return {
+        success: true,
+        data: {
+          response: `**❌ Access Revocation Error**\n\nI couldn't process the revocation request for "${appName}".\n\n**Error:** ${error instanceof Error ? error.message : 'Unknown error'}\n\n**Alternative approaches:**\n• Contact your Okta administrator directly\n• Use the Okta Admin Console if you have admin access\n• Check the application's settings for self-service removal options\n\n*Error occurred while processing revocation request*`
+        }
+      };
     }
   }
 

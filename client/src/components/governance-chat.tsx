@@ -282,42 +282,34 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
   const renderMessage = (msg: ChatMessage) => {
     const isUser = msg.role === 'user';
     
-    // Force governance auth for ANY message containing governance text
-    const hasGovernanceText = msg.content.includes('Governance Authentication Required') || 
-                              msg.content.includes('🏛️ Governance Authentication') || 
-                              msg.content.includes('governance system');
-    
-    console.log('🔍 Content check:', {
-      content: msg.content.substring(0, 150) + '...',
-      hasGovernanceText,
-      includesBasic: msg.content.includes('Governance Authentication Required'),
-      includesEmoji: msg.content.includes('🏛️ Governance Authentication'),
-      includesSystem: msg.content.includes('governance system')
+    // ALWAYS LOG EVERY MESSAGE RENDERING FOR DEBUGGING
+    console.log('🐛 RENDERING MESSAGE:', {
+      role: msg.role,
+      contentStart: msg.content.substring(0, 100),
+      isUser,
+      messageId: msg.id
     });
     
-    if (hasGovernanceText) {
-      console.log('🚨 FORCING GOVERNANCE AUTH RENDER - content match detected');
-      console.log('🚨 Message content:', msg.content);
-      console.log('🚨 About to render GovernanceAuthHandler component');
-      
-      // First try a simple test render
+    // FORCE RENDER TEST COMPONENT FOR ALL ASSISTANT MESSAGES
+    if (!isUser && msg.content.length > 50) {
+      console.log('🚨 FORCING TEST RENDER FOR ASSISTANT MESSAGE');
       return (
         <div className="mr-4">
-          <div className="bg-blue-50 dark:bg-blue-950/20 text-blue-900 dark:text-blue-100 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
-            <pre className="whitespace-pre-wrap text-sm font-sans mb-3">{msg.content}</pre>
-            <div className="p-4 bg-red-100 border border-red-300 rounded">
-              <h3 className="font-bold text-red-800 mb-2">🚨 DEBUG: Component Rendering Test</h3>
-              <p className="text-red-700 mb-4">This is a test component to verify rendering works.</p>
-              <button 
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                onClick={() => {
-                  console.log('🚨 TEST BUTTON CLICKED - rendering is working');
-                  alert('Test button clicked! Component rendering works.');
-                }}
-              >
-                🧪 Test Button (Click Me)
-              </button>
+          <div className="bg-red-500 text-white p-4 rounded-lg border-4 border-red-700">
+            <h1 className="text-xl font-bold mb-2">🚨 EMERGENCY DEBUG COMPONENT</h1>
+            <p className="mb-4">This should ALWAYS appear for assistant messages!</p>
+            <div className="bg-yellow-300 text-black p-2 rounded">
+              Content: {msg.content.substring(0, 200)}...
             </div>
+            <button 
+              className="mt-4 bg-blue-600 text-white px-4 py-2 rounded"
+              onClick={() => {
+                alert('EMERGENCY DEBUG BUTTON CLICKED!');
+                console.log('🚨 EMERGENCY BUTTON CLICKED');
+              }}
+            >
+              EMERGENCY TEST BUTTON
+            </button>
           </div>
         </div>
       );

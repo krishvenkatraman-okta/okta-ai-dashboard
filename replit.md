@@ -100,7 +100,7 @@ The application follows a modern full-stack architecture with clear separation b
   - `OKTA_DOMAIN` (e.g., fcxdemo.okta.com)
   - `OKTA_CLIENT_ID` (OIDC application client ID - public client)
   - `OKTA_REDIRECT_URI` (Custom domain: https://atko.kriyahub.com/api/auth/callback)
-  - **OAuth scopes**: `openid profile email okta.users.read.self okta.users.manage.self okta.enduser.read okta.enduser.manage okta.enduser.dashboard.read okta.enduser.dashboard.manage okta.myAccount.sessions.manage`
+  - **OAuth scopes**: `openid profile email okta.users.read.self okta.users.manage.self okta.enduser.read okta.enduser.manage okta.enduser.dashboard.read okta.enduser.dashboard.manage okta.myAccount.profile.read okta.myAccount.profile.manage okta.myAccount.sessions.manage`
   - **Admin Authentication**: Simple redirect to admin dashboard (no additional OAuth scopes needed)
 - **Okta API & PAM Configuration**:
   - `OKTA_API_TOKEN` (Management API token for MCP server operations)

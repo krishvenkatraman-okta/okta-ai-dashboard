@@ -56,7 +56,7 @@ export class OktaAuthService {
     const params = new URLSearchParams({
       client_id: this.clientId,
       response_type: 'code',
-      scope: 'openid profile email okta.users.read.self okta.users.manage.self okta.enduser.read okta.enduser.manage okta.enduser.dashboard.read okta.enduser.dashboard.manage okta.myAccount.sessions.manage',
+      scope: 'openid profile email okta.users.read.self okta.users.manage.self okta.enduser.read okta.enduser.manage okta.enduser.dashboard.read okta.enduser.dashboard.manage okta.myAccount.profile.read okta.myAccount.profile.manage okta.myAccount.sessions.manage',
       redirect_uri: this.redirectUri,
       state,
       code_challenge: pkceChallenge.codeChallenge,

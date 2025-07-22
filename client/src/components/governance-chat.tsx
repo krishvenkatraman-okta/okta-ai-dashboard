@@ -104,30 +104,31 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
 
   const sendMessageMutation = useMutation({
     mutationFn: (message: string) => apiRequest('/api/chat/message', 'POST', { message }),
-    onSuccess: (response) => {
+    onSuccess: (response: any) => {
+      const responseData = response.data || response;
       const assistantMessage: ChatMessage = {
         id: Date.now().toString(),
         role: 'assistant',
-        content: response.data?.response || response.response || 'I processed your request.',
+        content: responseData.response || 'I processed your request.',
         timestamp: new Date(),
-        data: response.data || response
+        data: responseData
       };
       setMessages(prev => [...prev, assistantMessage]);
       
       // Handle admin session flows
-      if (response.requiresAdminAuth) {
-        if (response.data?.action === 'admin_oauth_flow') {
+      if (responseData.requiresAdminAuth) {
+        if (responseData.action === 'admin_oauth_flow') {
           console.log('🔐 Starting admin OAuth flow');
           // Delay slightly to let UI update first
           setTimeout(() => handleAdminOAuthFlow(), 500);
-        } else if (response.adminUrl) {
-          console.log('🔐 Admin auth required, redirecting to:', response.adminUrl);
-          window.open(response.adminUrl, '_blank', 'width=1024,height=768,scrollbars=yes,resizable=yes');
+        } else if (responseData.adminUrl) {
+          console.log('🔐 Admin auth required, redirecting to:', responseData.adminUrl);
+          window.open(responseData.adminUrl, '_blank', 'width=1024,height=768,scrollbars=yes,resizable=yes');
         }
       }
       
       // Handle governance authentication requirement
-      if (response.requiresGovernanceAuth) {
+      if (responseData.requiresGovernanceAuth) {
         console.log('🏛️ Governance authentication required');
         // The UI will handle this via the needsGovernanceAuth check in renderMessage
       }
@@ -264,7 +265,7 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
     const isUser = msg.role === 'user';
     
     // Check if message requires admin session (check both data level and response level)
-    const needsAdminAuth = msg.data?.requiresAdminAuth || msg.requiresAdminAuth;
+    const needsAdminAuth = msg.data?.requiresAdminAuth;
     const needsGovernanceAuth = msg.data?.action === 'governance_auth_required';
     const needsAdminOAuth = msg.data?.action === 'admin_oauth_required';
     const hasAdminAction = msg.data?.action === 'admin_oauth_flow';
@@ -276,6 +277,7 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
           <div className="bg-blue-50 dark:bg-blue-950/20 text-blue-900 dark:text-blue-100 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
             <pre className="whitespace-pre-wrap text-sm font-sans mb-3">{msg.content}</pre>
             <GovernanceAuthHandler
+              autoInitiate={true}
               onAuthSuccess={() => {
                 // Refresh the chat or re-trigger the original request
                 const successMessage: ChatMessage = {
@@ -308,6 +310,7 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
           <div className="bg-red-50 dark:bg-red-950/20 text-red-900 dark:text-red-100 p-3 rounded-lg border border-red-200 dark:border-red-800">
             <pre className="whitespace-pre-wrap text-sm font-sans mb-3">{msg.content}</pre>
             <AdminOAuthHandler
+              autoInitiate={true}
               onAuthSuccess={() => {
                 const successMessage: ChatMessage = {
                   id: Date.now().toString(),

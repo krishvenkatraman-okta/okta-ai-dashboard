@@ -6,9 +6,10 @@ import { Loader2, Shield, CheckCircle, AlertCircle } from 'lucide-react';
 interface GovernanceAuthHandlerProps {
   onAuthSuccess: () => void;
   onAuthError: (error: string) => void;
+  autoInitiate?: boolean;
 }
 
-export function GovernanceAuthHandler({ onAuthSuccess, onAuthError }: GovernanceAuthHandlerProps) {
+export function GovernanceAuthHandler({ onAuthSuccess, onAuthError, autoInitiate = false }: GovernanceAuthHandlerProps) {
   const [authState, setAuthState] = useState<'idle' | 'authenticating' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
 
@@ -32,6 +33,13 @@ export function GovernanceAuthHandler({ onAuthSuccess, onAuthError }: Governance
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, [onAuthSuccess, onAuthError]);
+
+  // Auto-initiate OAuth flow if requested
+  useEffect(() => {
+    if (autoInitiate && authState === 'idle') {
+      handleGovernanceAuth();
+    }
+  }, [autoInitiate, authState]);
 
   const handleGovernanceAuth = async () => {
     try {
@@ -100,7 +108,7 @@ export function GovernanceAuthHandler({ onAuthSuccess, onAuthError }: Governance
             with Okta's governance system using dedicated permissions.
           </p>
           
-          {authState === 'idle' && (
+          {authState === 'idle' && !autoInitiate && (
             <Button 
               onClick={handleGovernanceAuth}
               className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -108,6 +116,13 @@ export function GovernanceAuthHandler({ onAuthSuccess, onAuthError }: Governance
               <Shield className="h-4 w-4 mr-2" />
               Authenticate for Governance
             </Button>
+          )}
+          
+          {authState === 'idle' && autoInitiate && (
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm">Automatically initiating governance authentication...</span>
+            </div>
           )}
           
           {authState === 'authenticating' && (

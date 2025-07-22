@@ -6,9 +6,10 @@ import { Loader2, ShieldCheck, CheckCircle, AlertCircle } from 'lucide-react';
 interface AdminOAuthHandlerProps {
   onAuthSuccess: () => void;
   onAuthError: (error: string) => void;
+  autoInitiate?: boolean;
 }
 
-export function AdminOAuthHandler({ onAuthSuccess, onAuthError }: AdminOAuthHandlerProps) {
+export function AdminOAuthHandler({ onAuthSuccess, onAuthError, autoInitiate = false }: AdminOAuthHandlerProps) {
   const [authState, setAuthState] = useState<'idle' | 'authenticating' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
 
@@ -32,6 +33,13 @@ export function AdminOAuthHandler({ onAuthSuccess, onAuthError }: AdminOAuthHand
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, [onAuthSuccess, onAuthError]);
+
+  // Auto-initiate OAuth flow if requested
+  useEffect(() => {
+    if (autoInitiate && authState === 'idle') {
+      handleAdminOAuth();
+    }
+  }, [autoInitiate, authState]);
 
   const handleAdminOAuth = async () => {
     try {
@@ -100,7 +108,7 @@ export function AdminOAuthHandler({ onAuthSuccess, onAuthError }: AdminOAuthHand
             that provides elevated permissions for group management and admin operations.
           </p>
           
-          {authState === 'idle' && (
+          {authState === 'idle' && !autoInitiate && (
             <Button 
               onClick={handleAdminOAuth}
               className="bg-red-600 hover:bg-red-700 text-white"
@@ -108,6 +116,13 @@ export function AdminOAuthHandler({ onAuthSuccess, onAuthError }: AdminOAuthHand
               <ShieldCheck className="h-4 w-4 mr-2" />
               Authenticate with Admin OAuth
             </Button>
+          )}
+          
+          {authState === 'idle' && autoInitiate && (
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm">Automatically initiating admin OAuth authentication...</span>
+            </div>
           )}
           
           {authState === 'authenticating' && (

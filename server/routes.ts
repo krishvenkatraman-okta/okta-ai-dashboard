@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { OktaAuthService } from "./services/okta-auth";
 import { McpServerService } from "./services/mcp-server";
 import { OktaApiService } from "./services/okta-api";
+import { gamificationService } from "./services/simple-gamification.js";
 import { insertChatMessageSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -968,6 +969,78 @@ You can also refresh the page and try again.`;
       res.status(500).json({ error: 'Failed to fetch applications' });
     }
   });
+
+  // Gamification API endpoints
+  app.get('/api/gamification/stats', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      const stats = await gamificationService.getUserStats(user.oktaId);
+      res.json(stats);
+    } catch (error) {
+      console.error('Failed to get gamification stats:', error);
+      res.status(500).json({ error: 'Failed to get gamification stats' });
+    }
+  });
+
+  app.get('/api/gamification/leaderboard', async (req, res) => {
+    try {
+      const period = (req.query.period as 'weekly' | 'monthly' | 'all_time') || 'all_time';
+      const limit = parseInt((req.query.limit as string) || '10');
+      
+      const leaderboard = await gamificationService.getLeaderboard(period, limit);
+      res.json(leaderboard);
+    } catch (error) {
+      console.error('Failed to get leaderboard:', error);
+      res.status(500).json({ error: 'Failed to get leaderboard' });
+    }
+  });
+
+  app.post('/api/gamification/daily-visit', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      const result = await gamificationService.recordDailyVisit(user.oktaId);
+      res.json(result);
+    } catch (error) {
+      console.error('Failed to record daily visit:', error);
+      res.status(500).json({ error: 'Failed to record daily visit' });
+    }
+  });
+
+  // Initialize gamification system
+  try {
+    await gamificationService.initializeBadges();
+    console.log('✅ Gamification system initialized');
+  } catch (error) {
+    console.error('⚠️ Gamification initialization failed:', error);
+  }
 
   return app;
 }

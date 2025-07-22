@@ -1,5 +1,6 @@
 import type { User } from '@shared/schema';
 import { LocalOllamaService } from './local-ollama';
+import { gamificationService } from './simple-gamification.js';
 
 interface OktaTokens {
   accessToken: string;
@@ -40,6 +41,11 @@ export class LLMAutomationService {
     try {
       console.log('🔍 LLM processing request:', message);
       console.log('🔍 Message type:', typeof message, 'Length:', message.length);
+      
+      // Record daily visit for gamification (background task)
+      gamificationService.recordDailyVisit(user.oktaId).catch(err => 
+        console.warn('⚠️ Daily visit recording failed:', err)
+      );
       
       // Check for explicit patterns first (higher priority than LLM)
       const lowerMessage = message.toLowerCase().trim();
@@ -1054,10 +1060,32 @@ export class LLMAutomationService {
 
       if (submitResponse.ok) {
         const requestData = await submitResponse.json();
+        // Record gamification for successful access request
+        let gamificationResult = { points: 0, badgesEarned: [] };
+        try {
+          gamificationResult = await gamificationService.recordAccessRequest(user.oktaId, matchingApp.name);
+          console.log('🎮 Access request gamification recorded:', gamificationResult);
+        } catch (error) {
+          console.warn('⚠️ Access request gamification failed:', error);
+        }
+
+        let successMessage = `**🚀 Smart Request Submitted Successfully!**\n\n📱 **Application:** ${matchingApp.name}\n🎯 **Entitlement:** ${targetEntitlement.name}\n⏱️ **Duration:** ${duration} ${timeUnit}(s)\n🆔 **Request ID:** ${requestData.id || 'Generated'}\n\n**Status:** Your request has been submitted for approval.\n\n**What happened automatically:**\n✅ Found "${appName}" in catalog\n✅ Selected best entitlement: "${targetEntitlement.name}"\n✅ Set duration to ${duration} ${timeUnit}(s)\n✅ Submitted with proper justification`;
+
+        // Add gamification rewards
+        if (gamificationResult.points > 0) {
+          successMessage += `\n\n🎮 **Rewards Earned:**\n• +${gamificationResult.points} points for submitting access request`;
+          
+          if (gamificationResult.badgesEarned.length > 0) {
+            successMessage += `\n• New badges: ${gamificationResult.badgesEarned.join(', ')}`;
+          }
+        }
+
+        successMessage += '\n\n*Request submitted successfully through intelligent workflow*';
+
         return {
           success: true,
           data: {
-            response: `**🚀 Smart Request Submitted Successfully!**\n\n📱 **Application:** ${matchingApp.name}\n🎯 **Entitlement:** ${targetEntitlement.name}\n⏱️ **Duration:** ${duration} ${timeUnit}(s)\n🆔 **Request ID:** ${requestData.id || 'Generated'}\n\n**Status:** Your request has been submitted for approval.\n\n**What happened automatically:**\n✅ Found "${appName}" in catalog\n✅ Selected best entitlement: "${targetEntitlement.name}"\n✅ Set duration to ${duration} ${timeUnit}(s)\n✅ Submitted with proper justification\n\n*Request submitted successfully through intelligent workflow*`
+            response: successMessage
           }
         };
       } else {
@@ -1279,7 +1307,19 @@ export class LLMAutomationService {
         }
       }
 
-      // Step 6: Return comprehensive results
+      // Step 6: Record gamification and return comprehensive results
+      let gamificationResult = { points: 0, costSaved: 0, badgesEarned: [] };
+      
+      if (successCount > 0) {
+        // Record successful access revocation for gamification
+        try {
+          gamificationResult = await gamificationService.recordAccessRevocation(user.oktaId, targetApp.label);
+          console.log('🎮 Gamification recorded:', gamificationResult);
+        } catch (error) {
+          console.warn('⚠️ Gamification recording failed:', error);
+        }
+      }
+
       if (!isDirectlyAssigned && userGroupsWithAccess.length === 0) {
         return {
           success: true,
@@ -1291,10 +1331,27 @@ export class LLMAutomationService {
 
       const totalOperations = (isDirectlyAssigned ? 1 : 0) + userGroupsWithAccess.length;
       
+      // Create success message with gamification
+      let successMessage = `**🚫 Access Revocation Complete for ${targetApp.label}**\n\n**Revocation Summary:**\n• Operations performed: ${totalOperations}\n• Successful: ${successCount}\n• Failed: ${errorCount}\n\n**Details:**\n${revocationResults.join('\n')}\n\n**Assignment Analysis:**\n• Direct assignment: ${isDirectlyAssigned ? 'Was assigned (now removed)' : 'Not assigned'}\n• Group assignments: ${userGroupsWithAccess.length > 0 ? `${userGroupsWithAccess.length} group(s) (processed)` : 'None found'}`;
+
+      if (successCount > 0) {
+        successMessage += `\n\n🎉 **Great Work! We both saved $${gamificationResult.costSaved}/month for our company by reducing license costs!**\n\n**🎮 Rewards Earned:**\n• +${gamificationResult.points} points\n• Cost savings: $${gamificationResult.costSaved}/month`;
+        
+        if (gamificationResult.badgesEarned.length > 0) {
+          successMessage += `\n• New badges: ${gamificationResult.badgesEarned.join(', ')}`;
+        }
+        
+        successMessage += `\n\n**Status:** Access has been revoked. Changes will take effect within a few minutes.`;
+      } else {
+        successMessage += `\n\n**Status:** Unable to revoke access - please contact your administrator.`;
+      }
+
+      successMessage += '\n\n*Revocation performed using Admin API with proper audit trail*';
+      
       return {
         success: true,
         data: {
-          response: `**🚫 Access Revocation Complete for ${targetApp.label}**\n\n**Revocation Summary:**\n• Operations performed: ${totalOperations}\n• Successful: ${successCount}\n• Failed: ${errorCount}\n\n**Details:**\n${revocationResults.join('\n')}\n\n**Assignment Analysis:**\n• Direct assignment: ${isDirectlyAssigned ? 'Was assigned (now removed)' : 'Not assigned'}\n• Group assignments: ${userGroupsWithAccess.length > 0 ? `${userGroupsWithAccess.length} group(s) (processed)` : 'None found'}\n\n${successCount > 0 ? '**Status:** Access has been revoked. Changes will take effect within a few minutes.' : '**Status:** Unable to revoke access - please contact your administrator.'}\n\n*Revocation performed using Admin API with proper audit trail*`
+          response: successMessage
         }
       };
 

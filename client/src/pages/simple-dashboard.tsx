@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Grid, Monitor } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ExternalLink, Grid, Monitor, Trophy, MessageCircle } from "lucide-react";
 import AdminSessionHandler from "@/components/admin-session-handler";
+import { GamificationWidget } from '@/components/gamification-widget';
+import { GovernanceChat } from '@/components/governance-chat';
 
 interface User {
   id: number;
@@ -748,24 +752,50 @@ export default function SimpleDashboard() {
           <OktaApplicationsGrid user={user} />
         </div>
 
-        {/* AI Assistant Sidebar */}
+        {/* Right Sidebar with Tabs */}
         <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
-          <div className="p-4 border-b border-gray-200 bg-blue-50">
-            <h3 className="text-lg font-semibold text-blue-900 mb-1">Okta Assistant</h3>
-            <p className="text-sm text-blue-700">Access Level: {
-              user.allRoles && user.allRoles.length > 0 
-                ? user.allRoles.filter(role => 
-                    !['Super Admin', 'App Admin', 'Group Admin', 'User Admin', 'Help Desk Admin', 'Read Only Admin', 'Mobile Admin', 'API Access Admin', 'Report Admin', 'Group Membership Admin'].includes(role)
-                  ).length > 0
-                  ? user.allRoles.filter(role => 
-                      !['Super Admin', 'App Admin', 'Group Admin', 'User Admin', 'Help Desk Admin', 'Read Only Admin', 'Mobile Admin', 'API Access Admin', 'Report Admin', 'Group Membership Admin'].includes(role)
-                    )[0].toUpperCase()
-                  : user.allRoles[0].replace(/Admin$/, 'ADMIN')
-                : user.role.replace('_', ' ').toUpperCase()
-            }</p>
-          </div>
-          
-          <OktaAssistantChat user={user} />
+          <Tabs defaultValue="assistant" className="flex flex-col flex-1">
+            <TabsList className="grid w-full grid-cols-2 m-4 mb-0">
+              <TabsTrigger value="assistant" className="flex items-center gap-2">
+                <MessageCircle className="h-4 w-4" />
+                AI Assistant
+              </TabsTrigger>
+              <TabsTrigger value="gamification" className="flex items-center gap-2">
+                <Trophy className="h-4 w-4" />
+                Rewards
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="assistant" className="flex flex-col flex-1 mt-0">
+              <div className="p-4 border-b border-gray-200 bg-blue-50">
+                <h3 className="text-lg font-semibold text-blue-900 mb-1">Okta Assistant</h3>
+                <p className="text-sm text-blue-700">Access Level: {
+                  user.allRoles && user.allRoles.length > 0 
+                    ? user.allRoles.filter(role => 
+                        !['Super Admin', 'App Admin', 'Group Admin', 'User Admin', 'Help Desk Admin', 'Read Only Admin', 'Mobile Admin', 'API Access Admin', 'Report Admin', 'Group Membership Admin'].includes(role)
+                      ).length > 0
+                      ? user.allRoles.filter(role => 
+                          !['Super Admin', 'App Admin', 'Group Admin', 'User Admin', 'Help Desk Admin', 'Read Only Admin', 'Mobile Admin', 'API Access Admin', 'Report Admin', 'Group Membership Admin'].includes(role)
+                        )[0].toUpperCase()
+                      : user.allRoles[0].replace(/Admin$/, 'ADMIN')
+                    : user.role.replace('_', ' ').toUpperCase()
+                }</p>
+              </div>
+              
+              <OktaAssistantChat user={user} />
+            </TabsContent>
+
+            <TabsContent value="gamification" className="flex flex-col flex-1 mt-0">
+              <div className="p-4 border-b border-gray-200 bg-green-50">
+                <h3 className="text-lg font-semibold text-green-900 mb-1">Progress & Rewards</h3>
+                <p className="text-sm text-green-700">Track achievements and cost savings</p>
+              </div>
+              
+              <div className="flex-1 overflow-auto p-4">
+                <GamificationWidget />
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>

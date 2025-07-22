@@ -175,6 +175,17 @@ export class LLMAutomationService {
       return await this.handleCatalogRequest(user, tokens);
     }
 
+    // Enhanced pattern: Direct access requests with duration (e.g., "need adobe express 1 hour access")
+    const directAccessPattern = /(?:need|want|request)\s+(.+?)\s+(?:for\s+)?(\d+)\s+(hour|day|week|month)s?\s+access/i;
+    const directAccessMatch = message.match(directAccessPattern);
+    if (directAccessMatch) {
+      const appName = directAccessMatch[1].trim();
+      const duration = directAccessMatch[2];
+      const timeUnit = directAccessMatch[3];
+      console.log('🚀 SMART REQUEST: Direct access request detected:', { appName, duration, timeUnit });
+      return await this.handleIntelligentAccessRequest(appName, duration, timeUnit, user, tokens);
+    }
+
     // Check for specific application access requests
     if (lowerMessage.includes('request access to ')) {
       const appMatch = message.match(/request access to (.+?)(?:\s|$)/i);
@@ -880,6 +891,177 @@ export class LLMAutomationService {
         success: false,
         error: "Failed to submit access request. Please try again."
       };
+    }
+  }
+
+  private async handleIntelligentAccessRequest(appName: string, duration: string, timeUnit: string, user: User, tokens: OktaTokens): Promise<any> {
+    try {
+      console.log('🚀 Processing intelligent access request:', { appName, duration, timeUnit });
+      
+      // Step 1: Find the application in catalog
+      const authHeader = `Bearer ${tokens.accessToken}`;
+      const catalogResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries?filter=not(parent pr)&limit=50`, {
+        headers: {
+          'Authorization': authHeader,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!catalogResponse.ok) {
+        throw new Error(`Catalog fetch failed: ${catalogResponse.status}`);
+      }
+
+      const catalogData = await catalogResponse.json();
+      const catalog = catalogData.entries || catalogData;
+      
+      // Find matching application (case-insensitive partial match)
+      const matchingApp = catalog.find((entry: any) => 
+        (entry.name || entry.displayName || '').toLowerCase().includes(appName.toLowerCase())
+      );
+
+      if (!matchingApp) {
+        return {
+          success: true,
+          data: {
+            response: `**❌ Application Not Found**\n\n"${appName}" is not available in the governance catalog.\n\n**Available applications:**\n${catalog.slice(0, 6).map((entry: any, index: number) => `${index + 1}. ${entry.name || entry.displayName}`).join('\n')}\n\n**Try again with:** "need [exact app name] ${duration} ${timeUnit} access"`
+          }
+        };
+      }
+
+      console.log('✅ Found matching application:', matchingApp.name);
+
+      // Step 2: Get entitlements for this app
+      const entitlementsResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries?filter=parent.id eq "${matchingApp.id}"&limit=20`, {
+        headers: {
+          'Authorization': authHeader,
+          'Accept': 'application/json'
+        }
+      });
+
+      let entitlements = [];
+      if (entitlementsResponse.ok) {
+        const entitlementsData = await entitlementsResponse.json();
+        entitlements = entitlementsData.entries || entitlementsData || [];
+      }
+
+      // Step 3: Auto-select best entitlement or use app directly if no entitlements
+      let targetEntitlement = null;
+      if (entitlements.length > 0) {
+        // Smart selection: prefer "express" or "basic" for short durations, "pro" for longer
+        const isShortDuration = (timeUnit === 'hour' && parseInt(duration) <= 8) || (timeUnit === 'day' && parseInt(duration) <= 1);
+        const searchTerms = isShortDuration ? ['express', 'basic', 'standard'] : ['pro', 'full', 'premium', 'complete'];
+        
+        targetEntitlement = entitlements.find((ent: any) => 
+          searchTerms.some(term => (ent.name || ent.displayName || '').toLowerCase().includes(term))
+        ) || entitlements[0]; // Fallback to first available
+      } else {
+        targetEntitlement = matchingApp; // Use app directly if no entitlements
+      }
+
+      console.log('🎯 Selected entitlement:', targetEntitlement.name);
+
+      // Step 4: Get request fields for this entitlement
+      const fieldsResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries/${targetEntitlement.id}/request-fields`, {
+        headers: {
+          'Authorization': authHeader,
+          'Accept': 'application/json'
+        }
+      });
+
+      let requestFields = [];
+      if (fieldsResponse.ok) {
+        const fieldsData = await fieldsResponse.json();
+        requestFields = fieldsData.fields || fieldsData || [];
+      }
+
+      // Step 5: Build duration value in Okta format
+      const durationValue = this.convertDurationToOktaFormat(duration, timeUnit);
+      console.log('⏱️ Duration converted to Okta format:', durationValue);
+
+      // Step 6: Prepare field values with intelligent defaults
+      const fieldValues = requestFields.map((field: any) => {
+        if (field.fieldType === 'DURATION' || field.name?.toLowerCase().includes('duration')) {
+          return {
+            fieldId: field.id,
+            value: durationValue
+          };
+        }
+        if (field.fieldType === 'TEXT' && field.name?.toLowerCase().includes('justification')) {
+          return {
+            fieldId: field.id,
+            value: `Access requested for ${duration} ${timeUnit}(s) through AI assistant`
+          };
+        }
+        // Default value for required fields
+        return field.required ? {
+          fieldId: field.id,
+          value: field.defaultValue || 'Auto-selected'
+        } : null;
+      }).filter(Boolean);
+
+      // Step 7: Submit the access request
+      const requestPayload = {
+        requestedFor: { externalId: user.oktaId },
+        requested: { entryId: targetEntitlement.id, type: 'CATALOG_ENTRY' },
+        requesterFieldValues: fieldValues
+      };
+
+      console.log('📤 Submitting access request:', JSON.stringify(requestPayload, null, 2));
+
+      const submitResponse = await fetch(`https://${this.oktaDomain}/governance/api/v1/requests`, {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestPayload)
+      });
+
+      if (submitResponse.ok) {
+        const requestData = await submitResponse.json();
+        return {
+          success: true,
+          data: {
+            response: `**🚀 Smart Request Submitted Successfully!**\n\n📱 **Application:** ${matchingApp.name}\n🎯 **Entitlement:** ${targetEntitlement.name}\n⏱️ **Duration:** ${duration} ${timeUnit}(s)\n🆔 **Request ID:** ${requestData.id || 'Generated'}\n\n**Status:** Your request has been submitted for approval.\n\n**What happened automatically:**\n✅ Found "${appName}" in catalog\n✅ Selected best entitlement: "${targetEntitlement.name}"\n✅ Set duration to ${duration} ${timeUnit}(s)\n✅ Submitted with proper justification\n\n*Request submitted successfully through intelligent workflow*`
+          }
+        };
+      } else {
+        const errorData = await submitResponse.text();
+        console.error('❌ Request submission failed:', errorData);
+        return {
+          success: true,
+          data: {
+            response: `**❌ Request Submission Failed**\n\nFound the application "${matchingApp.name}" but couldn't submit the request.\n\n**Error:** ${submitResponse.status} - ${submitResponse.statusText}\n\n**Try the manual process:**\n1. Say "request access to ${appName}"\n2. Follow the step-by-step flow\n\n*The intelligent workflow encountered an issue during submission*`
+          }
+        };
+      }
+
+    } catch (error) {
+      console.error('❌ Intelligent access request failed:', error);
+      return {
+        success: true,
+        data: {
+          response: `**❌ Smart Request Failed**\n\nI couldn't process "${appName}" for ${duration} ${timeUnit} access automatically.\n\n**Error:** ${error instanceof Error ? error.message : 'Unknown error'}\n\n**Try the standard flow:**\n• Say "list available applications"\n• Then "request access to [exact app name]"\n\n*Falling back to manual request process*`
+        }
+      };
+    }
+  }
+
+  private convertDurationToOktaFormat(duration: string, timeUnit: string): string {
+    const durationNum = parseInt(duration);
+    
+    switch (timeUnit.toLowerCase()) {
+      case 'hour':
+        return `PT${durationNum}H`;
+      case 'day':
+        return `P${durationNum}D`;
+      case 'week':
+        return `P${durationNum}W`;
+      case 'month':
+        return `P${durationNum}M`;
+      default:
+        return `PT${durationNum}H`; // Default to hours
     }
   }
 

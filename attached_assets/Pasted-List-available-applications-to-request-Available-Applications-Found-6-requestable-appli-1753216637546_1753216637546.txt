@@ -1,0 +1,105 @@
+List available applications to request
+**🏪 Available Applications**
+
+📋 **Found 6 requestable applications:**
+
+1. **Adobe**
+   ✅ Available for Access Request
+   Type: Application
+   ID: `cenjz3zqypzyR312w696`
+
+2. **IBM Maximo**
+   ✅ Available for Access Request
+   Type: Application
+   ID: `cenhlny03HXgcdrGu696`
+
+3. **Microsoft Office 365**
+   ✅ Available for Access Request
+   Type: Application
+   ID: `cenhzz4fiuzXrvVqU696`
+
+4. **Okta Admin Console**
+   ✅ Available for Access Request
+   Type: Application
+   ID: `cenhax7me2vHrkoZF696`
+
+5. **Salesforce.com**
+   ✅ Available for Access Request
+   Type: Application
+   ID: `cenjydbmeHvTXjdbF696`
+
+6. **ServiceNow UD**
+   ✅ Available for Access Request
+   Type: Application
+   ID: `cenhlo6egtZRLJBWG696`
+
+**Next Steps:**
+• Say "request access to [application name]" to start the request process
+• Example: "request access to Adobe" or "request access to Salesforce.com"
+
+*All applications above support access requests through the governance workflow*
+Helpful?
+👍
+👎
+request access to Adobe
+**📱 Adobe - Available Entitlements**
+
+🎯 **Found 3 available entitlements:**
+
+1. **Adobe Express Bundle**
+   ID: `cenjz44zigEIxqwqZ696`
+   Adobe Express Bundle
+
+
+2. **Adobe Pro bundle**
+   ID: `cenjz44zhgtXpVtEZ696`
+   Adobe Pro bundle
+
+
+
+3. **Creative Cloud Bundle**
+   ID: `cenjz44zjUYoZUQqn696`
+   Creative Cloud Bundle
+
+**Next Steps:**
+• Say "request [entitlement name]" to proceed with the request
+• Example: "request Adobe Express Bundle"
+
+*Select the entitlement that best matches your access needs*
+Helpful?
+👍
+👎
+request Adobe Express Bundle
+**⏰ Duration Required for Adobe Express Bundle**
+
+Adobe requires you to specify how long you need access.
+
+**Policy Limit:** Maximum 30 days
+
+**Please specify duration:**
+• "request Adobe Express Bundle for 2 hours"
+• "request Adobe Express Bundle for 1 day"
+• "request Adobe Express Bundle for 1 week"
+
+**Risk Assessment:** Standard
+Helpful?
+👍
+👎
+request Adobe Express Bundle for 2 hours
+**✅ Access Request Submitted Successfully**
+
+📱 **Application:** Adobe
+🎯 **Entitlement:** Adobe Express Bundle
+🆔 **Request ID:** reqkmdowvDuHEvHJa696
+
+**Status:** Your request has been submitted for approval.
+
+**Next Steps:**
+• You will receive notifications about request status
+• Check back later for approval updates
+• Contact your administrator if you have questions
+
+*Request submitted successfully through Okta Governance API*
+Helpful?
+👍
+👎

@@ -46,18 +46,38 @@ export class OktaGovernanceService {
       const url = `https://${this.domain}/governance/api/v2/my/catalogs/default/entries?filter=status eq "ACTIVE"&limit=50`;
       
       console.log('🏪 Fetching real IGA catalog from:', url);
-      console.log('🔑 Using API token:', this.apiToken ? 'Present' : 'Missing');
+      
+      // Decide which token to use and log details
+      let authHeader: string;
+      if (accessToken) {
+        authHeader = `Bearer ${accessToken}`;
+        console.log('🔑 Using user access token (Bearer):');
+        console.log('  - Token length:', accessToken.length);
+        console.log('  - Token prefix:', accessToken.substring(0, 20) + '...');
+      } else if (this.apiToken) {
+        authHeader = `SSWS ${this.apiToken}`;
+        console.log('🔑 Using management API token (SSWS)');
+      } else {
+        throw new Error('No authentication token available');
+      }
       
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `SSWS ${this.apiToken}`,
+          'Authorization': authHeader,
           'Accept': 'application/json',
           'User-Agent': 'Okta-AI-Dashboard/1.0'
         }
       });
 
       console.log('📡 IGA Catalog API Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ IGA Catalog API Error:', errorText);
+        console.error('❌ Response headers:', Object.fromEntries(response.headers.entries()));
+        throw new Error(`Catalog API failed with status ${response.status}: ${errorText}`);
+      }
       
       if (response.ok) {
         const responseData = await response.json();

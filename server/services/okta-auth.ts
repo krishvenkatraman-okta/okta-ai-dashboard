@@ -6,6 +6,7 @@ interface OktaTokens {
   idToken: string;
   refreshToken?: string;
   expiresIn: number;
+  scope?: string;
 }
 
 interface AdminSessionTokens {
@@ -155,11 +156,20 @@ export class OktaAuthService {
     }
 
     const data = await response.json();
+    
+    // Debug: Log token scopes
+    console.log('🔑 Token exchange successful:');
+    console.log('  - Access token length:', data.access_token?.length || 0);
+    console.log('  - Scopes granted:', data.scope);
+    console.log('  - Token type:', data.token_type);
+    console.log('  - Expires in:', data.expires_in, 'seconds');
+    
     return {
       accessToken: data.access_token,
       idToken: data.id_token,
       refreshToken: data.refresh_token,
-      expiresIn: data.expires_in
+      expiresIn: data.expires_in,
+      scope: data.scope
     };
   }
 

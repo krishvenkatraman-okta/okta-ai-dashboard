@@ -1,0 +1,135 @@
+2025-07-21 23:24:47.96
+cd4d1e27
+User
+status: 403,
+2025-07-21 23:24:47.96
+cd4d1e27
+User
+authHeader: 'Bearer eyJraWQiOiJZV...',
+2025-07-21 23:24:47.96
+cd4d1e27
+User
+errorPreview: ''
+2025-07-21 23:24:47.96
+cd4d1e27
+User
+}
+2025-07-21 23:24:47.96
+cd4d1e27
+User
+🔄 Trying alternative IGA catalog endpoint with user token...
+2025-07-21 23:24:48.10
+cd4d1e27
+User
+⚠️ IGA catalog also failed (405): {"errorCode":"E0000022","errorSummary":"The endpoint does not support the provided HTTP method","errorLink":"E0000022","errorId":"oae29XVAWsdQ1G7oLAZJzCz5w","errorCauses":[]}
+2025-07-21 23:24:48.10
+cd4d1e27
+User
+🔍 IGA Error details for user session token: {
+2025-07-21 23:24:48.10
+cd4d1e27
+User
+url: 'https://fcxdemo.okta.com/api/v1/iga/catalog/entries?filter=type+eq+%22APPLICATION%22',
+2025-07-21 23:24:48.10
+cd4d1e27
+User
+status: 405,
+2025-07-21 23:24:48.10
+cd4d1e27
+User
+errorPreview: '{"errorCode":"E0000022","errorSummary":"The endpoint does not support the provided HTTP method","errorLink":"E0000022","errorId":"oae29XVAWsdQ1G7oLAZJzCz5w","errorCauses":[]}'
+2025-07-21 23:24:48.10
+cd4d1e27
+User
+}
+2025-07-21 23:24:48.10
+cd4d1e27
+User
+⚠️ Both governance catalog endpoints failed with user session token
+2025-07-21 23:24:48.10
+cd4d1e27
+User
+ℹ️ This likely means the user does not have governance permissions or the catalog is empty
+2025-07-21 23:24:48.10
+cd4d1e27
+User
+✅ LLM handled request successfully
+2025-07-21 23:24:48.10
+cd4d1e27
+User
+6:24:48 AM [express] POST /api/chat/message 200 in 426ms :: {"response":"**🔒 Governance Catalog Acc…
+2025-07-21 23:25:36.00
+cd4d1e27
+User
+🔍 User fetch: { hasSessionId: true, sessionId: 'abc3ebe3...' }
+2025-07-21 23:25:36.00
+cd4d1e27
+User
+✅ User fetch success: Steve Rogers
+2025-07-21 23:25:36.00
+cd4d1e27
+User
+6:25:36 AM [express] GET /api/auth/user 304 in 1ms :: {"oktaId":"00uquk8xouz38pTsB697","username":"S…
+2025-07-21 23:25:36.09
+cd4d1e27
+User
+🔍 Fetching user apps for: Steve Rogers
+2025-07-21 23:25:36.43
+cd4d1e27
+User
+User app links fetched: 3 applications
+2025-07-21 23:25:36.43
+cd4d1e27
+User
+✅ Found 3 applications for user
+2025-07-21 23:25:36.43
+cd4d1e27
+User
+📱 Sample app data: [
+2025-07-21 23:25:36.43
+cd4d1e27
+User
+{
+2025-07-21 23:25:36.43
+cd4d1e27
+User
+"id": "aucquk8xoyBvb1GgE697",
+2025-07-21 23:25:36.43
+cd4d1e27
+User
+"label": "Workday",
+2025-07-21 23:25:36.43
+cd4d1e27
+User
+"linkUrl": "https://fcxdemo.okta.com/home/workday/0oa4kapvkhZRfLq2c697/30",
+2025-07-21 23:25:36.43
+cd4d1e27
+User
+"logoUrl": "https://ok14static.oktacdn.com/bc/globalFileStoreRecord?id=gfs1ieueouly7WstH1d8",
+2025-07-21 23:25:36.43
+cd4d1e27
+User
+"appName": "workday",
+2025-07-21 23:25:36.43
+cd4d1e27
+User
+"appInstanceId": "0oa4kapvkhZRfLq2c697",
+2025-07-21 23:25:36.43
+cd4d1e27
+User
+"appAssignmentId": "0uaquk8xo6AuIkRSN697",
+2025-07-21 23:25:36.43
+cd4d1e27
+User
+"credentialsSetup": false,
+2025-07-21 23:25:36.43
+cd4d1e27
+User
+"hidden": false,
+2025-07-21 23:25:36.43
+cd4d1e27
+User
+"sortOrder": 1
+2025-07-21 23:25:36.43
+cd4d1e27
+User

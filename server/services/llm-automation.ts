@@ -6,6 +6,7 @@ interface OktaTokens {
   idToken: string;
   refreshToken?: string;
   expiresAt: number;
+  scope?: string;
 }
 
 interface GovernanceAction {
@@ -471,7 +472,11 @@ export class LLMAutomationService {
   }
 
   private async handleCatalogRequest(user: User, tokens: OktaTokens): Promise<any> {
-    console.log('📋 Processing catalog request');
+    console.log('📋 Processing catalog request for user:', user.name);
+    console.log('🔑 Token details for catalog request:');
+    console.log('  - Access token length:', tokens.accessToken?.length || 0);
+    console.log('  - Token scopes:', tokens.scope || 'Not available');
+    console.log('  - Token expires in:', tokens.expiresIn, 'seconds');
     
     try {
       // ALWAYS use user session token for governance catalog (per user feedback)

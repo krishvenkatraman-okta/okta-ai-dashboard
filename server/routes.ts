@@ -816,6 +816,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // LLM service returns formatted responses
         finalResponse = llmResult.data?.response || 'Request processed successfully';
         
+        // Handle governance authentication requirement
+        if (llmResult.data?.action === 'governance_auth_required') {
+          console.log('🏛️ Governance auth required, sending special response');
+          
+          // Save response with governance auth flag  
+          await storage.createChatMessage({
+            userId: user.id,
+            message: finalResponse,
+            response: JSON.stringify({ 
+              response: finalResponse, 
+              source: 'llm_automation',
+              action: 'governance_auth_required',
+              requiresGovernanceAuth: true,
+              authUrl: llmResult.data?.authUrl
+            }),
+            messageType: 'assistant',
+            command: 'chat'
+          });
+
+          return res.json({ 
+            response: finalResponse,
+            data: {
+              response: finalResponse,
+              action: 'governance_auth_required',
+              requiresGovernanceAuth: true,
+              authUrl: llmResult.data?.authUrl
+            }
+          });
+        }
+        
         // Handle special response types
         if (llmResult.requiresAdminAuth) {
           // Add admin session requirement handling with redirect info

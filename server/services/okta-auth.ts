@@ -26,6 +26,11 @@ export class OktaAuthService {
   private readonly redirectUri: string;
   private pkceStore: Map<string, PkceChallenge> = new Map();
   private adminSessionStore: Map<string, AdminSessionTokens> = new Map();
+  
+  // Governance OAuth app configuration
+  private readonly governanceClientId = 'okta.91d77ef1-82a4-5bed-b146-a1bea222f083';
+  private readonly governanceRedirectUri: string;
+  private governanceTokenStore: Map<string, OktaTokens> = new Map();
 
   constructor() {
     this.oktaDomain = process.env.OKTA_DOMAIN || 'fcxdemo.okta.com';
@@ -33,11 +38,14 @@ export class OktaAuthService {
     
     // Use custom domain for production deployment
     this.redirectUri = 'https://atko.kriyahub.com/api/auth/callback';
+    this.governanceRedirectUri = 'https://atko.kriyahub.com/api/auth/governance/callback';
     
     console.log('🔧 Okta Auth Service initialized:');
     console.log('  Domain:', this.oktaDomain);
     console.log('  Client ID:', this.clientId ? '✓ Configured' : '✗ Missing');
     console.log('  Redirect URI:', this.redirectUri);
+    console.log('  Governance Client ID:', this.governanceClientId);
+    console.log('  Governance Redirect URI:', this.governanceRedirectUri);
     console.log('  Custom Domain: atko.kriyahub.com');
 
     if (!this.clientId) {
@@ -59,6 +67,28 @@ export class OktaAuthService {
       response_type: 'code',
       scope: 'openid profile email okta.enduser.dashboard.manage okta.enduser.dashboard.read okta.enduser.manage okta.enduser.read okta.myAccount.profile.manage okta.myAccount.profile.read okta.myAccount.sessions.manage okta.users.manage.self okta.users.read.self',
       redirect_uri: this.redirectUri,
+      state,
+      code_challenge: pkceChallenge.codeChallenge,
+      code_challenge_method: 'S256'
+    });
+
+    return `${baseUrl}?${params.toString()}`;
+  }
+
+  getGovernanceAuthUrl(): string {
+    const pkceChallenge = this.generatePkceChallenge();
+    const state = pkceChallenge.state;
+    
+    // Store PKCE challenge for later verification
+    this.pkceStore.set(state, pkceChallenge);
+    
+    const baseUrl = `https://${this.oktaDomain}/oauth2/v1/authorize`;
+    
+    const params = new URLSearchParams({
+      client_id: this.governanceClientId,
+      response_type: 'code',
+      scope: 'openid profile email online_access okta.accessRequests.catalog.read okta.accessRequests.request.manage okta.accessRequests.request.read',
+      redirect_uri: this.governanceRedirectUri,
       state,
       code_challenge: pkceChallenge.codeChallenge,
       code_challenge_method: 'S256'
@@ -607,5 +637,112 @@ export class OktaAuthService {
 
   private generateState(): string {
     return randomBytes(16).toString('hex');
+  }
+
+  // Governance OAuth methods
+  getGovernanceAuthUrl(): string {
+    const pkceChallenge = this.generatePkceChallenge();
+    const state = pkceChallenge.state;
+    
+    // Store PKCE challenge for later verification
+    this.pkceStore.set(state, pkceChallenge);
+    
+    const baseUrl = `https://${this.oktaDomain}/oauth2/v1/authorize`;
+    const scopes = [
+      'openid',
+      'profile', 
+      'email',
+      'online_access',
+      'okta.accessRequests.catalog.read',
+      'okta.accessRequests.request.manage',
+      'okta.accessRequests.request.read'
+    ].join(' ');
+
+    const params = new URLSearchParams({
+      client_id: this.governanceClientId,
+      response_type: 'code',
+      response_mode: 'okta_post_message',
+      scope: scopes,
+      redirect_uri: this.governanceRedirectUri,
+      state: state,
+      code_challenge: pkceChallenge.codeChallenge,
+      code_challenge_method: 'S256',
+      prompt: 'none', // Same as Okta dashboard - silent auth
+      nonce: randomBytes(32).toString('hex')
+    });
+
+    console.log('🏛️ Generated governance auth URL with scopes:', scopes);
+    return `${baseUrl}?${params.toString()}`;
+  }
+
+  async exchangeGovernanceCodeForTokens(code: string, state: string): Promise<OktaTokens> {
+    const pkceChallenge = this.pkceStore.get(state);
+    if (!pkceChallenge) {
+      throw new Error('Invalid state parameter or PKCE challenge not found');
+    }
+
+    const tokenUrl = `https://${this.oktaDomain}/oauth2/v1/token`;
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: this.governanceClientId,
+      code,
+      redirect_uri: this.governanceRedirectUri,
+      code_verifier: pkceChallenge.codeVerifier
+    });
+
+    console.log('🏛️ Exchanging governance code for tokens...');
+    const response = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
+      },
+      body: body.toString()
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Governance token exchange failed:', response.status, errorText);
+      throw new Error(`Governance token exchange failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    console.log('🏛️ Governance token exchange successful:');
+    console.log('  - Access token length:', data.access_token?.length || 0);
+    console.log('  - Scopes granted:', data.scope || 'NOT RETURNED');
+    console.log('  - Token type:', data.token_type);
+    console.log('  - Expires in:', data.expires_in, 'seconds');
+
+    // Clean up PKCE challenge
+    this.pkceStore.delete(state);
+
+    const tokens = {
+      accessToken: data.access_token,
+      idToken: data.id_token,
+      refreshToken: data.refresh_token,
+      expiresIn: data.expires_in,
+      scope: data.scope
+    };
+
+    return tokens;
+  }
+
+  setGovernanceTokens(userId: string, tokens: OktaTokens): void {
+    this.governanceTokenStore.set(userId, tokens);
+    console.log('🏛️ Stored governance tokens for user:', userId);
+  }
+
+  getGovernanceTokens(userId: string): OktaTokens | undefined {
+    return this.governanceTokenStore.get(userId);
+  }
+
+  hasGovernanceTokens(userId: string): boolean {
+    const tokens = this.governanceTokenStore.get(userId);
+    if (!tokens) return false;
+    
+    // Check if token is not expired (with 5 minute buffer)
+    const expiresAt = Date.now() + (tokens.expiresIn * 1000);
+    return expiresAt > Date.now() + (5 * 60 * 1000);
   }
 }

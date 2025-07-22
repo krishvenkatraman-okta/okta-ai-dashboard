@@ -321,6 +321,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Governance OAuth routes
+  app.get('/api/governance/auth-url', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+      
+      // Check if user already has governance tokens
+      if (oktaAuth.hasGovernanceTokens(user.oktaId)) {
+        return res.json({
+          action: 'governance_already_authenticated',
+          status: 'success',
+          message: 'User already has governance access'
+        });
+      }
+      
+      // Generate governance OAuth URL
+      const authUrl = oktaAuth.getGovernanceAuthUrl();
+      
+      res.json({
+        action: 'governance_oauth_flow',
+        status: 'redirect_required',
+        message: 'Governance authentication required for access requests',
+        authUrl: authUrl
+      });
+    } catch (error) {
+      console.error('❌ Governance auth URL generation failed:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to generate governance auth URL' 
+      });
+    }
+  });
+
+  app.get('/api/auth/governance/callback', async (req, res) => {
+    try {
+      const { code, state } = req.query;
+      
+      if (!code || !state) {
+        return res.status(400).json({ error: 'Missing authorization code or state' });
+      }
+      
+      // Exchange code for governance tokens
+      const tokens = await oktaAuth.exchangeGovernanceCodeForTokens(code as string, state as string);
+      
+      // Store tokens (we'll need to get user ID from session)
+      const sessionId = req.cookies.session_id;
+      if (sessionId) {
+        const session = await storage.getSession(sessionId);
+        if (session) {
+          const user = await storage.getUser(session.userId);
+          if (user) {
+            oktaAuth.setGovernanceTokens(user.oktaId, tokens);
+            console.log('✅ Governance tokens stored for user:', user.name);
+          }
+        }
+      }
+      
+      // Return success page or close popup
+      res.send(`
+        <html>
+          <body>
+            <script>
+              if (window.opener) {
+                window.opener.postMessage({ type: 'GOVERNANCE_AUTH_SUCCESS' }, '*');
+                window.close();
+              } else {
+                window.location.href = '/';
+              }
+            </script>
+            <p>Governance authentication successful. You can now make access requests.</p>
+          </body>
+        </html>
+      `);
+    } catch (error) {
+      console.error('❌ Governance callback failed:', error);
+      res.status(500).send(`
+        <html>
+          <body>
+            <script>
+              if (window.opener) {
+                window.opener.postMessage({ type: 'GOVERNANCE_AUTH_ERROR', error: '${error instanceof Error ? error.message : 'Unknown error'}' }, '*');
+                window.close();
+              }
+            </script>
+            <p>Governance authentication failed. Please try again.</p>
+          </body>
+        </html>
+      `);
+    }
+  });
+
   // Governance API routes
   app.get('/api/governance/catalog', async (req, res) => {
     try {

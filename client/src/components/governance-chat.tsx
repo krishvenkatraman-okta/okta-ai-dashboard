@@ -7,6 +7,7 @@ import { Send, User, Bot, Calendar, ShieldCheck, ArrowRight, CheckCircle, XCircl
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import AdminSessionHandler from "./admin-session-handler";
+import { GovernanceAuthHandler } from "./governance-auth-handler";
 
 interface ChatMessage {
   id: string;
@@ -122,6 +123,12 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
           console.log('🔐 Admin auth required, redirecting to:', response.adminUrl);
           window.open(response.adminUrl, '_blank', 'width=1024,height=768,scrollbars=yes,resizable=yes');
         }
+      }
+      
+      // Handle governance authentication requirement
+      if (response.requiresGovernanceAuth) {
+        console.log('🏛️ Governance authentication required');
+        // The UI will handle this via the needsGovernanceAuth check in renderMessage
       }
       
       // Invalidate related queries if data was updated
@@ -257,7 +264,40 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
     
     // Check if message requires admin session (check both data level and response level)
     const needsAdminAuth = msg.data?.requiresAdminAuth || msg.requiresAdminAuth;
+    const needsGovernanceAuth = msg.data?.action === 'governance_auth_required';
     const hasAdminAction = msg.data?.action === 'admin_oauth_flow';
+    
+    // Handle governance authentication requirement
+    if (needsGovernanceAuth) {
+      return (
+        <div className="mr-4">
+          <div className="bg-blue-50 dark:bg-blue-950/20 text-blue-900 dark:text-blue-100 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+            <pre className="whitespace-pre-wrap text-sm font-sans mb-3">{msg.content}</pre>
+            <GovernanceAuthHandler
+              onAuthSuccess={() => {
+                // Refresh the chat or re-trigger the original request
+                const successMessage: ChatMessage = {
+                  id: Date.now().toString(),
+                  role: 'assistant',
+                  content: '✅ **Governance Authentication Successful!**\n\nYou now have access to the governance catalog and can make access requests.\n\nTry asking to "show my apps" or "request access to [application name]" again.',
+                  timestamp: new Date(),
+                };
+                setMessages(prev => [...prev, successMessage]);
+              }}
+              onAuthError={(error) => {
+                const errorMessage: ChatMessage = {
+                  id: Date.now().toString(),
+                  role: 'assistant',
+                  content: `❌ **Governance Authentication Failed**\n\nError: ${error}\n\nPlease try again or contact your administrator for governance access.`,
+                  timestamp: new Date(),
+                };
+                setMessages(prev => [...prev, errorMessage]);
+              }}
+            />
+          </div>
+        </div>
+      );
+    }
     
     if (needsAdminAuth) {
       return (

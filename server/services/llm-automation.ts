@@ -473,23 +473,41 @@ export class LLMAutomationService {
 
   private async handleCatalogRequest(user: User, tokens: OktaTokens): Promise<any> {
     console.log('📋 Processing catalog request for user:', user.name);
-    console.log('🔑 Token details for catalog request:');
-    console.log('  - Access token length:', tokens.accessToken?.length || 0);
-    console.log('  - Token scopes:', tokens.scope || 'Not available');
-    console.log('  - Token expires in:', tokens.expiresIn, 'seconds');
+    
+    // Check if user has governance tokens
+    const governanceTokens = this.oktaAuthService?.getGovernanceTokens?.(user.oktaId);
+    
+    if (governanceTokens) {
+      console.log('🏛️ Using governance tokens for catalog request');
+      console.log('🔑 Governance token details:');
+      console.log('  - Access token length:', governanceTokens.accessToken?.length || 0);
+      console.log('  - Token scopes:', governanceTokens.scope || 'Not available');
+      console.log('  - Token expires in:', governanceTokens.expiresIn, 'seconds');
+      
+      return await this.handleCatalogWithGovernanceTokens(user, governanceTokens);
+    } else {
+      console.log('❌ No governance tokens found - requiring governance authentication');
+      return {
+        success: true,
+        requiresGovernanceAuth: true,
+        data: {
+          response: `**🏛️ Governance Authentication Required**\n\nTo access the application catalog and make access requests, you need to authenticate with Okta's governance system.\n\n**Steps:**\n1. Click "Authenticate for Governance" below\n2. Complete the OAuth flow\n3. Return here to view available applications\n\nThis uses Okta's dedicated governance app with specific scopes:\n• okta.accessRequests.catalog.read\n• okta.accessRequests.request.manage\n• okta.accessRequests.request.read`,
+          action: 'governance_auth_required',
+          authUrl: '/api/governance/auth-url'
+        }
+      };
+    }
+  }
+
+  private async handleCatalogWithGovernanceTokens(user: User, governanceTokens: OktaTokens): Promise<any> {
+    console.log('📋 Processing catalog request with governance tokens for user:', user.name);
     
     try {
-      // ALWAYS use user session token for governance catalog (per user feedback)
-      // This ensures proper user context and scoping instead of showing as "okta admin"
-      if (!tokens.accessToken) {
-        throw new Error('User session token required for catalog access. Please refresh your session.');
-      }
-      
-      const authHeader = `Bearer ${tokens.accessToken}`;
-      console.log('🔑 Using USER SESSION TOKEN for catalog (proper user scoping)');
+      const authHeader = `Bearer ${governanceTokens.accessToken}`;
+      console.log('🏛️ Using GOVERNANCE TOKEN for catalog (proper governance scoping)');
       console.log('📋 Fetching catalog from:', `https://${this.oktaDomain}/api/v1/governance/catalog/entries?filter=status eq "ACTIVE"&limit=20`);
       
-      // Use the correct governance catalog endpoint for end users
+      // Use the correct governance catalog endpoint with governance tokens
       const response = await fetch(`https://${this.oktaDomain}/api/v1/governance/catalog/entries?filter=status eq "ACTIVE"&limit=20`, {
         headers: {
           'Authorization': authHeader,

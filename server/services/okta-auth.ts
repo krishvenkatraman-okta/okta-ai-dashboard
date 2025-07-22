@@ -51,7 +51,7 @@ export class OktaAuthService {
     // Store PKCE challenge for later verification
     this.pkceStore.set(state, pkceChallenge);
     
-    const baseUrl = `https://${this.oktaDomain}/oauth2/default/v1/authorize`;
+    const baseUrl = `https://${this.oktaDomain}/oauth2/v1/authorize`;
     
     const params = new URLSearchParams({
       client_id: this.clientId,
@@ -121,7 +121,7 @@ export class OktaAuthService {
   }
 
   async exchangeCode(code: string, state: string): Promise<OktaTokens> {
-    const tokenUrl = `https://${this.oktaDomain}/oauth2/default/v1/token`;
+    const tokenUrl = `https://${this.oktaDomain}/oauth2/v1/token`;
     
     // Retrieve PKCE challenge using state
     const pkceChallenge = this.pkceStore.get(state);
@@ -164,7 +164,7 @@ export class OktaAuthService {
   }
 
   async getUserInfo(accessToken: string): Promise<OktaUser> {
-    const userInfoUrl = `https://${this.oktaDomain}/oauth2/default/v1/userinfo`;
+    const userInfoUrl = `https://${this.oktaDomain}/oauth2/v1/userinfo`;
     
     const response = await fetch(userInfoUrl, {
       headers: {

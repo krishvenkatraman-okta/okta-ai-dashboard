@@ -119,8 +119,11 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
       console.log('💬 Assistant message created:', JSON.stringify(assistantMessage, null, 2));
       console.log('🔍 Message data for rendering:', assistantMessage.data);
       
+      // Always log the message content for debugging
+      console.log('📝 Message content preview:', assistantMessage.content.substring(0, 100) + '...');
+      
       // Explicit check for governance auth messages
-      if (assistantMessage.content.includes('Governance Authentication Required')) {
+      if (assistantMessage.content.includes('Governance Authentication') || assistantMessage.content.includes('governance system')) {
         console.log('🚨 GOVERNANCE MESSAGE DETECTED - checking data structure');
         console.log('🚨 responseData:', responseData);
         console.log('🚨 responseData.data:', responseData.data);
@@ -279,8 +282,20 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
   const renderMessage = (msg: ChatMessage) => {
     const isUser = msg.role === 'user';
     
-    // Force governance auth for ANY message containing "Governance Authentication Required"
-    if (msg.content.includes('Governance Authentication Required')) {
+    // Force governance auth for ANY message containing governance text
+    const hasGovernanceText = msg.content.includes('Governance Authentication Required') || 
+                              msg.content.includes('🏛️ Governance Authentication') || 
+                              msg.content.includes('governance system');
+    
+    console.log('🔍 Content check:', {
+      content: msg.content.substring(0, 150) + '...',
+      hasGovernanceText,
+      includesBasic: msg.content.includes('Governance Authentication Required'),
+      includesEmoji: msg.content.includes('🏛️ Governance Authentication'),
+      includesSystem: msg.content.includes('governance system')
+    });
+    
+    if (hasGovernanceText) {
       console.log('🚨 FORCING GOVERNANCE AUTH RENDER - content match detected');
       console.log('🚨 Message content:', msg.content);
       console.log('🚨 About to render GovernanceAuthHandler component');

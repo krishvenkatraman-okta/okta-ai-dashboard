@@ -1302,12 +1302,11 @@ export class LLMAutomationService {
         console.log('🔒 Using USER SESSION TOKEN for access request (fallback)');
       }
 
-      // Try simplified payload format first
+      // Use correct API format per Okta documentation
       const requestPayload = {
-        justification: "Access needed for business requirements",
         requesterFieldValues: fieldValues.map(field => ({
-          fieldId: field.id,
-          fieldValue: field.value
+          id: field.id,
+          value: field.value
         }))
       };
 
@@ -1338,10 +1337,14 @@ export class LLMAutomationService {
         
         // Try alternative payload format if 400 error
         if (submitResponse.status === 400) {
-          console.log('🔄 Trying alternative payload format...');
+          console.log('🔄 Trying with justification field...');
           
           const alternativePayload = {
-            fieldsValues: fieldValues  // Alternative field name
+            justification: "Access needed for business requirements",
+            requesterFieldValues: fieldValues.map(field => ({
+              id: field.id,
+              value: field.value
+            }))
           };
           
           const retryResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries/${entitlementId}/requests`, {

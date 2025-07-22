@@ -279,6 +279,40 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
   const renderMessage = (msg: ChatMessage) => {
     const isUser = msg.role === 'user';
     
+    // Force governance auth for ANY message containing "Governance Authentication Required"
+    if (msg.content.includes('Governance Authentication Required')) {
+      console.log('🚨 FORCING GOVERNANCE AUTH RENDER - content match detected');
+      return (
+        <div className="mr-4">
+          <div className="bg-blue-50 dark:bg-blue-950/20 text-blue-900 dark:text-blue-100 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+            <pre className="whitespace-pre-wrap text-sm font-sans mb-3">{msg.content}</pre>
+            <GovernanceAuthHandler
+              autoInitiate={true}
+              onAuthSuccess={() => {
+                // Refresh the chat or re-trigger the original request
+                const successMessage: ChatMessage = {
+                  id: Date.now().toString(),
+                  role: 'assistant',
+                  content: '✅ **Governance Authentication Successful!**\n\nYou now have access to the governance catalog and can make access requests.\n\nTry asking to "show my apps" or "request access to [application name]" again.',
+                  timestamp: new Date(),
+                };
+                setMessages(prev => [...prev, successMessage]);
+              }}
+              onAuthError={(error) => {
+                const errorMessage: ChatMessage = {
+                  id: Date.now().toString(),
+                  role: 'assistant',
+                  content: `❌ **Governance Authentication Failed**\n\nError: ${error}\n\nPlease try again or contact your administrator for governance access.`,
+                  timestamp: new Date(),
+                };
+                setMessages(prev => [...prev, errorMessage]);
+              }}
+            />
+          </div>
+        </div>
+      );
+    }
+    
     // Check if message requires admin session (check both data level and response level)
     const needsAdminAuth = msg.data?.requiresAdminAuth;
     const needsGovernanceAuth = msg.data?.action === 'governance_auth_required' || msg.data?.requiresGovernanceAuth;
@@ -286,7 +320,7 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
     const hasAdminAction = msg.data?.action === 'admin_oauth_flow';
     
     // Force governance auth for debugging if the content contains the message
-    const forceGovernanceAuth = msg.content.includes('Governance Authentication Required');
+    const forceGovernanceAuth = false; // Disabled since we have the explicit check above
     
     // Debug logging
     if (msg.data) {
@@ -309,6 +343,8 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
       console.log('🚨 Message data:', msg.data);
       console.log('🚨 Action check:', msg.data?.action === 'governance_auth_required');
       console.log('🚨 RequiresGovernanceAuth check:', msg.data?.requiresGovernanceAuth);
+      console.log('🚨 forceGovernanceAuth =', forceGovernanceAuth);
+      console.log('🚨 Final condition check:', needsGovernanceAuth || forceGovernanceAuth);
     }
 
     // Handle governance authentication requirement (use force flag for debugging)

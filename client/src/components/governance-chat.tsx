@@ -118,6 +118,14 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
       };
       console.log('💬 Assistant message created:', JSON.stringify(assistantMessage, null, 2));
       console.log('🔍 Message data for rendering:', assistantMessage.data);
+      
+      // Explicit check for governance auth messages
+      if (assistantMessage.content.includes('Governance Authentication Required')) {
+        console.log('🚨 GOVERNANCE MESSAGE DETECTED - checking data structure');
+        console.log('🚨 responseData:', responseData);
+        console.log('🚨 responseData.data:', responseData.data);
+        console.log('🚨 assistantMessage.data:', assistantMessage.data);
+      }
       setMessages(prev => [...prev, assistantMessage]);
       
       // Handle admin session flows
@@ -290,6 +298,14 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
       console.log('📊 No message data found for message:', msg.content.substring(0, 100) + '...');
     }
     
+    // Additional debug for governance auth detection
+    if (msg.content.includes('Governance Authentication Required')) {
+      console.log('🚨 FOUND GOVERNANCE MESSAGE but needsGovernanceAuth =', needsGovernanceAuth);
+      console.log('🚨 Message data:', msg.data);
+      console.log('🚨 Action check:', msg.data?.action === 'governance_auth_required');
+      console.log('🚨 RequiresGovernanceAuth check:', msg.data?.requiresGovernanceAuth);
+    }
+
     // Handle governance authentication requirement
     if (needsGovernanceAuth) {
       console.log('🏛️ Governance auth required - rendering handler with auto-initiate');

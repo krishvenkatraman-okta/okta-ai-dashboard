@@ -132,6 +132,9 @@ The application is architected for scalability and maintainability, with clear s
 - ✅ **Auto-Entitlement Selection**: System now automatically selects best entitlement based on duration and application type
 - ✅ **Smart Duration Processing**: Converts natural language durations to proper Okta ISO 8601 format (PT2H, P1D, etc.)
 - ✅ **One-Command Access Requests**: Users can now bypass multi-step flow with intelligent single commands
+- ✅ **Intelligent Access Revocation**: Added smart revocation that checks assignment method (direct vs group) and uses admin API to actually remove access
+- ✅ **Assignment Analysis**: System analyzes how apps are assigned and removes appropriately (direct assignment removal or group membership removal)
+- ✅ **Comprehensive Revocation**: Handles both individual app assignments and group-based assignments with detailed reporting
 
 **Previous Session Focus (July 22, 2025 - Session 12):**
 - ✅ **Enhanced OAuth Scopes**: Updated OIDC scopes to include governance and enduser permissions for proper catalog access

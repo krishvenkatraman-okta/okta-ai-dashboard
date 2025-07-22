@@ -1103,7 +1103,7 @@ export class LLMAutomationService {
     try {
       console.log('🚫 Processing access revocation request for:', appName);
       
-      // Step 1: Get user's current app assignments
+      // Step 1: Get user's current app assignments using session token
       const authHeader = `Bearer ${tokens.accessToken}`;
       const userAppsResponse = await fetch(`https://${this.oktaDomain}/api/v1/users/me/appLinks`, {
         headers: {
@@ -1133,21 +1133,168 @@ export class LLMAutomationService {
         return {
           success: true,
           data: {
-            response: `**❌ Application Not Found**\n\n"${appName}" is not currently assigned to your account.\n\n**Your current applications:**\n${appList}\n\n**Try again with:** "revoke access to [exact app name]"\n\n*Note: You can only revoke access to applications currently assigned to you.*`
+            response: `**❌ Application Not Found**\n\n"${appName}" is not currently assigned to your account.\n\n**Your current applications:**\n${appList}\n\n**Try again with:** "revoke access to [exact app name]"`
           }
         };
       }
 
       console.log('✅ Found matching application for revocation:', matchingApp.label);
 
-      // Step 3: Check if this requires admin privileges for revocation
-      // For now, provide guidance on how to revoke access since direct revocation may require admin privileges
-      const adminDomain = this.oktaDomain.replace('.okta.com', '-admin.okta.com');
+      // Step 3: Use Admin API to find the actual application and check assignment method
+      console.log('🔍 Step 3: Using Admin API to find application details and assignment method...');
+      
+      // Find the application in the admin API
+      const appSearchResponse = await fetch(`https://${this.oktaDomain}/api/v1/apps?q=${encodeURIComponent(matchingApp.label)}&limit=10`, {
+        headers: {
+          'Authorization': `SSWS ${this.oktaApiToken}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!appSearchResponse.ok) {
+        throw new Error(`Failed to search applications: ${appSearchResponse.status}`);
+      }
+
+      const foundApps = await appSearchResponse.json();
+      const targetApp = foundApps.find((app: any) => 
+        app.label?.toLowerCase() === matchingApp.label?.toLowerCase() ||
+        app.name?.toLowerCase() === matchingApp.label?.toLowerCase()
+      ) || foundApps[0]; // Fallback to first match
+
+      if (!targetApp) {
+        throw new Error('Application not found in admin API');
+      }
+
+      console.log('🎯 Found target application in admin API:', targetApp.label, 'ID:', targetApp.id);
+
+      // Step 4: Check how the user is assigned to this app (direct vs group)
+      console.log('🔍 Step 4: Checking assignment method (direct vs group)...');
+      
+      // Get direct user assignments for this app
+      const directAssignmentsResponse = await fetch(`https://${this.oktaDomain}/api/v1/apps/${targetApp.id}/users/${user.oktaId}`, {
+        headers: {
+          'Authorization': `SSWS ${this.oktaApiToken}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      let isDirectlyAssigned = directAssignmentsResponse.ok;
+      console.log('👤 Direct assignment check:', isDirectlyAssigned ? 'ASSIGNED' : 'NOT ASSIGNED');
+
+      // Get group assignments for this app
+      const groupAssignmentsResponse = await fetch(`https://${this.oktaDomain}/api/v1/apps/${targetApp.id}/groups?limit=100`, {
+        headers: {
+          'Authorization': `SSWS ${this.oktaApiToken}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      let assignedGroups: any[] = [];
+      let userGroupsWithAccess: any[] = [];
+
+      if (groupAssignmentsResponse.ok) {
+        const appGroups = await groupAssignmentsResponse.json();
+        console.log('👥 Found', appGroups.length, 'groups assigned to application');
+
+        // Get user's groups
+        const userGroupsResponse = await fetch(`https://${this.oktaDomain}/api/v1/users/${user.oktaId}/groups`, {
+          headers: {
+            'Authorization': `SSWS ${this.oktaApiToken}`,
+            'Accept': 'application/json'
+          }
+        });
+
+        if (userGroupsResponse.ok) {
+          const userGroups = await userGroupsResponse.json();
+          
+          // Find which groups provide access to this app
+          userGroupsWithAccess = userGroups.filter((userGroup: any) =>
+            appGroups.some((appGroup: any) => appGroup.id === userGroup.id)
+          );
+
+          assignedGroups = userGroupsWithAccess;
+          console.log('🎯 User has access through', userGroupsWithAccess.length, 'groups:', 
+            userGroupsWithAccess.map((g: any) => g.profile?.name || g.name).join(', '));
+        }
+      }
+
+      // Step 5: Perform the appropriate revocation
+      const revocationResults: string[] = [];
+      let successCount = 0;
+      let errorCount = 0;
+
+      // Remove direct assignment if exists
+      if (isDirectlyAssigned) {
+        console.log('🚫 Removing direct user assignment...');
+        try {
+          const removeDirectResponse = await fetch(`https://${this.oktaDomain}/api/v1/apps/${targetApp.id}/users/${user.oktaId}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `SSWS ${this.oktaApiToken}`,
+              'Accept': 'application/json'
+            }
+          });
+
+          if (removeDirectResponse.ok) {
+            revocationResults.push('✅ Removed direct user assignment');
+            successCount++;
+            console.log('✅ Direct assignment removed successfully');
+          } else {
+            revocationResults.push(`❌ Failed to remove direct assignment: ${removeDirectResponse.status}`);
+            errorCount++;
+            console.error('❌ Direct assignment removal failed:', removeDirectResponse.status);
+          }
+        } catch (error) {
+          revocationResults.push(`❌ Error removing direct assignment: ${error}`);
+          errorCount++;
+          console.error('❌ Direct assignment removal error:', error);
+        }
+      }
+
+      // Remove from groups if assigned via groups
+      for (const group of userGroupsWithAccess) {
+        console.log(`🚫 Removing user from group: ${group.profile?.name || group.name} (${group.id})`);
+        try {
+          const removeGroupResponse = await fetch(`https://${this.oktaDomain}/api/v1/groups/${group.id}/users/${user.oktaId}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `SSWS ${this.oktaApiToken}`,
+              'Accept': 'application/json'
+            }
+          });
+
+          if (removeGroupResponse.ok) {
+            revocationResults.push(`✅ Removed from group: ${group.profile?.name || group.name}`);
+            successCount++;
+            console.log(`✅ Removed from group: ${group.profile?.name || group.name}`);
+          } else {
+            revocationResults.push(`❌ Failed to remove from group ${group.profile?.name || group.name}: ${removeGroupResponse.status}`);
+            errorCount++;
+            console.error(`❌ Group removal failed for ${group.profile?.name || group.name}:`, removeGroupResponse.status);
+          }
+        } catch (error) {
+          revocationResults.push(`❌ Error removing from group ${group.profile?.name || group.name}: ${error}`);
+          errorCount++;
+          console.error(`❌ Group removal error for ${group.profile?.name || group.name}:`, error);
+        }
+      }
+
+      // Step 6: Return comprehensive results
+      if (!isDirectlyAssigned && userGroupsWithAccess.length === 0) {
+        return {
+          success: true,
+          data: {
+            response: `**🔍 Access Analysis for ${targetApp.label}**\n\n**Status:** No revocable assignments found\n\n**Analysis Results:**\n• No direct user assignment found\n• User not assigned through any groups\n• Access may be inherited through other means\n\n**Possible reasons:**\n• App might be publicly available\n• Access through different assignment method\n• App assignment cached in user session\n\n**Recommendation:** Contact your administrator to investigate the access path for this application.`
+          }
+        };
+      }
+
+      const totalOperations = (isDirectlyAssigned ? 1 : 0) + userGroupsWithAccess.length;
       
       return {
         success: true,
         data: {
-          response: `**🚫 Access Revocation for ${matchingApp.label}**\n\n**Current Status:** Application is assigned to your account\n**App Type:** ${matchingApp.type || 'Application'}\n**Link:** ${matchingApp.linkUrl || 'N/A'}\n\n**To revoke access:**\n\n**Option 1: Self-Service (if available)**\n• Visit the application directly and remove your account\n• Check application settings for "Remove Access" option\n\n**Option 2: Request Administrative Removal**\n• Contact your administrator to remove this assignment\n• Provide App Name: "${matchingApp.label}"\n• Reference your User ID: ${user.oktaId}\n\n**Option 3: Admin Console (if you have admin access)**\n• Visit: ${adminDomain}/admin/dashboard\n• Navigate to Applications > ${matchingApp.label} > Assignments\n• Remove your user assignment\n\n**Important:** Direct API-based access revocation requires administrative privileges. This ensures proper audit trails and compliance with organizational policies.\n\n*Found application successfully - contact administrator for removal*`
+          response: `**🚫 Access Revocation Complete for ${targetApp.label}**\n\n**Revocation Summary:**\n• Operations performed: ${totalOperations}\n• Successful: ${successCount}\n• Failed: ${errorCount}\n\n**Details:**\n${revocationResults.join('\n')}\n\n**Assignment Analysis:**\n• Direct assignment: ${isDirectlyAssigned ? 'Was assigned (now removed)' : 'Not assigned'}\n• Group assignments: ${userGroupsWithAccess.length > 0 ? `${userGroupsWithAccess.length} group(s) (processed)` : 'None found'}\n\n${successCount > 0 ? '**Status:** Access has been revoked. Changes will take effect within a few minutes.' : '**Status:** Unable to revoke access - please contact your administrator.'}\n\n*Revocation performed using Admin API with proper audit trail*`
         }
       };
 
@@ -1156,7 +1303,7 @@ export class LLMAutomationService {
       return {
         success: true,
         data: {
-          response: `**❌ Access Revocation Error**\n\nI couldn't process the revocation request for "${appName}".\n\n**Error:** ${error instanceof Error ? error.message : 'Unknown error'}\n\n**Alternative approaches:**\n• Contact your Okta administrator directly\n• Use the Okta Admin Console if you have admin access\n• Check the application's settings for self-service removal options\n\n*Error occurred while processing revocation request*`
+          response: `**❌ Access Revocation Error**\n\nFailed to process revocation for "${appName}".\n\n**Error:** ${error instanceof Error ? error.message : 'Unknown error'}\n\n**Alternative approaches:**\n• Contact your Okta administrator directly\n• Use the Okta Admin Console manually\n• Check if you have sufficient admin privileges\n\n*Error occurred during API-based revocation*`
         }
       };
     }

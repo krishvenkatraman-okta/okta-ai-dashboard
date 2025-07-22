@@ -588,86 +588,9 @@ export default function SimpleDashboard() {
         console.log('User data received:', userData);
         setUser(userData);
         
-        // After successful user auth, automatically initiate governance auth
-        console.log('🏛️ Auto-initiating governance authentication for user:', userData.name);
-        const govRes = await fetch('/api/governance/auth-url', { credentials: 'include' });
-        
-        if (govRes.ok) {
-          const govData = await govRes.json();
-          
-          if (govData.action === 'governance_already_authenticated') {
-            console.log('✅ Governance already authenticated');
-            setGovernanceAuthStatus('authenticated');
-          } else if (govData.authUrl) {
-            console.log('🚀 Opening governance OAuth popup automatically...');
-            
-            // Open governance OAuth popup automatically
-            const popup = window.open(
-              govData.authUrl,
-              'governance-auth',
-              'width=500,height=600,scrollbars=yes,resizable=yes'
-            );
-            
-            if (popup) {
-              // Listen for messages from the popup
-              const messageListener = (event: MessageEvent) => {
-                if (event.origin !== window.location.origin) return;
-                
-                console.log('🏛️ Received popup message:', event.data);
-                
-                if (event.data.type === 'GOVERNANCE_AUTH_SUCCESS') {
-                  console.log('✅ Governance authentication successful via popup message!');
-                  setGovernanceAuthStatus('authenticated');
-                  window.removeEventListener('message', messageListener);
-                } else if (event.data.type === 'GOVERNANCE_AUTH_ERROR') {
-                  console.log('❌ Governance authentication failed via popup message:', event.data.error);
-                  setGovernanceAuthStatus('failed');
-                  window.removeEventListener('message', messageListener);
-                }
-              };
-              
-              window.addEventListener('message', messageListener);
-              
-              // Monitor popup for completion (fallback)
-              const checkClosed = setInterval(() => {
-                if (popup.closed) {
-                  clearInterval(checkClosed);
-                  window.removeEventListener('message', messageListener);
-                  console.log('🏛️ Governance OAuth popup closed - checking auth status...');
-                  
-                  // Verify governance auth was successful
-                  fetch('/api/governance/auth-url', { credentials: 'include' })
-                    .then(res => res.json())
-                    .then(data => {
-                      if (data.action === 'governance_already_authenticated') {
-                        console.log('✅ Governance authentication successful!');
-                        setGovernanceAuthStatus('authenticated');
-                      } else {
-                        console.log('⚠️ Governance authentication may not have completed');
-                        setGovernanceAuthStatus('failed');
-                      }
-                    })
-                    .catch(err => console.error('Error checking governance auth:', err));
-                }
-              }, 1000);
-              
-              // Timeout after 5 minutes
-              setTimeout(() => {
-                if (!popup.closed) {
-                  popup.close();
-                  clearInterval(checkClosed);
-                  console.log('⏱️ Governance OAuth popup timed out');
-                }
-              }, 300000);
-            } else {
-              console.log('❌ Failed to open governance OAuth popup - popups may be blocked');
-              setGovernanceAuthStatus('failed');
-            }
-          }
-        } else {
-          console.log('⚠️ Could not initiate governance auth:', govRes.status);
-          setGovernanceAuthStatus('skipped');
-        }
+        // With comprehensive scopes, user already has governance access
+        console.log('✅ User authenticated with comprehensive governance scopes:', userData.name);
+        setGovernanceAuthStatus('authenticated');
         
       } catch (err) {
         console.error('Initialization error:', err);

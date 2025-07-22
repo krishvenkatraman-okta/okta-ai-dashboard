@@ -118,15 +118,15 @@ The application is architected for scalability and maintainability, with clear s
 
 ## Recent Updates (July 19, 2025)
 
-**Current Session Focus (July 22, 2025 - Session 13):**
-- ✅ **Admin OAuth Implementation**: Created comprehensive admin OAuth flow using dedicated admin app (client_id=okta.b58d5b75-07d4-5f25-bf59-368a1261a405)
-- ✅ **Three-Tier OAuth System**: Regular session + governance OAuth + admin OAuth for complete separation of privileges
-- ✅ **Admin OAuth Routes**: Added /api/admin/auth-url and /api/auth/admin/callback for dedicated admin authentication
-- ✅ **AdminOAuthHandler Component**: Frontend popup-based OAuth handler with proper window messaging for admin operations
-- ✅ **Enhanced LLM Automation**: Updated service to prioritize admin OAuth tokens for group management and admin operations
-- ✅ **Token Hierarchy**: Admin OAuth tokens > Management API tokens > User session tokens for admin operations
-- ✅ **Admin Scopes**: okta.governance.read/manage, okta.groups.read/manage, okta.users.read/manage
-- ✅ **Improved Error Handling**: Clear distinction between admin OAuth, governance OAuth, and regular session requirements
+**Current Session Focus (July 22, 2025 - Session 14):**
+- ✅ **MAJOR ARCHITECTURAL CHANGE**: Eliminated complex multi-OAuth system in favor of comprehensive OIDC scopes
+- ✅ **Comprehensive Scope Integration**: Added all governance scopes to initial OIDC authentication flow
+- ✅ **Single Token Strategy**: End user access token now has full governance capabilities including access requests
+- ✅ **Removed Governance OAuth Popups**: Eliminated separate governance authentication step that was causing user confusion
+- ✅ **Updated OIDC Scopes**: Now includes okta.accessRequests.catalog.read, okta.accessRequests.request.manage, okta.accessRequests.request.read, okta.governance.accessCertifications.manage/read
+- ✅ **Simplified Authentication Flow**: Users authenticate once and get immediate access to all features
+- ✅ **LLM Service Update**: Modified to use session tokens exclusively for governance operations
+- ✅ **Enhanced User Experience**: Removed complex popup redirects and authentication barriers
 
 **Previous Session Focus (July 22, 2025 - Session 12):**
 - ✅ **Enhanced OAuth Scopes**: Updated OIDC scopes to include governance and enduser permissions for proper catalog access

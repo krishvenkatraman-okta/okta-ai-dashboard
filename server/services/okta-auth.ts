@@ -70,10 +70,31 @@ export class OktaAuthService {
     
     const baseUrl = `https://${this.oktaDomain}/oauth2/v1/authorize`;
     
+    // Comprehensive scopes for full governance and access request capabilities
+    const scopes = [
+      'openid',
+      'profile', 
+      'email',
+      'okta.accessRequests.catalog.read',
+      'okta.accessRequests.request.manage',
+      'okta.accessRequests.request.read',
+      'okta.enduser.dashboard.manage',
+      'okta.enduser.dashboard.read', 
+      'okta.enduser.manage',
+      'okta.enduser.read',
+      'okta.governance.accessCertifications.manage',
+      'okta.governance.accessCertifications.read',
+      'okta.myAccount.profile.manage',
+      'okta.myAccount.profile.read',
+      'okta.myAccount.sessions.manage',
+      'okta.users.manage.self',
+      'okta.users.read.self'
+    ].join(' ');
+
     const params = new URLSearchParams({
       client_id: this.clientId,
       response_type: 'code',
-      scope: 'openid profile email okta.enduser.dashboard.manage okta.enduser.dashboard.read okta.enduser.manage okta.enduser.read okta.myAccount.profile.manage okta.myAccount.profile.read okta.myAccount.sessions.manage okta.users.manage.self okta.users.read.self',
+      scope: scopes,
       redirect_uri: this.redirectUri,
       state,
       code_challenge: pkceChallenge.codeChallenge,

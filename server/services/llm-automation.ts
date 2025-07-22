@@ -1311,8 +1311,17 @@ export class LLMAutomationService {
         throw new Error('No authentication token available for access request');
       }
 
-      // Use correct API format per Okta documentation
+      // Use correct API format per Okta documentation with proper user attribution
       const requestPayload = {
+        requestedFor: {
+          externalId: user.id // The user who needs access
+        },
+        requestedBy: {
+          externalId: user.sub || user.id // The OIDC sub claim or user ID who is submitting
+        },
+        requested: {
+          entryId: entitlementId // The catalog entry ID
+        },
         requesterFieldValues: fieldValues.map(field => ({
           id: field.id,
           value: field.value
@@ -1370,7 +1379,21 @@ export class LLMAutomationService {
           const mgmtResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries/${entitlementId}/requests`, {
             method: 'POST',
             headers: mgmtHeaders,
-            body: JSON.stringify(requestPayload)
+            body: JSON.stringify({
+              requestedFor: {
+                externalId: user.id // The user who needs access
+              },
+              requestedBy: {
+                externalId: user.sub || user.id // The OIDC sub claim or user ID who is submitting
+              },
+              requested: {
+                entryId: entitlementId // The catalog entry ID
+              },
+              requesterFieldValues: fieldValues.map(field => ({
+                id: field.id,
+                value: field.value
+              }))
+            })
           });
           
           if (mgmtResponse.ok) {
@@ -1393,6 +1416,15 @@ export class LLMAutomationService {
           console.log('🔄 Trying with justification field...');
           
           const alternativePayload = {
+            requestedFor: {
+              externalId: user.id // The user who needs access
+            },
+            requestedBy: {
+              externalId: user.sub || user.id // The OIDC sub claim or user ID who is submitting
+            },
+            requested: {
+              entryId: entitlementId // The catalog entry ID
+            },
             justification: "Access needed for business requirements",
             requesterFieldValues: fieldValues.map(field => ({
               id: field.id,

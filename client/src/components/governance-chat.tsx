@@ -114,7 +114,7 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
         role: 'assistant',
         content: responseData.response || 'I processed your request.',
         timestamp: new Date(),
-        data: responseData.data || responseData  // Ensure data is properly nested
+        data: responseData  // Use the full responseData as the data
       };
       console.log('💬 Assistant message created:', JSON.stringify(assistantMessage, null, 2));
       console.log('🔍 Message data for rendering:', assistantMessage.data);
@@ -125,6 +125,8 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
         console.log('🚨 responseData:', responseData);
         console.log('🚨 responseData.data:', responseData.data);
         console.log('🚨 assistantMessage.data:', assistantMessage.data);
+        console.log('🚨 Action in assistantMessage.data:', assistantMessage.data?.action);
+        console.log('🚨 RequiresGovernanceAuth in assistantMessage.data:', assistantMessage.data?.requiresGovernanceAuth);
       }
       setMessages(prev => [...prev, assistantMessage]);
       
@@ -283,6 +285,9 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
     const needsAdminOAuth = msg.data?.action === 'admin_oauth_required';
     const hasAdminAction = msg.data?.action === 'admin_oauth_flow';
     
+    // Force governance auth for debugging if the content contains the message
+    const forceGovernanceAuth = msg.content.includes('Governance Authentication Required');
+    
     // Debug logging
     if (msg.data) {
       console.log('📊 Message data debug:', {
@@ -306,9 +311,9 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
       console.log('🚨 RequiresGovernanceAuth check:', msg.data?.requiresGovernanceAuth);
     }
 
-    // Handle governance authentication requirement
-    if (needsGovernanceAuth) {
-      console.log('🏛️ Governance auth required - rendering handler with auto-initiate');
+    // Handle governance authentication requirement (use force flag for debugging)
+    if (needsGovernanceAuth || forceGovernanceAuth) {
+      console.log('🏛️ Governance auth required - rendering handler with auto-initiate', { needsGovernanceAuth, forceGovernanceAuth });
       return (
         <div className="mr-4">
           <div className="bg-blue-50 dark:bg-blue-950/20 text-blue-900 dark:text-blue-100 p-3 rounded-lg border border-blue-200 dark:border-blue-800">

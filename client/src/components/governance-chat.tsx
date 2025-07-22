@@ -282,32 +282,27 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
     // Force governance auth for ANY message containing "Governance Authentication Required"
     if (msg.content.includes('Governance Authentication Required')) {
       console.log('🚨 FORCING GOVERNANCE AUTH RENDER - content match detected');
+      console.log('🚨 Message content:', msg.content);
+      console.log('🚨 About to render GovernanceAuthHandler component');
+      
+      // First try a simple test render
       return (
         <div className="mr-4">
           <div className="bg-blue-50 dark:bg-blue-950/20 text-blue-900 dark:text-blue-100 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
             <pre className="whitespace-pre-wrap text-sm font-sans mb-3">{msg.content}</pre>
-            <GovernanceAuthHandler
-              autoInitiate={true}
-              onAuthSuccess={() => {
-                // Refresh the chat or re-trigger the original request
-                const successMessage: ChatMessage = {
-                  id: Date.now().toString(),
-                  role: 'assistant',
-                  content: '✅ **Governance Authentication Successful!**\n\nYou now have access to the governance catalog and can make access requests.\n\nTry asking to "show my apps" or "request access to [application name]" again.',
-                  timestamp: new Date(),
-                };
-                setMessages(prev => [...prev, successMessage]);
-              }}
-              onAuthError={(error) => {
-                const errorMessage: ChatMessage = {
-                  id: Date.now().toString(),
-                  role: 'assistant',
-                  content: `❌ **Governance Authentication Failed**\n\nError: ${error}\n\nPlease try again or contact your administrator for governance access.`,
-                  timestamp: new Date(),
-                };
-                setMessages(prev => [...prev, errorMessage]);
-              }}
-            />
+            <div className="p-4 bg-red-100 border border-red-300 rounded">
+              <h3 className="font-bold text-red-800 mb-2">🚨 DEBUG: Component Rendering Test</h3>
+              <p className="text-red-700 mb-4">This is a test component to verify rendering works.</p>
+              <button 
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                onClick={() => {
+                  console.log('🚨 TEST BUTTON CLICKED - rendering is working');
+                  alert('Test button clicked! Component rendering works.');
+                }}
+              >
+                🧪 Test Button (Click Me)
+              </button>
+            </div>
           </div>
         </div>
       );

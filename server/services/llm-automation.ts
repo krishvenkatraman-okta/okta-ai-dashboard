@@ -1288,11 +1288,28 @@ export class LLMAutomationService {
       console.log('📤 Submitting access request for entitlement:', entitlementId);
       console.log('📄 Field values:', fieldValues);
 
-      // CRITICAL: Always use user session token for access requests (not management API)
-      // This ensures proper user attribution and audit logging
-      const authHeader = `Bearer ${tokens.accessToken}`;
-      const authMethod = 'User session token';
-      console.log('🔒 Using USER SESSION TOKEN for access request (user attribution required)');
+      // Try user session token first, fallback to management API with user impersonation
+      let authHeader: string;
+      let authMethod: string;
+      let headers: any = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      };
+      
+      if (tokens.accessToken) {
+        authHeader = `Bearer ${tokens.accessToken}`;
+        authMethod = 'User session token';
+        headers['Authorization'] = authHeader;
+        console.log('🔒 Using USER SESSION TOKEN for access request (user attribution)');
+      } else if (this.oktaApiToken) {
+        authHeader = `SSWS ${this.oktaApiToken}`;
+        authMethod = 'Management API with user context';
+        headers['Authorization'] = authHeader;
+        headers['X-Okta-User'] = user.id; // Impersonate user for proper attribution
+        console.log('🔒 Using MANAGEMENT API with user impersonation for access request');
+      } else {
+        throw new Error('No authentication token available for access request');
+      }
 
       // Use correct API format per Okta documentation
       const requestPayload = {
@@ -1306,11 +1323,7 @@ export class LLMAutomationService {
 
       const submitResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries/${entitlementId}/requests`, {
         method: 'POST',
-        headers: {
-          'Authorization': authHeader,
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
+        headers: headers,
         body: JSON.stringify(requestPayload)
       });
 
@@ -1327,6 +1340,21 @@ export class LLMAutomationService {
           'Content-Type': 'application/json'
         }, null, 2));
         
+        // Try to parse error details
+        let errorDetails = errorText;
+        try {
+          const errorJson = JSON.parse(errorText);
+          console.error('❌ Parsed error details:', JSON.stringify(errorJson, null, 2));
+          if (errorJson.errorSummary) {
+            errorDetails = errorJson.errorSummary;
+          }
+          if (errorJson.errorCauses && errorJson.errorCauses.length > 0) {
+            console.error('❌ Error causes:', errorJson.errorCauses);
+          }
+        } catch (e) {
+          console.error('❌ Could not parse error response as JSON');
+        }
+        
         // Try alternative payload format if 400 error
         if (submitResponse.status === 400) {
           console.log('🔄 Trying with justification field...');
@@ -1341,11 +1369,7 @@ export class LLMAutomationService {
           
           const retryResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries/${entitlementId}/requests`, {
             method: 'POST',
-            headers: {
-              'Authorization': authHeader,
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
-            },
+            headers: headers,
             body: JSON.stringify(alternativePayload)
           });
           

@@ -37,7 +37,10 @@ export function GovernanceAuthHandler({ onAuthSuccess, onAuthError, autoInitiate
   // Auto-initiate OAuth flow if requested
   useEffect(() => {
     if (autoInitiate && authState === 'idle') {
-      handleGovernanceAuth();
+      console.log('🔄 Auto-initiating governance OAuth flow...');
+      setTimeout(() => {
+        handleGovernanceAuth();
+      }, 500); // Small delay to ensure UI is ready
     }
   }, [autoInitiate, authState]);
 

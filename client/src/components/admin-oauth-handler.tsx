@@ -37,7 +37,10 @@ export function AdminOAuthHandler({ onAuthSuccess, onAuthError, autoInitiate = f
   // Auto-initiate OAuth flow if requested
   useEffect(() => {
     if (autoInitiate && authState === 'idle') {
-      handleAdminOAuth();
+      console.log('🔄 Auto-initiating admin OAuth flow...');
+      setTimeout(() => {
+        handleAdminOAuth();
+      }, 500); // Small delay to ensure UI is ready
     }
   }, [autoInitiate, authState]);
 

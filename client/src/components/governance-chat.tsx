@@ -270,8 +270,20 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
     const needsAdminOAuth = msg.data?.action === 'admin_oauth_required';
     const hasAdminAction = msg.data?.action === 'admin_oauth_flow';
     
+    // Debug logging
+    if (msg.data) {
+      console.log('📊 Message data debug:', {
+        action: msg.data.action,
+        needsGovernanceAuth,
+        needsAdminOAuth,
+        hasAdminAction,
+        messageContent: msg.content.substring(0, 100) + '...'
+      });
+    }
+    
     // Handle governance authentication requirement
     if (needsGovernanceAuth) {
+      console.log('🏛️ Governance auth required - rendering handler with auto-initiate');
       return (
         <div className="mr-4">
           <div className="bg-blue-50 dark:bg-blue-950/20 text-blue-900 dark:text-blue-100 p-3 rounded-lg border border-blue-200 dark:border-blue-800">

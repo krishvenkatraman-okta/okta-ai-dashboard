@@ -117,14 +117,14 @@ The application is architected for scalability and maintainability, with clear s
 ## Recent Updates (July 19, 2025)
 
 **Current Session Focus (July 21, 2025 - Session 11):**
-- ✅ **Fixed Auto-Submission Issue**: Access requests now ask user for duration before submitting (max 30 days policy compliance)
-- ✅ **Enhanced Admin Session Pattern Detection**: "start admin session" command now properly triggers admin OAuth flow
-- ✅ **Embedded Admin OAuth Flow**: Implemented complete popup-based admin authentication with message passing
+- ✅ **Fixed POST Request Format**: Corrected API payload from "fieldId"/"fieldValue" to "id"/"value" per Okta documentation
+- ✅ **Enhanced Admin Session Popup Flow**: Fixed direct button connection to handleAdminOAuthFlow() function  
 - ✅ **Duration Input Validation**: System validates duration against policy limits and asks user to specify duration when missing
 - ✅ **User Attribution Fix**: Fixed 400 API errors by switching to proper authentication method for governance API
 - ✅ **Admin Callback Handler**: Added secure admin token exchange endpoint with proper session storage
 - ✅ **Frontend Admin Integration**: Created proper popup handling with success/error messaging
-- ⚠️ **Ready for Testing**: All fixes implemented, ready to test complete workflow from chat interface
+- ✅ **Pattern Detection Fix**: "start admin session" and "show my groups" now properly trigger admin flows
+- ⚠️ **Ready for Testing**: All critical fixes implemented - test both access requests and admin session flows
 
 **Previous Session Focus (July 21, 2025 - Session 9):**
 - ✅ **Session-Based Authentication Implementation**: Replaced API token authentication with proper session-based authentication for audit logging

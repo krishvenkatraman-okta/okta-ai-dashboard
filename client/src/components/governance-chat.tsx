@@ -289,17 +289,32 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
         <div className="mr-4">
           <div className="bg-gray-100 text-gray-900 p-3 rounded-lg">
             <pre className="whitespace-pre-wrap text-sm font-sans mb-3">{msg.content}</pre>
-            <AdminSessionHandler 
-              adminUrl={msg.data.adminUrl}
-              intent={msg.data.intent}
-              onSessionEstablished={() => {
-                // Retry the original request
-                const originalMessage = messages[messages.length - 2]?.content;
-                if (originalMessage) {
-                  sendMessageMutation.mutate(originalMessage);
-                }
-              }}
-            />
+            
+            {/* Direct admin OAuth flow trigger */}
+            {msg.data?.action === 'admin_oauth_flow' ? (
+              <Button 
+                onClick={() => {
+                  console.log('🔐 Admin OAuth button clicked, triggering popup flow');
+                  handleAdminOAuthFlow();
+                }}
+                className="w-full mt-3"
+                variant="default"
+              >
+                Start Admin Session
+              </Button>
+            ) : (
+              <AdminSessionHandler 
+                adminUrl={msg.data.adminUrl}
+                intent={msg.data.intent}
+                onSessionEstablished={() => {
+                  // Retry the original request
+                  const originalMessage = messages[messages.length - 2]?.content;
+                  if (originalMessage) {
+                    sendMessageMutation.mutate(originalMessage);
+                  }
+                }}
+              />
+            )}
           </div>
         </div>
       );

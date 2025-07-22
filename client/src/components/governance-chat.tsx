@@ -114,9 +114,10 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
         role: 'assistant',
         content: responseData.response || 'I processed your request.',
         timestamp: new Date(),
-        data: responseData
+        data: responseData.data || responseData  // Ensure data is properly nested
       };
       console.log('💬 Assistant message created:', JSON.stringify(assistantMessage, null, 2));
+      console.log('🔍 Message data for rendering:', assistantMessage.data);
       setMessages(prev => [...prev, assistantMessage]);
       
       // Handle admin session flows
@@ -278,11 +279,15 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
     if (msg.data) {
       console.log('📊 Message data debug:', {
         action: msg.data.action,
+        requiresGovernanceAuth: msg.data.requiresGovernanceAuth,
         needsGovernanceAuth,
         needsAdminOAuth,
         hasAdminAction,
-        messageContent: msg.content.substring(0, 100) + '...'
+        messageContent: msg.content.substring(0, 100) + '...',
+        fullData: msg.data
       });
+    } else {
+      console.log('📊 No message data found for message:', msg.content.substring(0, 100) + '...');
     }
     
     // Handle governance authentication requirement

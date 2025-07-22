@@ -12,6 +12,8 @@ interface GovernanceAuthHandlerProps {
 export function GovernanceAuthHandler({ onAuthSuccess, onAuthError, autoInitiate = false }: GovernanceAuthHandlerProps) {
   const [authState, setAuthState] = useState<'idle' | 'authenticating' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
+  
+  console.log('🏛️ GovernanceAuthHandler rendered with autoInitiate:', autoInitiate, 'authState:', authState);
 
   useEffect(() => {
     // Listen for messages from the OAuth popup

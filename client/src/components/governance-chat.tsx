@@ -105,7 +105,10 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
   const sendMessageMutation = useMutation({
     mutationFn: (message: string) => apiRequest('/api/chat/message', 'POST', { message }),
     onSuccess: (response: any) => {
+      console.log('📥 Raw response received:', response);
       const responseData = response.data || response;
+      console.log('🔍 Processed response data:', JSON.stringify(responseData, null, 2));
+      
       const assistantMessage: ChatMessage = {
         id: Date.now().toString(),
         role: 'assistant',
@@ -113,6 +116,7 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
         timestamp: new Date(),
         data: responseData
       };
+      console.log('💬 Assistant message created:', JSON.stringify(assistantMessage, null, 2));
       setMessages(prev => [...prev, assistantMessage]);
       
       // Handle admin session flows

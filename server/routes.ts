@@ -19,7 +19,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin session route - initiate OAuth flow
-  app.get('/api/auth/admin-login', (req, res) => {
+  app.post('/api/auth/admin-login', (req, res) => {
     if (!(req as any).session?.userId) {
       return res.status(401).json({ error: 'Must be logged in to access admin session' });
     }

@@ -1335,7 +1335,8 @@ export class LLMAutomationService {
         console.error('❌ Request URL was:', `https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries/${entitlementId}/requests`);
         console.error('❌ Request payload was:', JSON.stringify(requestPayload, null, 2));
         console.error('❌ Request headers:', JSON.stringify({
-          'Authorization': 'Bearer [REDACTED]',
+          'Authorization': headers.Authorization ? '[REDACTED]' : 'NOT SET',
+          'X-Okta-User': headers['X-Okta-User'] || 'NOT SET',
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         }, null, 2));
@@ -1352,7 +1353,39 @@ export class LLMAutomationService {
             console.error('❌ Error causes:', errorJson.errorCauses);
           }
         } catch (e) {
-          console.error('❌ Could not parse error response as JSON');
+          console.error('❌ Could not parse error response as JSON - response may be HTML or empty');
+        }
+        
+        // If user session token failed, try management API with user impersonation
+        if (submitResponse.status === 400 && tokens.accessToken && this.oktaApiToken) {
+          console.log('🔄 User session failed, trying Management API with user impersonation...');
+          
+          const mgmtHeaders = {
+            'Authorization': `SSWS ${this.oktaApiToken}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-Okta-User': user.id
+          };
+          
+          const mgmtResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries/${entitlementId}/requests`, {
+            method: 'POST',
+            headers: mgmtHeaders,
+            body: JSON.stringify(requestPayload)
+          });
+          
+          if (mgmtResponse.ok) {
+            console.log('✅ Management API with user impersonation worked!');
+            const mgmtData = await mgmtResponse.json();
+            return {
+              success: true,
+              data: {
+                response: `**✅ Access Request Submitted Successfully**\n\n📱 **Application:** ${appName}\n🎯 **Entitlement:** ${entitlementName}\n🆔 **Request ID:** ${mgmtData.id || 'Generated'}\n\n**Status:** Your request has been submitted for approval.\n\n**Next Steps:**\n• You will receive notifications about request status\n• Check back later for approval updates\n• Contact your administrator if you have questions\n\n*Request submitted successfully through Okta Governance API with user attribution*`
+              }
+            };
+          } else {
+            const mgmtErrorText = await mgmtResponse.text();
+            console.error('❌ Management API also failed:', mgmtErrorText);
+          }
         }
         
         // Try alternative payload format if 400 error

@@ -1,0 +1,104 @@
+2025-07-21 17:47:25.07
+3ca87c15
+User
+📤 Submit response status: 400
+2025-07-21 17:47:25.07
+3ca87c15
+User
+❌ Submit error response:
+2025-07-21 17:47:25.07
+3ca87c15
+User
+❌ Request URL was: https://fcxdemo.okta.com/governance/api/v2/my/catalogs/default/entries/cenjz44zigEIxqwqZ696/requests
+2025-07-21 17:47:25.07
+3ca87c15
+User
+❌ Request payload was: {
+2025-07-21 17:47:25.07
+3ca87c15
+User
+"requesterFieldValues": [
+2025-07-21 17:47:25.07
+3ca87c15
+User
+{
+2025-07-21 17:47:25.07
+3ca87c15
+User
+"id": "ACCESS_DURATION",
+2025-07-21 17:47:25.07
+3ca87c15
+User
+"value": "PT2H"
+2025-07-21 17:47:25.07
+3ca87c15
+User
+}
+2025-07-21 17:47:25.07
+3ca87c15
+User
+]
+2025-07-21 17:47:25.07
+3ca87c15
+User
+}
+2025-07-21 17:47:25.07
+3ca87c15
+User
+❌ Request headers: {
+2025-07-21 17:47:25.07
+3ca87c15
+User
+"Authorization": "Bearer [REDACTED]",
+2025-07-21 17:47:25.07
+3ca87c15
+User
+"Accept": "application/json",
+2025-07-21 17:47:25.07
+3ca87c15
+User
+"Content-Type": "application/json"
+2025-07-21 17:47:25.07
+3ca87c15
+User
+}
+2025-07-21 17:47:25.07
+3ca87c15
+User
+❌ Could not parse error response as JSON
+2025-07-21 17:47:25.07
+3ca87c15
+User
+🔄 Trying with justification field...
+2025-07-21 17:47:25.14
+3ca87c15
+User
+❌ Error submitting access request: Error: Submit API error 400:
+2025-07-21 17:47:25.14
+3ca87c15
+User
+at LLMAutomationService.submitAccessRequest (file:///home/runner/workspace/dist/index.js:2251:19)
+2025-07-21 17:47:25.14
+3ca87c15
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-07-21 17:47:25.14
+3ca87c15
+User
+at async LLMAutomationService.handleEntitlementRequest (file:///home/runner/workspace/dist/index.js:2137:18)
+2025-07-21 17:47:25.14
+3ca87c15
+User
+at async LLMAutomationService.processGovernanceRequest (file:///home/runner/workspace/dist/index.js:958:32)
+2025-07-21 17:47:25.14
+3ca87c15
+User
+at async file:///home/runner/workspace/dist/index.js:4164:25
+2025-07-21 17:47:25.14
+3ca87c15
+User
+✅ Entitlement request completed successfully
+2025-07-21 17:47:25.14
+3ca87c15
+User
+❌ LLM processing failed, using intelligent fallback

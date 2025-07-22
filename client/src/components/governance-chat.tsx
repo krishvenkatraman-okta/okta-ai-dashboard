@@ -182,7 +182,11 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
       
       // Get admin auth URL from backend
       const response = await fetch('/api/auth/admin-login', {
-        credentials: 'include'
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
       
       if (!response.ok) {

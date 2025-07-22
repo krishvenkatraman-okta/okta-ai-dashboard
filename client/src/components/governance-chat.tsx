@@ -116,7 +116,8 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
       if (response.requiresAdminAuth) {
         if (response.data?.action === 'admin_oauth_flow') {
           console.log('🔐 Starting admin OAuth flow');
-          handleAdminOAuthFlow();
+          // Delay slightly to let UI update first
+          setTimeout(() => handleAdminOAuthFlow(), 500);
         } else if (response.adminUrl) {
           console.log('🔐 Admin auth required, redirecting to:', response.adminUrl);
           window.open(response.adminUrl, '_blank', 'width=1024,height=768,scrollbars=yes,resizable=yes');
@@ -188,26 +189,49 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
         throw new Error('Failed to get admin auth URL');
       }
       
-      const { adminAuthUrl } = await response.json();
+      const data = await response.json();
+      console.log('🔐 Received admin auth data:', data);
+      const { adminAuthUrl } = data;
+      
+      if (!adminAuthUrl) {
+        throw new Error('No admin auth URL received from server');
+      }
+      
+      console.log('🔐 Opening popup to:', adminAuthUrl);
       
       // Open popup for admin authentication
       const popup = window.open(
         adminAuthUrl, 
         'admin_oauth', 
-        'width=600,height=700,scrollbars=yes,resizable=yes'
+        'width=800,height=900,scrollbars=yes,resizable=yes,status=yes,location=yes'
       );
       
       if (!popup) {
-        throw new Error('Popup blocked. Please allow popups for admin authentication.');
+        throw new Error('Popup blocked. Please allow popups for admin authentication or disable popup blockers.');
       }
+      
+      console.log('🔐 Popup opened successfully, waiting for authentication...');
       
       // Listen for messages from the popup
       const handleMessage = (event: MessageEvent) => {
-        if (event.origin !== window.location.origin) return;
+        console.log('🔐 Received message from popup:', event.data, 'from origin:', event.origin);
+        
+        // Accept messages from our domain or the popup domain
+        const allowedOrigins = [
+          window.location.origin, 
+          'https://atko.kriyahub.com',
+          'https://fcxdemo-admin.okta.com'
+        ];
+        
+        if (!allowedOrigins.includes(event.origin)) {
+          console.log('🔐 Ignoring message from unknown origin:', event.origin);
+          return;
+        }
         
         if (event.data.type === 'admin_auth_success') {
           console.log('✅ Admin authentication successful');
           window.removeEventListener('message', handleMessage);
+          clearInterval(checkClosed);
           
           // Add success message
           const successMessage: ChatMessage = {
@@ -221,6 +245,7 @@ export default function GovernanceChat({ user }: GovernanceChatProps) {
         } else if (event.data.type === 'admin_auth_error') {
           console.error('❌ Admin authentication failed:', event.data.error);
           window.removeEventListener('message', handleMessage);
+          clearInterval(checkClosed);
           
           // Add error message
           const errorMessage: ChatMessage = {

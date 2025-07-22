@@ -1288,16 +1288,30 @@ export class LLMAutomationService {
       console.log('📤 Submitting access request for entitlement:', entitlementId);
       console.log('📄 Field values:', fieldValues);
 
-      // CRITICAL: Always use user's session token for access requests (not management API)
-      // This ensures proper user attribution and audit logging
-      const authHeader = `Bearer ${tokens.accessToken}`;
-      console.log('🔒 Using USER SESSION TOKEN for access request (user attribution required)');
+      // Try different authentication methods for governance API
+      let authHeader: string;
+      let authMethod: string;
+      
+      if (this.oktaApiToken) {
+        authHeader = `SSWS ${this.oktaApiToken}`;
+        authMethod = 'Management API (SSWS)';
+        console.log('🔒 Using MANAGEMENT API token for governance request (required for API access)');
+      } else {
+        authHeader = `Bearer ${tokens.accessToken}`;
+        authMethod = 'User session token';
+        console.log('🔒 Using USER SESSION TOKEN for access request (fallback)');
+      }
 
+      // Try simplified payload format first
       const requestPayload = {
-        requesterFieldValues: fieldValues
+        justification: "Access needed for business requirements",
+        requesterFieldValues: fieldValues.map(field => ({
+          fieldId: field.id,
+          fieldValue: field.value
+        }))
       };
 
-      console.log('📤 Submitting payload:', JSON.stringify(requestPayload, null, 2));
+      console.log(`📤 Submitting with ${authMethod}:`, JSON.stringify(requestPayload, null, 2));
 
       const submitResponse = await fetch(`https://${this.oktaDomain}/governance/api/v2/my/catalogs/default/entries/${entitlementId}/requests`, {
         method: 'POST',

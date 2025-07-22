@@ -1,0 +1,109 @@
+}
+2025-07-21 17:02:10.39
+108f24de
+User
+]
+2025-07-21 17:02:10.39
+108f24de
+User
+}
+2025-07-21 17:02:10.45
+108f24de
+User
+📤 Submit response status: 400
+2025-07-21 17:02:10.45
+108f24de
+User
+❌ Submit error response:
+2025-07-21 17:02:10.45
+108f24de
+User
+❌ Request URL was: https://fcxdemo.okta.com/governance/api/v2/my/catalogs/default/entries/cenjz44zigEIxqwqZ696/requests
+2025-07-21 17:02:10.45
+108f24de
+User
+❌ Request payload was: {
+2025-07-21 17:02:10.45
+108f24de
+User
+"requesterFieldValues": [
+2025-07-21 17:02:10.45
+108f24de
+User
+{
+2025-07-21 17:02:10.45
+108f24de
+User
+"id": "ACCESS_DURATION",
+2025-07-21 17:02:10.45
+108f24de
+User
+"value": "P1D"
+2025-07-21 17:02:10.45
+108f24de
+User
+}
+2025-07-21 17:02:10.45
+108f24de
+User
+]
+2025-07-21 17:02:10.45
+108f24de
+User
+}
+2025-07-21 17:02:10.45
+108f24de
+User
+❌ Request headers: {
+2025-07-21 17:02:10.45
+108f24de
+User
+"Authorization": "Bearer [REDACTED]",
+2025-07-21 17:02:10.45
+108f24de
+User
+"Accept": "application/json",
+2025-07-21 17:02:10.45
+108f24de
+User
+"Content-Type": "application/json"
+2025-07-21 17:02:10.45
+108f24de
+User
+}
+2025-07-21 17:02:10.45
+108f24de
+User
+🔄 Trying alternative payload format...
+2025-07-21 17:02:10.52
+108f24de
+User
+❌ Error submitting access request: Error: Submit API error 400:
+2025-07-21 17:02:10.52
+108f24de
+User
+at LLMAutomationService.submitAccessRequest (file:///home/runner/workspace/dist/index.js:2218:19)
+2025-07-21 17:02:10.52
+108f24de
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-07-21 17:02:10.52
+108f24de
+User
+at async LLMAutomationService.handleEntitlementRequest (file:///home/runner/workspace/dist/index.js:2133:18)
+2025-07-21 17:02:10.52
+108f24de
+User
+at async LLMAutomationService.processGovernanceRequest (file:///home/runner/workspace/dist/index.js:954:32)
+2025-07-21 17:02:10.52
+108f24de
+User
+at async file:///home/runner/workspace/dist/index.js:4131:25
+2025-07-21 17:02:10.52
+108f24de
+User
+✅ Entitlement request completed successfully
+2025-07-21 17:02:10.52
+108f24de
+User
+❌ LLM processing failed, using intelligent fallback

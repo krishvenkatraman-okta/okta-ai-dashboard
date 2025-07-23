@@ -376,13 +376,11 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }): 
 
   // Auto-load 30-day review after messages are loaded
   useEffect(() => {
-    if (messages.length === 0) return; // Don't run until messages are loaded
+    if (messages.length === 0) return;
     
-    // Add a small delay to allow Fastpass messages to render first
-    const timer = setTimeout(() => {
-      const autoLoad30DayReview = async () => {
-        console.log('Auto-loading 30-day access review...');
-        setLoading(true);
+    const autoLoad30DayReview = async () => {
+      console.log('Auto-loading 30-day access review...');
+      setLoading(true);
       
       try {
         // Try the dedicated governance endpoint first
@@ -912,5 +910,3 @@ export default function SimpleDashboard() {
     </div>
   );
 }
-
-export default SimpleDashboard;

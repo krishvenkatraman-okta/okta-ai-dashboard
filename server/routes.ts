@@ -60,13 +60,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('🔒 Manual Fastpass test triggered for user:', user.oktaId);
       
-      // Check user's authenticators using their access token
+      // Check user's authenticators using their access token with correct API version
       console.log('🔍 Making manual test API call with token:', session.oktaTokens.accessToken.substring(0, 20) + '...');
-      const authResponse = await fetch(`https://fcxdemo.okta.com/api/v1/users/me/factors`, {
+      const authResponse = await fetch(`https://fcxdemo.okta.com/idp/myaccount/authenticators?expand=enrollments`, {
         headers: {
           'Authorization': `Bearer ${session.oktaTokens.accessToken}`,
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
+          'Accept': 'application/json; okta-version=1.0.0'
         }
       });
       
@@ -76,12 +75,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const authenticators = await authResponse.json();
         console.log('🔍 Retrieved authenticators for manual test:', authenticators);
         
-        // Look for Okta Verify enrollment
-        const oktaVerifyEnrolled = authenticators.some((auth: any) => 
-          auth.name === 'Okta Verify' && 
-          auth.enrollments && 
-          auth.enrollments.length > 0
-        );
+        // Look for Okta Verify enrollment in the _embedded.enrollments
+        const oktaVerifyEnrolled = authenticators.some((auth: any) => {
+          const isOktaVerify = auth.key === 'okta_verify' || auth.name === 'Okta Verify';
+          const hasEnrollments = auth._embedded?.enrollments && auth._embedded.enrollments.length > 0;
+          console.log('🔍 Manual test - checking authenticator:', { name: auth.name, key: auth.key, hasEnrollments });
+          return isOktaVerify && hasEnrollments;
+        });
 
         const userStats = await gamificationService.getUserStats(user.oktaId);
         const isFirstTimeVerification = !userStats.fastpassVerified;
@@ -285,13 +285,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('🔒 Performing automatic Fastpass enrollment check for user:', user.oktaId);
         console.log('🔒 User details for Fastpass check:', { userId: user.id, oktaId: user.oktaId, name: user.name });
         
-        // Check user's authenticators using their access token
+        // Check user's authenticators using their access token with correct API version
         console.log('🔍 Making authenticator API call with token:', tokens.accessToken.substring(0, 20) + '...');
-        const authResponse = await fetch(`https://fcxdemo.okta.com/api/v1/users/me/factors`, {
+        const authResponse = await fetch(`https://fcxdemo.okta.com/idp/myaccount/authenticators?expand=enrollments`, {
           headers: {
             'Authorization': `Bearer ${tokens.accessToken}`,
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
+            'Accept': 'application/json; okta-version=1.0.0'
           }
         });
         
@@ -301,37 +300,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (authResponse.ok) {
           authenticators = await authResponse.json();
-          console.log('🔍 Retrieved authenticators data from primary endpoint');
+          console.log('🔍 Retrieved authenticators data with enrollments:', Object.keys(authenticators));
         } else {
-          // If the primary endpoint fails, try the myaccount endpoint
-          console.log('🔄 Primary endpoint failed, trying myaccount endpoint...');
-          const fallbackResponse = await fetch(`https://fcxdemo.okta.com/idp/myaccount/authenticators`, {
-            headers: {
-              'Authorization': `Bearer ${tokens.accessToken}`,
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          console.log('🔍 Fallback API response status:', fallbackResponse.status);
-          
-          if (fallbackResponse.ok) {
-            authenticators = await fallbackResponse.json();
-            console.log('🔍 Retrieved authenticators from fallback endpoint');
-          } else {
-            throw new Error(`Both endpoints failed: ${authResponse.status} and ${fallbackResponse.status}`);
-          }
+          const errorText = await authResponse.text();
+          console.log('🔍 API error response:', errorText);
+          throw new Error(`Authenticator API failed: ${authResponse.status} - ${errorText}`);
         }
         
         if (authenticators) {
           console.log('🔍 Processing authenticator data for Fastpass check...');
           
-          // Look for Okta Verify enrollment
-          const oktaVerifyEnrolled = authenticators.some((auth: any) => 
-            auth.name === 'Okta Verify' && 
-            auth.enrollments && 
-            auth.enrollments.length > 0
-          );
+          // Look for Okta Verify enrollment in the _embedded.enrollments
+          const oktaVerifyEnrolled = authenticators.some((auth: any) => {
+            const isOktaVerify = auth.key === 'okta_verify' || auth.name === 'Okta Verify';
+            const hasEnrollments = auth._embedded?.enrollments && auth._embedded.enrollments.length > 0;
+            console.log('🔍 Checking authenticator:', { name: auth.name, key: auth.key, hasEnrollments });
+            return isOktaVerify && hasEnrollments;
+          });
 
           // Get current user stats to check if this is first time verification
           const userStats = await gamificationService.getUserStats(user.oktaId);

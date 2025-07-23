@@ -85,6 +85,7 @@ export class OktaAuthService {
       'okta.enduser.read',
       'okta.governance.accessCertifications.manage',
       'okta.governance.accessCertifications.read',
+      'okta.myAccount.authenticators.read',
       'okta.myAccount.profile.manage',
       'okta.myAccount.profile.read',
       'okta.myAccount.sessions.manage',

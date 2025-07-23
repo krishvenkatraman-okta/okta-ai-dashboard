@@ -136,6 +136,8 @@ The application is architected for scalability and maintainability, with clear s
 - ✅ **CRITICAL OIDC Scope Updates**: Added `okta.authenticators.manage.self` and `okta.myAccount.authenticators.read` scopes to OIDC authentication for comprehensive authenticator management and read permissions
 - ✅ **Fixed API Integration**: Corrected Fastpass API calls to use official MyAccount API with proper `okta-version=1.0.0` header and `expand=enrollments` parameter
 - ✅ **Enhanced Enrollment Detection**: Updated logic to check `_embedded.enrollments` structure and `okta_verify` key as per official Okta documentation
+- ✅ **Personalized Welcome Messages**: Enhanced automatic login messages with personalized "Welcome [Name]! I see you're enrolled in Fastpass - You are secured" messaging
+- ✅ **Cool Security Messaging**: Implemented engaging welcome messages that acknowledge Fastpass enrollment with security-focused language and rewards display
 
 **Previous Session Focus (July 22, 2025 - Session 14):**
 - ✅ **MAJOR ARCHITECTURAL CHANGE**: Eliminated complex multi-OAuth system in favor of comprehensive OIDC scopes

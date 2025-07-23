@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { OktaAuthService } from "./services/okta-auth";
 import { McpServerService } from "./services/mcp-server";
 import { OktaApiService } from "./services/okta-api";
-import { persistentGamificationService as gamificationService } from "./services/persistent-gamification.js";
+import { gamificationService } from "./services/simple-gamification.js";
 import { insertChatMessageSchema } from "@shared/schema";
 import { z } from "zod";
 

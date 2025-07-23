@@ -1,6 +1,6 @@
 import type { User } from '@shared/schema';
 import { LocalOllamaService } from './local-ollama';
-import { persistentGamificationService as gamificationService } from './persistent-gamification.js';
+import { gamificationService } from './simple-gamification.js';
 
 interface OktaTokens {
   accessToken: string;

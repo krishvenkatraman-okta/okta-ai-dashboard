@@ -75,7 +75,7 @@ class PersistentGamificationService {
         lastFastpassCheck: null
       };
 
-      const result = await db.insert(userGamification).values(newStats).returning();
+      const result = await db.insert(userGamification).values([newStats]).returning();
       return result[0];
     } catch (error) {
       console.error('❌ Error getting/creating user stats:', error);

@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ExternalLink, Grid, Monitor, Trophy, MessageCircle } from "lucide-react";
 import AdminSessionHandler from "@/components/admin-session-handler";
 import { GamificationWidget } from '@/components/gamification-widget';
-import { GovernanceChat } from '@/components/governance-chat';
+import GovernanceChat from '@/components/governance-chat';
 
 interface User {
   id: number;
@@ -295,7 +295,13 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }) {
     }
   };
 
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<Array<{
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    data?: any;
+    timestamp?: Date;
+  }>>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [feedbackStatus, setFeedbackStatus] = useState<Record<string, string>>({});
@@ -313,10 +319,12 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }) {
         if (response.ok) {
           const data = await response.json();
           console.log('📨 Loaded existing messages:', data.messages.length);
+          console.log('📨 Messages content:', data.messages.map((m: any) => ({ id: m.id, role: m.role, contentPreview: m.content.substring(0, 50) + '...' })));
           
           if (data.messages && data.messages.length > 0) {
             // Load existing messages from database
             setMessages(data.messages);
+            console.log('✅ Chat messages loaded and set in state');
           } else {
             // No existing messages - show welcome message
             const welcomeMessage = {

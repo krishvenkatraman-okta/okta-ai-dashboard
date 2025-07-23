@@ -417,6 +417,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               badges: gamificationResult.badgesEarned
             });
             console.log('✅ Auto Fastpass message saved to database for user:', user.name);
+            console.log('💬 Fastpass message content:', {
+              message: autoMessage,
+              responsePreview: autoResponse.substring(0, 100) + '...'
+            });
           } else {
             // User doesn't have Okta Verify enrolled - encourage enrollment
             const autoMessage = `Welcome ${user.name}! Let's get you secured with Fastpass.`;

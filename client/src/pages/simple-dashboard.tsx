@@ -618,14 +618,19 @@ export default function SimpleDashboard() {
       
       const result = await response.json();
       
-      if (result.success) {
+      if (result.success && result.chatMessageSaved) {
         if (result.enrolled) {
-          alert(`Fastpass Status: Enrolled ✅\n\n${result.message}\n\nPoints: ${result.gamification?.points || 0}\nBadges: ${result.gamification?.badgesEarned?.join(', ') || 'None'}`);
+          // Show success message with rewards info
+          alert(`🎉 Fastpass Test Complete!\n\n✅ Status: Enrolled and Secured\n🎮 Points: +${result.gamification?.points || 0}\n🏆 Badges: ${result.gamification?.badgesEarned?.join(', ') || 'None'}\n\n💬 Check the AI Assistant tab for detailed results and rewards!`);
         } else {
-          alert(`Fastpass Status: Not Enrolled ❌\n\n${result.message}`);
+          alert(`🔒 Fastpass Test Complete\n\n❌ Status: Not Enrolled\n\n💬 Check the AI Assistant tab for enhancement steps and potential rewards!`);
         }
         
-        // Refresh the page to show updated points/badges
+        // Refresh the page to show updated points/badges and chat messages
+        window.location.reload();
+      } else if (result.success) {
+        // Fallback for older response format
+        alert(`Fastpass Status: ${result.enrolled ? 'Enrolled ✅' : 'Not Enrolled ❌'}\n\n${result.message}`);
         window.location.reload();
       } else {
         alert('Error checking Fastpass status: ' + (result.error || 'Unknown error'));

@@ -78,6 +78,7 @@ export class OktaAuthService {
       'okta.accessRequests.catalog.read',
       'okta.accessRequests.request.manage',
       'okta.accessRequests.request.read',
+      'okta.authenticators.manage.self',
       'okta.enduser.dashboard.manage',
       'okta.enduser.dashboard.read', 
       'okta.enduser.manage',

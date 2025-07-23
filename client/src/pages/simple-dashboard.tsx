@@ -236,7 +236,7 @@ function OktaApplicationTile({ app }: { app: OktaApp }) {
   );
 }
 
-function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }) {
+function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }): JSX.Element {
   // Helper function to determine custom role display
   const getRoleDisplayName = (user: any) => {
     if (user.allRoles && user.allRoles.length > 0) {
@@ -325,6 +325,19 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }) {
             // Load existing messages from database
             setMessages(data.messages);
             console.log('✅ Chat messages loaded and set in state');
+            
+            // Check if we need to add quick action prompts after Fastpass messages
+            const lastMessage = data.messages[data.messages.length - 1];
+            if (lastMessage && lastMessage.content && lastMessage.content.includes('Fastpass')) {
+              // Add quick actions prompt after Fastpass message
+              const quickActionsMessage = {
+                id: 'quick-actions-' + Date.now(),
+                role: 'assistant' as const,
+                content: `**Quick Actions Available:**\n• "Show me apps I accessed in the last 30 days"\n• "List available applications to request"\n• "Show my groups"\n• "What can I do with my current access level?"\n\nWhat can I help you with today?`,
+                data: undefined
+              };
+              setMessages(prev => [...prev, quickActionsMessage]);
+            }
           } else {
             // No existing messages - show welcome message
             const welcomeMessage = {
@@ -365,9 +378,11 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }) {
   useEffect(() => {
     if (messages.length === 0) return; // Don't run until messages are loaded
     
-    const autoLoad30DayReview = async () => {
-      console.log('Auto-loading 30-day access review...');
-      setLoading(true);
+    // Add a small delay to allow Fastpass messages to render first
+    const timer = setTimeout(() => {
+      const autoLoad30DayReview = async () => {
+        console.log('Auto-loading 30-day access review...');
+        setLoading(true);
       
       try {
         // Try the dedicated governance endpoint first
@@ -433,10 +448,13 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }) {
       }
     };
 
-    // Delay to let the component mount completely
-    const timer = setTimeout(autoLoad30DayReview, 2000);
+    // Add a delay to allow Fastpass messages to display first
+    const timer = setTimeout(() => {
+      autoLoad30DayReview();
+    }, 2000);
+
     return () => clearTimeout(timer);
-  }, []);
+  }, [messages]);
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
@@ -894,3 +912,5 @@ export default function SimpleDashboard() {
     </div>
   );
 }
+
+export default SimpleDashboard;

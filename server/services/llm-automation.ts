@@ -95,6 +95,23 @@ export class LLMAutomationService {
       
       console.log('🔍 No group management pattern found, continuing to other checks...');
       
+      // Fastpass verification patterns (high priority for security)
+      const fastpassPatterns = [
+        /fastpass/i,
+        /authenticator/i,
+        /okta verify/i,
+        /security check/i,
+        /device security/i,
+        /check.*security/i
+      ];
+
+      for (const pattern of fastpassPatterns) {
+        if (pattern.test(lowerMessage)) {
+          console.log('🔒 Fastpass verification request detected');
+          return await this.handleFastpassVerification(user, tokens);
+        }
+      }
+      
       // Entitlement request patterns - check for "request [specific entitlement]" format
       if (lowerMessage.startsWith('request ') && !lowerMessage.includes('request access to ')) {
         const entitlementMatch = message.match(/^request\s+(.+)$/i);
@@ -1956,6 +1973,97 @@ export class LLMAutomationService {
         success: false,
         data: {
           response: `**❌ Submission Error**\n\nUnable to submit request:\n\`${error}\`\n\nPlease try again or contact your administrator.`
+        }
+      };
+    }
+  }
+
+  private async handleFastpassVerification(user: User, tokens: OktaTokens): Promise<any> {
+    try {
+      console.log('🔒 Processing Fastpass verification for user:', user.oktaId);
+      
+      // Check user's authenticators using their access token
+      const authHeader = `Bearer ${tokens.accessToken}`;
+      const response = await fetch(`https://${this.oktaDomain}/idp/myaccount/authenticators?expand=enrollments`, {
+        headers: {
+          'Authorization': authHeader,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        console.error('❌ Failed to fetch authenticators:', response.status);
+        return {
+          success: true,
+          data: {
+            response: `**🔒 Security Check**\n\nI encountered an issue checking your authenticators.\n\n**Error:** ${response.status} ${response.statusText}\n\nPlease try again or contact your administrator.`
+          }
+        };
+      }
+
+      const authenticators = await response.json();
+      console.log('🔍 Retrieved authenticators data');
+      
+      // Look for Okta Verify enrollment
+      const oktaVerifyEnrolled = authenticators.some((auth: any) => 
+        auth.name === 'Okta Verify' && 
+        auth.enrollments && 
+        auth.enrollments.length > 0
+      );
+
+      // Get current user stats to check if this is first time verification
+      const userStats = await gamificationService.getUserStats(user.oktaId);
+      const isFirstTimeVerification = !userStats.fastpassVerified;
+
+      if (oktaVerifyEnrolled) {
+        // Record gamification based on whether this is first time
+        const gamificationResult = await gamificationService.recordFastpassVerification(
+          user.oktaId, 
+          isFirstTimeVerification
+        );
+
+        if (isFirstTimeVerification) {
+          let successMessage = `**🔒 Fastpass Security Check - PASSED! ✅**\n\nYour organization has enabled Fastpass and you have enrolled in it. Your device is secure!`;
+
+          // Add gamification rewards for first time verification
+          if (gamificationResult.points > 0) {
+            successMessage += `\n\n🎮 **Security Reward!** You earned **${gamificationResult.points} points** for driving security in our organization!`;
+            
+            if (gamificationResult.badgesEarned.length > 0) {
+              successMessage += `\n🏆 **New Badge${gamificationResult.badgesEarned.length > 1 ? 's' : ''}:** ${gamificationResult.badgesEarned.join(', ')}`;
+            }
+          }
+
+          successMessage += `\n\n**Security Status:** ✅ Fastpass Enabled & Enrolled\n**Device Security:** ✅ Verified\n**Points Status:** First-time security verification complete!`;
+
+          return {
+            success: true,
+            data: { response: successMessage }
+          };
+        } else {
+          // Subsequent checks - no points awarded
+          return {
+            success: true,
+            data: {
+              response: `**🔒 Fastpass Security Check - PASSED! ✅**\n\nFastpass enabled and secured, Great job!\n\n**Security Status:** ✅ Fastpass Enabled & Enrolled\n**Device Security:** ✅ Verified\n**Points Status:** Points earned already (previous verification)`
+            }
+          };
+        }
+      } else {
+        // User doesn't have Okta Verify enrolled
+        return {
+          success: true,
+          data: {
+            response: `**🔒 Fastpass Security Check - ACTION NEEDED ⚠️**\n\nYour organization has enabled Fastpass, but you haven't enrolled in Okta Verify yet.\n\n**Next Steps:**\n• Download Okta Verify from your app store\n• Complete the enrollment process\n• Return here for your security verification points\n\n**Potential Reward:** 🎯 50 points + Security Champion badge awaiting your enrollment!`
+          }
+        };
+      }
+    } catch (error) {
+      console.error('❌ Fastpass verification error:', error);
+      return {
+        success: true,
+        data: {
+          response: `**🔒 Security Check Error**\n\nI encountered an issue checking your Fastpass status.\n\n**Error:** ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again or contact your administrator for assistance.`
         }
       };
     }

@@ -12,6 +12,8 @@ interface UserStats {
   recentActivities: ActivityLog[];
   nextLevelProgress: number;
   lastVisit?: Date;
+  fastpassVerified: boolean;
+  lastFastpassCheck: Date | null;
 }
 
 interface ActivityLog {
@@ -46,7 +48,8 @@ class SimpleGamificationService {
     'License Liberator',
     'Governance Guardian',
     'Super Saver',
-    'Dedicated User'
+    'Dedicated User',
+    'Security Champion'
   ]);
 
   private getOrCreateUserStats(oktaId: string): UserStats {
@@ -62,7 +65,9 @@ class SimpleGamificationService {
         level: 1,
         experiencePoints: 0,
         recentActivities: [],
-        nextLevelProgress: 0
+        nextLevelProgress: 0,
+        fastpassVerified: false,
+        lastFastpassCheck: null
       });
     }
     return this.userStats.get(oktaId)!;
@@ -127,6 +132,11 @@ class SimpleGamificationService {
     // Dedicated user badge
     if (!stats.badgesEarned.includes('Dedicated User') && stats.totalPoints >= 500) {
       newBadges.push('Dedicated User');
+    }
+    
+    // Security Champion badge (for Fastpass verification)
+    if (!stats.badgesEarned.includes('Security Champion') && stats.fastpassVerified) {
+      newBadges.push('Security Champion');
     }
     
     stats.badgesEarned.push(...newBadges);
@@ -257,6 +267,44 @@ class SimpleGamificationService {
       licenseSeatsSaved: 0,
       badgesEarned: newBadges
     };
+  }
+
+  async recordFastpassVerification(oktaId: string, isFirstTime: boolean): Promise<GamificationResult> {
+    const stats = this.getOrCreateUserStats(oktaId);
+    
+    if (isFirstTime && !stats.fastpassVerified) {
+      const pointsEarned = 50; // Higher points for security compliance
+      
+      stats.totalPoints += pointsEarned;
+      stats.experiencePoints += pointsEarned;
+      stats.fastpassVerified = true;
+      
+      // Update level
+      const { level, progress } = this.calculateLevel(stats.experiencePoints);
+      stats.level = level;
+      stats.nextLevelProgress = progress;
+      
+      this.addActivity(oktaId, 'fastpass_verification', pointsEarned, 0, 'Verified Fastpass authenticator enrollment');
+      
+      stats.lastFastpassCheck = new Date();
+      
+      const newBadges = this.checkForNewBadges(oktaId, stats);
+      
+      return {
+        points: pointsEarned,
+        licenseSeatsSaved: 0,
+        badgesEarned: newBadges
+      };
+    } else {
+      // Just update the check timestamp for subsequent checks
+      stats.lastFastpassCheck = new Date();
+      
+      return {
+        points: 0,
+        licenseSeatsSaved: 0,
+        badgesEarned: []
+      };
+    }
   }
 
   async getUserStats(oktaId: string): Promise<UserStats> {

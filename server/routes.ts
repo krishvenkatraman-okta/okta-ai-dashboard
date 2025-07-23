@@ -24,6 +24,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true });
   });
 
+  // Debug endpoint to check recent auth activity
+  app.get('/api/debug/auth-logs', (req, res) => {
+    // Simple debug info about recent auth activity
+    res.json({
+      message: 'To test Fastpass, please ensure you are logged in first',
+      instructions: [
+        '1. Click "Sign Out" if you see it in the dashboard',
+        '2. Go to home page and click "Login with Okta"', 
+        '3. Complete authentication',
+        '4. Check for automatic Fastpass message in AI Assistant',
+        '5. Or use the "Test Fastpass" button in dashboard header'
+      ],
+      currentStatus: 'Not authenticated - please log in to test Fastpass'
+    });
+  });
+
   // Manual Fastpass test endpoint for debugging
   app.post('/api/fastpass/test', async (req, res) => {
     try {
@@ -263,6 +279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Perform automatic Fastpass enrollment check on login
       try {
         console.log('🔒 Performing automatic Fastpass enrollment check for user:', user.oktaId);
+        console.log('🔒 User details for Fastpass check:', { userId: user.id, oktaId: user.oktaId, name: user.name });
         
         // Check user's authenticators using their access token
         const authResponse = await fetch(`https://fcxdemo.okta.com/idp/myaccount/authenticators?expand=enrollments`, {
@@ -328,6 +345,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               points: gamificationResult.points,
               badges: gamificationResult.badgesEarned
             });
+            console.log('✅ Auto Fastpass message saved to database for user:', user.name);
           } else {
             // User doesn't have Okta Verify enrolled - encourage enrollment
             const autoMessage = 'Fastpass enrollment check - Action needed for security';

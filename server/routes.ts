@@ -1050,6 +1050,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Chat routes
+  // Get chat messages endpoint
+  app.get('/api/chat/messages', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      console.log('📨 Fetching chat messages for user:', user.name);
+      const messages = await storage.getChatMessages(user.id, 50);
+      
+      console.log('📨 Retrieved chat messages:', {
+        count: messages.length,
+        messageTypes: messages.map(m => ({ id: m.id, messageType: m.messageType, command: m.command }))
+      });
+
+      // Transform messages for frontend consumption
+      const transformedMessages = messages.map(msg => ({
+        id: msg.id.toString(),
+        role: msg.messageType === 'user' ? 'user' : 'assistant',
+        content: msg.messageType === 'user' ? msg.message : (() => {
+          try {
+            const responseObj = JSON.parse(msg.response || '{}');
+            return responseObj.response || msg.message;
+          } catch {
+            return msg.message;
+          }
+        })(),
+        timestamp: msg.createdAt,
+        data: (() => {
+          try {
+            return JSON.parse(msg.response || '{}');
+          } catch {
+            return {};
+          }
+        })()
+      }));
+
+      res.json({ messages: transformedMessages });
+    } catch (error) {
+      console.error('❌ Error fetching chat messages:', error);
+      res.status(500).json({ error: 'Failed to fetch chat messages' });
+    }
+  });
+
   app.post('/api/chat/message', async (req, res) => {
     try {
       console.log('💬 Chat request received');

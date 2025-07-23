@@ -295,20 +295,68 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }) {
     }
   };
 
-  const [messages, setMessages] = useState([
-    {
-      id: 'welcome',
-      role: 'assistant' as const,
-      content: `Hello ${user.name.split(' ')[0]}! I'm your AI-powered Okta Assistant with continuous learning.\n\n${getAccessLevelMessage(user)}\n\n**Quick Actions:**\n• "Show me apps I accessed in the last 30 days"\n• "List available applications to request"\n• "Show my groups"\n• "What can I do with my current access level?"\n\nWhat can I help you with today?`,
-      data: undefined
-    }
-  ]);
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [feedbackStatus, setFeedbackStatus] = useState<Record<string, string>>({});
 
-  // Auto-load 30-day review on component mount
+  // Load existing chat messages on component mount
   useEffect(() => {
+    const loadChatMessages = async () => {
+      try {
+        console.log('🔄 Loading existing chat messages...');
+        const response = await fetch('/api/chat/messages', {
+          method: 'GET',
+          credentials: 'include'
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('📨 Loaded existing messages:', data.messages.length);
+          
+          if (data.messages && data.messages.length > 0) {
+            // Load existing messages from database
+            setMessages(data.messages);
+          } else {
+            // No existing messages - show welcome message
+            const welcomeMessage = {
+              id: 'welcome',
+              role: 'assistant' as const,
+              content: `Hello ${user.name.split(' ')[0]}! I'm your AI-powered Okta Assistant with continuous learning.\n\n${getAccessLevelMessage(user)}\n\n**Quick Actions:**\n• "Show me apps I accessed in the last 30 days"\n• "List available applications to request"\n• "Show my groups"\n• "What can I do with my current access level?"\n\nWhat can I help you with today?`,
+              data: undefined
+            };
+            setMessages([welcomeMessage]);
+          }
+        } else {
+          console.error('❌ Failed to load chat messages:', response.status);
+          // Show welcome message as fallback
+          setMessages([{
+            id: 'welcome',
+            role: 'assistant' as const,
+            content: `Hello ${user.name.split(' ')[0]}! I'm your AI-powered Okta Assistant with continuous learning.\n\n${getAccessLevelMessage(user)}\n\n**Quick Actions:**\n• "Show me apps I accessed in the last 30 days"\n• "List available applications to request"\n• "Show my groups"\n• "What can I do with my current access level?"\n\nWhat can I help you with today?`,
+            data: undefined
+          }]);
+        }
+      } catch (error) {
+        console.error('❌ Error loading chat messages:', error);
+        // Show welcome message as fallback
+        setMessages([{
+          id: 'welcome',
+          role: 'assistant' as const,
+          content: `Hello ${user.name.split(' ')[0]}! I'm your AI-powered Okta Assistant with continuous learning.\n\n${getAccessLevelMessage(user)}\n\n**Quick Actions:**\n• "Show me apps I accessed in the last 30 days"\n• "List available applications to request"\n• "Show my groups"\n• "What can I do with my current access level?"\n\nWhat can I help you with today?`,
+          data: undefined
+        }]);
+      }
+    };
+
+    // Load messages first
+    loadChatMessages();
+  }, [user]);
+
+  // Auto-load 30-day review after messages are loaded
+  useEffect(() => {
+    if (messages.length === 0) return; // Don't run until messages are loaded
+    
     const autoLoad30DayReview = async () => {
       console.log('Auto-loading 30-day access review...');
       setLoading(true);

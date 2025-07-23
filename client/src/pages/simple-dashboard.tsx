@@ -607,6 +607,35 @@ export default function SimpleDashboard() {
     initializeUserAndGovernance();
   }, []);
 
+  const handleFastpassTest = async () => {
+    try {
+      const response = await fetch('/api/fastpass/test', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        if (result.enrolled) {
+          alert(`Fastpass Status: Enrolled ✅\n\n${result.message}\n\nPoints: ${result.gamification?.points || 0}\nBadges: ${result.gamification?.badgesEarned?.join(', ') || 'None'}`);
+        } else {
+          alert(`Fastpass Status: Not Enrolled ❌\n\n${result.message}`);
+        }
+        
+        // Refresh the page to show updated points/badges
+        window.location.reload();
+      } else {
+        alert('Error checking Fastpass status: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Fastpass test error:', error);
+      alert('Failed to check Fastpass status. Please try again.');
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await fetch('/api/auth/logout', {
@@ -730,6 +759,9 @@ export default function SimpleDashboard() {
               </div>
               <Button onClick={refreshRole} variant="outline" size="sm" className="mr-2">
                 Refresh Role
+              </Button>
+              <Button onClick={handleFastpassTest} variant="outline" size="sm" className="mr-2">
+                🔒 Test Fastpass
               </Button>
               <Button onClick={handleSignOut} variant="outline" size="sm">
                 Sign Out

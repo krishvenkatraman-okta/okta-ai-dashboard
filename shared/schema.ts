@@ -49,6 +49,36 @@ export const pamSessions = pgTable("pam_sessions", {
   endTime: timestamp("end_time"),
 });
 
+export const userGamification = pgTable("user_gamification", {
+  id: serial("id").primaryKey(),
+  oktaId: text("okta_id").notNull().unique(),
+  totalPoints: integer("total_points").default(0).notNull(),
+  dailyStreak: integer("daily_streak").default(0).notNull(),
+  totalLicenseSeatsSaved: integer("total_license_seats_saved").default(0).notNull(),
+  accessRequestsSubmitted: integer("access_requests_submitted").default(0).notNull(),
+  accessRevocations: integer("access_revocations").default(0).notNull(),
+  governanceReviewsCompleted: integer("governance_reviews_completed").default(0).notNull(),
+  badgesEarned: jsonb("badges_earned").$type<string[]>().default([]),
+  level: integer("level").default(1).notNull(),
+  experiencePoints: integer("experience_points").default(0).notNull(),
+  nextLevelProgress: integer("next_level_progress").default(0).notNull(),
+  lastVisit: timestamp("last_visit"),
+  fastpassVerified: boolean("fastpass_verified").default(false).notNull(),
+  lastFastpassCheck: timestamp("last_fastpass_check"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const activityLogs = pgTable("activity_logs", {
+  id: serial("id").primaryKey(),
+  oktaId: text("okta_id").notNull(),
+  activityType: text("activity_type").notNull(),
+  pointsEarned: integer("points_earned").default(0).notNull(),
+  licenseSeatsSaved: integer("license_seats_saved").default(0).notNull(),
+  description: text("description").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -69,10 +99,25 @@ export const insertPamSessionSchema = createInsertSchema(pamSessions).omit({
   startTime: true,
 });
 
+export const insertUserGamificationSchema = createInsertSchema(userGamification).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Session = typeof sessions.$inferSelect;
 export type InsertSession = z.infer<typeof insertSessionSchema>;
+export type UserGamification = typeof userGamification.$inferSelect;
+export type InsertUserGamification = z.infer<typeof insertUserGamificationSchema>;
+export type ActivityLog = typeof activityLogs.$inferSelect;
+export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type PamSession = typeof pamSessions.$inferSelect;

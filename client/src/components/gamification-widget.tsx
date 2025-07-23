@@ -42,7 +42,8 @@ const BADGE_ICONS: Record<string, string> = {
   'License Liberator': '🚫',
   'Governance Guardian': '🛡️',
   'Super Saver': '🏆',
-  'Dedicated User': '⭐'
+  'Dedicated User': '⭐',
+  'Security Champion': '🔒'
 };
 
 const BADGE_RARITIES: Record<string, { color: string, label: string }> = {

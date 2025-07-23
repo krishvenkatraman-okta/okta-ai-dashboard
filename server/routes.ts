@@ -19,6 +19,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.redirect(authUrl);
   });
 
+  app.post('/api/auth/logout', (req, res) => {
+    res.clearCookie('session_id');
+    res.json({ success: true });
+  });
+
+  // Manual Fastpass test endpoint for debugging
+  app.post('/api/fastpass/test', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      console.log('🔒 Manual Fastpass test triggered for user:', user.oktaId);
+      
+      // Check user's authenticators using their access token
+      const authResponse = await fetch(`https://fcxdemo.okta.com/idp/myaccount/authenticators?expand=enrollments`, {
+        headers: {
+          'Authorization': `Bearer ${session.oktaTokens.accessToken}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (authResponse.ok) {
+        const authenticators = await authResponse.json();
+        console.log('🔍 Retrieved authenticators for manual test:', authenticators);
+        
+        // Look for Okta Verify enrollment
+        const oktaVerifyEnrolled = authenticators.some((auth: any) => 
+          auth.name === 'Okta Verify' && 
+          auth.enrollments && 
+          auth.enrollments.length > 0
+        );
+
+        const userStats = await gamificationService.getUserStats(user.oktaId);
+        const isFirstTimeVerification = !userStats.fastpassVerified;
+
+        if (oktaVerifyEnrolled) {
+          const gamificationResult = await gamificationService.recordFastpassVerification(
+            user.oktaId, 
+            isFirstTimeVerification
+          );
+
+          res.json({
+            success: true,
+            enrolled: true,
+            isFirstTime: isFirstTimeVerification,
+            gamification: gamificationResult,
+            message: isFirstTimeVerification ? 'Great job on fastpass enrollment! Points and badge earned.' : 'You are secured with Fastpass enrollment.'
+          });
+        } else {
+          res.json({
+            success: true,
+            enrolled: false,
+            message: 'Fastpass (Okta Verify) not enrolled. Please enroll to enhance security and earn rewards!'
+          });
+        }
+      } else {
+        console.log('⚠️ Failed to check authenticators:', authResponse.status);
+        res.status(400).json({ error: 'Failed to check Fastpass enrollment' });
+      }
+    } catch (error) {
+      console.error('❌ Manual Fastpass test error:', error);
+      res.status(500).json({ error: 'Fastpass test failed' });
+    }
+  });
+
   // Admin session route - simple redirect to admin dashboard
   app.post('/api/auth/admin-login', (req, res) => {
     const sessionId = req.cookies.session_id;

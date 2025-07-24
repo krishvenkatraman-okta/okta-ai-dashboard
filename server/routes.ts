@@ -1266,6 +1266,35 @@ You can also refresh the page and try again.`;
     }
   });
 
+  // Clear chat history endpoint
+  app.post('/api/chat/clear', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ error: 'Session expired' });
+      }
+
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      // Clear chat messages for this user
+      await storage.clearChatMessages(user.id);
+      
+      console.log('🧹 Chat cleared for user:', user.name);
+      res.json({ success: true, message: 'Chat history cleared' });
+    } catch (error) {
+      console.error('❌ Error clearing chat:', error);
+      res.status(500).json({ error: 'Failed to clear chat history' });
+    }
+  });
+
   // Okta API routes
   app.get('/api/okta/user-apps', async (req, res) => {
     try {

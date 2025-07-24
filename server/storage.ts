@@ -16,6 +16,7 @@ export interface IStorage {
   // Chat Messages
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
   getChatMessages(userId: number, limit?: number): Promise<ChatMessage[]>;
+  clearChatMessages(userId: number): Promise<void>;
 
   // PAM Sessions
   createPamSession(session: InsertPamSession): Promise<PamSession>;
@@ -123,6 +124,15 @@ export class MemStorage implements IStorage {
       .sort((a, b) => (a.createdAt?.getTime() || 0) - (b.createdAt?.getTime() || 0))
       .slice(-limit);
     return messages;
+  }
+
+  async clearChatMessages(userId: number): Promise<void> {
+    // Remove all chat messages for this user
+    for (const [id, message] of this.chatMessages.entries()) {
+      if (message.userId === userId) {
+        this.chatMessages.delete(id);
+      }
+    }
   }
 
   async createPamSession(insertPamSession: InsertPamSession): Promise<PamSession> {

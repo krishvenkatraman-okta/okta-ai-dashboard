@@ -327,9 +327,27 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }): 
             setMessages(data.messages);
             console.log('✅ Chat messages loaded and set in state');
             
-            // Check if we need to add quick action prompts after Fastpass messages
+            // Check if auto-review already exists in loaded messages
+            const hasAutoReview = data.messages.some((msg: any) => 
+              msg.content.includes('30-Day Access Review') || 
+              msg.id?.includes('review') || 
+              msg.id?.includes('auto-review')
+            );
+            
+            if (hasAutoReview) {
+              console.log('🔍 Auto-review already exists in loaded messages, skipping auto-load');
+              setAutoReviewLoaded(true);
+            }
+            
+            // Check if quick actions already exist in loaded messages
+            const hasQuickActions = data.messages.some((msg: any) => 
+              msg.content.includes('Quick Actions Available') || 
+              msg.id?.includes('quick-actions')
+            );
+            
+            // Only add quick actions if they don't already exist and last message contains Fastpass
             const lastMessage = data.messages[data.messages.length - 1];
-            if (lastMessage && lastMessage.content && lastMessage.content.includes('Fastpass')) {
+            if (!hasQuickActions && lastMessage && lastMessage.content && lastMessage.content.includes('Fastpass')) {
               // Add quick actions prompt after Fastpass message
               const quickActionsMessage = {
                 id: 'quick-actions-' + Date.now(),
@@ -518,6 +536,30 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }): 
     }
   };
 
+  const clearChat = async () => {
+    try {
+      const response = await fetch('/api/chat/clear', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        setMessages([]);
+        setAutoReviewLoaded(false);
+        // Show a simple welcome message
+        const welcomeMessage = {
+          id: 'welcome-' + Date.now(),
+          role: 'assistant' as const,
+          content: `Hello ${user.name.split(' ')[0]}! Chat cleared. How can I help you?`,
+          data: undefined
+        };
+        setMessages([welcomeMessage]);
+      }
+    } catch (error) {
+      console.error('Failed to clear chat:', error);
+    }
+  };
+
   const handleFeedback = async (messageId: string, feedback: 'positive' | 'negative') => {
     try {
       const interactionId = document.cookie
@@ -639,14 +681,24 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }): 
             rows={2}
             disabled={loading}
           />
-          <Button 
-            onClick={sendMessage} 
-            disabled={!input.trim() || loading}
-            size="sm"
-            className="self-end"
-          >
-            Send
-          </Button>
+          <div className="flex flex-col space-y-1 self-end">
+            <Button 
+              onClick={clearChat}
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              title="Clear chat history"
+            >
+              Clear
+            </Button>
+            <Button 
+              onClick={sendMessage} 
+              disabled={!input.trim() || loading}
+              size="sm"
+            >
+              Send
+            </Button>
+          </div>
         </div>
       </div>
     </>

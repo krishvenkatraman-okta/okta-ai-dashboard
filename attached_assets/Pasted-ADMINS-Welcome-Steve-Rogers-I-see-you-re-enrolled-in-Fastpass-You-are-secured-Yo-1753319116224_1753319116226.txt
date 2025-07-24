@@ -1,0 +1,120 @@
+ADMINS
+**🎉 Welcome Steve Rogers!**
+
+I see you're enrolled in Fastpass - **You are secured!** 🔒
+
+Your security-first approach is impressive and I've just awarded you with some well-deserved recognition:
+
+🎮 **Security Champion Rewards:**
+• **50 points** for maintaining security excellence
+• **Welcome Aboard, Security Champion badge** earned!
+
+**Your Security Profile:**
+✅ Fastpass (Okta Verify) - Enrolled & Active  
+✅ Device Authentication - Verified  
+✅ Security Compliance - Outstanding  
+
+You're not just protecting yourself - you're helping secure our entire organization. That's leadership!
+Helpful?
+👍
+👎
+**Quick Actions Available:**
+• "Show me apps I accessed in the last 30 days"
+• "List available applications to request"
+• "Show my groups"
+• "What can I do with my current access level?"
+
+What can I help you with today?
+Helpful?
+👍
+👎
+**📊 30-Day Access Review**
+
+Found 4 applications to review:
+
+1. **AWS Account Federation**
+   Last accessed: Never accessed
+   Days since access: 365
+
+2. **Workday**
+   Last accessed: Never accessed
+   Days since access: 365
+
+3. **Okta Privileged Access**
+   Last accessed: Never accessed
+   Days since access: 365
+
+4. **ServiceNow UD**
+   Last accessed: Never accessed
+   Days since access: 365
+
+
+**Recommendations:**
+• Consider revoking access to applications not used in 30+ days
+• Review applications with "Never accessed" status
+• Verify access to critical applications is appropriate
+
+*Say "revoke access to [app name]" to remove unused access*
+Helpful?
+👍
+👎
+**📊 30-Day Access Review**
+
+Found 4 applications to review:
+
+1. **AWS Account Federation**
+   Last accessed: Never accessed
+   Days since access: 365
+
+2. **Workday**
+   Last accessed: Never accessed
+   Days since access: 365
+
+3. **Okta Privileged Access**
+   Last accessed: Never accessed
+   Days since access: 365
+
+4. **ServiceNow UD**
+   Last accessed: Never accessed
+   Days since access: 365
+
+
+**Recommendations:**
+• Consider revoking access to applications not used in 30+ days
+• Review applications with "Never accessed" status
+• Verify access to critical applications is appropriate
+
+*Say "revoke access to [app name]" to remove unused access*
+Helpful?
+👍
+👎
+**📊 30-Day Access Review**
+
+Found 4 applications to review:
+
+1. **AWS Account Federation**
+   Last accessed: Never accessed
+   Days since access: 365
+
+2. **Workday**
+   Last accessed: Never accessed
+   Days since access: 365
+
+3. **Okta Privileged Access**
+   Last accessed: Never accessed
+   Days since access: 365
+
+4. **ServiceNow UD**
+   Last accessed: Never accessed
+   Days since access: 365
+
+
+**Recommendations:**
+• Consider revoking access to applications not used in 30+ days
+• Review applications with "Never accessed" status
+• Verify access to critical applications is appropriate
+
+*Say "revoke access to [app name]" to remove unused access*
+Helpful?
+👍
+👎

@@ -305,6 +305,7 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }): 
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [feedbackStatus, setFeedbackStatus] = useState<Record<string, string>>({});
+  const [autoReviewLoaded, setAutoReviewLoaded] = useState(false);
 
   // Load existing chat messages on component mount
   useEffect(() => {
@@ -374,9 +375,21 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }): 
     loadChatMessages();
   }, [user]);
 
-  // Auto-load 30-day review after messages are loaded
+  // Auto-load 30-day review after messages are loaded (only once)
   useEffect(() => {
-    if (messages.length === 0) return;
+    if (messages.length === 0 || autoReviewLoaded) return;
+    
+    // Check if there's already a 30-day review message
+    const hasReviewMessage = messages.some(msg => 
+      msg.content.includes('30-Day Access Review') || 
+      msg.id?.includes('review') || 
+      msg.id?.includes('auto-review')
+    );
+    
+    if (hasReviewMessage) {
+      setAutoReviewLoaded(true);
+      return;
+    }
     
     const autoLoad30DayReview = async () => {
       console.log('Auto-loading 30-day access review...');
@@ -417,6 +430,7 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }): 
           setMessages(prev => [...prev, 
             { id: `auto-review-${Date.now()}`, role: 'assistant', content: reviewContent }
           ]);
+          setAutoReviewLoaded(true);
         } else {
           console.error('30-day review API failed:', response.status);
           // Fallback to chat endpoint
@@ -432,6 +446,7 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }): 
             setMessages(prev => [...prev, 
               { id: `fallback-review-${Date.now()}`, role: 'assistant', content: fallbackData.response }
             ]);
+            setAutoReviewLoaded(true);
           }
         }
       } catch (error) {
@@ -441,6 +456,7 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }): 
           role: 'assistant', 
           content: '**📊 30-Day Access Review**\n\n❌ Unable to load review data at this time.\n\nThis could be due to:\n• API rate limits\n• Temporary connectivity issues\n• Authentication token refresh needed\n\n*Try asking "30-day review" manually or refresh the page.*'
         }]);
+        setAutoReviewLoaded(true);
       } finally {
         setLoading(false);
       }
@@ -452,7 +468,7 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }): 
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [messages]);
+  }, [messages, autoReviewLoaded]);
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;

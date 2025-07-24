@@ -56,7 +56,7 @@ export class MemStorage implements IStorage {
     const user: User = {
       ...insertUser,
       id,
-      groups: Array.isArray(insertUser.groups) ? insertUser.groups : insertUser.groups ? [insertUser.groups as any].flat() : null,
+      groups: insertUser.groups || null,
       allRoles: insertUser.allRoles || [], // Support multiple roles for display
       createdAt: new Date(),
       lastLogin: new Date()
@@ -128,11 +128,13 @@ export class MemStorage implements IStorage {
 
   async clearChatMessages(userId: number): Promise<void> {
     // Remove all chat messages for this user
-    for (const [id, message] of this.chatMessages.entries()) {
+    const keysToDelete: number[] = [];
+    this.chatMessages.forEach((message, id) => {
       if (message.userId === userId) {
-        this.chatMessages.delete(id);
+        keysToDelete.push(id);
       }
-    }
+    });
+    keysToDelete.forEach(id => this.chatMessages.delete(id));
   }
 
   async createPamSession(insertPamSession: InsertPamSession): Promise<PamSession> {

@@ -7,6 +7,7 @@ import { OktaApiService } from "./services/okta-api";
 import { gamificationService } from "./services/simple-gamification.js";
 import { insertChatMessageSchema } from "@shared/schema";
 import { z } from "zod";
+import OktaOrgBrandingService from "./services/OktaOrgBrandingService.js";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const oktaAuth = new OktaAuthService();
@@ -1292,6 +1293,51 @@ You can also refresh the page and try again.`;
     } catch (error) {
       console.error('❌ Error clearing chat:', error);
       res.status(500).json({ error: 'Failed to clear chat history' });
+    }
+  });
+
+  // Get organization branding (custom logo, styles, theme)
+  app.get('/api/org-branding', async (req, res) => {
+    try {
+      const sessionId = req.cookies.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session) {
+        return res.status(401).json({ error: 'Invalid session' });
+      }
+
+      console.log('🎨 Fetching org branding for domain:', process.env.OKTA_DOMAIN);
+      
+      const brandingService = new OktaOrgBrandingService(
+        process.env.OKTA_DOMAIN, 
+        session.accessToken
+      );
+      
+      const orgBranding = await brandingService.getOrgBranding();
+      
+      if (!orgBranding) {
+        // Return fallback branding
+        return res.json({
+          orgLogo: null,
+          orgName: 'Okta',
+          customStyles: [],
+          colors: { primary: '#1e3a8a' },
+          fallback: true
+        });
+      }
+
+      res.json(orgBranding);
+    } catch (error) {
+      console.error('❌ Error fetching org branding:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch org branding',
+        fallback: true,
+        orgLogo: null,
+        orgName: 'Okta'
+      });
     }
   });
 

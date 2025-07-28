@@ -882,6 +882,113 @@ export default function SimpleDashboard() {
 
       {/* Main Content - Okta Style Layout */}
       <div className="flex flex-1">
+        {/* Left Sidebar Navigation - Okta Style */}
+        <div className="w-56 bg-gray-900 text-white flex flex-col">
+          {/* Okta Logo */}
+          <div className="p-4 border-b border-gray-800">
+            <div className="flex items-center space-x-2">
+              <div className="w-6 h-6 bg-white rounded flex items-center justify-center">
+                <span className="text-gray-900 font-bold text-sm">okta</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Navigation Items */}
+          <nav className="flex-1 py-4">
+            <div className="px-3 space-y-1">
+              {/* My Apps - Active */}
+              <div className="flex items-center px-3 py-2 text-sm font-medium bg-gray-800 rounded-md">
+                <svg className="mr-3 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                </svg>
+                My Apps
+              </div>
+              
+              {/* Recently Used */}
+              <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white rounded-md cursor-pointer">
+                <svg className="mr-3 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
+                </svg>
+                Recently Used
+              </div>
+              
+              {/* Office */}
+              <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white rounded-md cursor-pointer">
+                <svg className="mr-3 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0v12h8V4H6z" clipRule="evenodd"/>
+                </svg>
+                Office
+              </div>
+              
+              {/* Personal */}
+              <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white rounded-md cursor-pointer">
+                <svg className="mr-3 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"/>
+                </svg>
+                Personal
+              </div>
+              
+              {/* Superuser (if admin) */}
+              {(user.role === 'super_admin' || user.allRoles?.some(role => role.includes('Admin'))) && (
+                <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white rounded-md cursor-pointer">
+                  <svg className="mr-3 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clipRule="evenodd"/>
+                  </svg>
+                  Superuser
+                </div>
+              )}
+              
+              {/* Logs (if admin) */}
+              {(user.role === 'super_admin' || user.allRoles?.some(role => role.includes('Admin'))) && (
+                <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white rounded-md cursor-pointer">
+                  <svg className="mr-3 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+                    <path fillRule="evenodd" d="M4 5a2 2 0 012-2v1a1 1 0 102 0V3h4v1a1 1 0 102 0V3a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm2.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm2.45.15a2.5 2.5 0 10-2.9-2.9l-1.838 1.838a1.5 1.5 0 002.12 2.12L8.95 12.15z" clipRule="evenodd"/>
+                  </svg>
+                  Logs
+                </div>
+              )}
+            </div>
+            
+            {/* Divider */}
+            <div className="my-4 border-t border-gray-800"></div>
+            
+            {/* Additional Actions */}
+            <div className="px-3 space-y-1">
+              {/* Notifications */}
+              <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white rounded-md cursor-pointer">
+                <svg className="mr-3 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+                </svg>
+                Notifications
+                {/* Notification Badge */}
+                <span className="ml-auto bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
+              </div>
+              
+              {/* Add Apps */}
+              <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white rounded-md cursor-pointer">
+                <svg className="mr-3 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/>
+                </svg>
+                Add apps
+              </div>
+            </div>
+          </nav>
+          
+          {/* Bottom User Info */}
+          <div className="p-4 border-t border-gray-800">
+            <div className="text-xs text-gray-400">
+              Last sign in a few seconds ago
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              © 2025 Okta, Inc.
+            </div>
+            <div className="text-xs text-gray-500">
+              Privacy
+            </div>
+          </div>
+        </div>
+
         {/* Applications Dashboard */}
         <div className="flex-1 px-6 py-8">
           <div className="mb-6">

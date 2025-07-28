@@ -74,12 +74,30 @@ export class McpServerService {
       return { type: 'governance', action: 'start' };
     }
 
-    // Catalog and access request patterns
-    if (lowerMessage.includes('catalog') || lowerMessage.includes('available') && lowerMessage.includes('resource')) {
+    // Enhanced catalog and access request patterns
+    const catalogPatterns = [
+      'catalog', 'available apps', 'show apps', 'list apps', 'show applications', 
+      'list applications', 'available applications', 'apps to request', 
+      'what can i request', 'show catalog', 'browse apps', 'view apps',
+      'available resources', 'show available', 'what apps', 'which apps'
+    ];
+    
+    const accessRequestPatterns = [
+      'access request', 'request access', 'need access', 'get access', 
+      'i need', 'can i get', 'want access', 'apply for', 'submit request',
+      'request for', 'access to', 'permission for', 'authorize me',
+      'grant access', 'give me access', 'add me to', 'provision access'
+    ];
+
+    // Check if this is a catalog/app listing request
+    const isCatalogRequest = catalogPatterns.some(pattern => lowerMessage.includes(pattern));
+    if (isCatalogRequest) {
       return { type: 'list_catalog' };
     }
 
-    if (lowerMessage.includes('access request') || lowerMessage.includes('request access') || lowerMessage.includes('submit') && lowerMessage.includes('request')) {
+    // Check if this is an access request (general or specific)
+    const isAccessRequest = accessRequestPatterns.some(pattern => lowerMessage.includes(pattern));
+    if (isAccessRequest) {
       return { type: 'access_request', action: 'submit' };
     }
 

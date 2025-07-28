@@ -118,7 +118,15 @@ The application is architected for scalability and maintainability, with clear s
 
 ## Recent Updates (July 19, 2025)
 
-**Current Session Focus (July 24, 2025 - Session 16):**
+**Current Session Focus (July 28, 2025 - Session 17):**
+- ✅ **Enhanced Natural Language Processing**: Improved pattern matching for access request variations to handle prompts like "access request", "need access", "can I get access" 
+- ✅ **Comprehensive Intent Detection**: Added 25+ different access request patterns to both MCP server and LLM automation fallback classification
+- ✅ **Simplified Org Branding**: Removed complex branding system that caused blank dashboard, implemented simple org logo integration using specific CDN URL (https://ok14static.oktacdn.com/fs/bco/1/fs0tnwksh58fSWJMN697)
+- ✅ **Fixed ES Module Integration**: Converted OktaOrgBrandingService to proper ES module syntax to resolve import errors
+- ✅ **Pattern Priority Enhancement**: Set catalog request patterns to 95% confidence in fallback classification to ensure proper routing
+- ✅ **User Experience Improvement**: Now "access request" prompts work as well as "Show available apps" for better natural language understanding
+
+**Previous Session Focus (July 24, 2025 - Session 16):**
 - ✅ **Fixed Duplicate 30-Day Review Bug**: Resolved infinite loop where 30-day access review was auto-loading repeatedly in chat
 - ✅ **Added Auto-Review State Management**: Implemented autoReviewLoaded flag to prevent duplicate auto-loading of reviews
 - ✅ **Enhanced Review Detection Logic**: Added smart detection to check for existing review messages before auto-loading

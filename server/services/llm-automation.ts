@@ -187,14 +187,22 @@ export class LLMAutomationService {
       return await this.handleAccessLevelInquiry(user, tokens);
     }
     
-    // Fallback to pattern matching for missed cases (lowerMessage already declared above)
+    // Enhanced pattern matching for access requests and catalog listing
     
-    // Additional catalog/application listing requests
-    if (lowerMessage.includes('list available applications') || 
-        lowerMessage.includes('applications to request') ||
-        lowerMessage.includes('available apps') ||
-        lowerMessage.includes('show catalog')) {
-      console.log('📋 Pattern matched catalog request');
+    // Comprehensive catalog/application listing patterns
+    const catalogPatterns = [
+      'list available applications', 'applications to request', 'available apps',
+      'show catalog', 'access request', 'what can i request', 'show apps',
+      'list apps', 'available applications', 'show available apps',
+      'what apps can i get', 'apps i can request', 'what is available',
+      'show me apps', 'browse apps', 'view apps', 'catalog of apps',
+      'request access', 'need access', 'want access', 'get access',
+      'access to apps', 'available resources', 'show available'
+    ];
+    
+    const foundCatalogPattern = catalogPatterns.find(pattern => lowerMessage.includes(pattern));
+    if (foundCatalogPattern) {
+      console.log('📋 Enhanced pattern matched catalog request:', foundCatalogPattern);
       return await this.handleCatalogRequest(user, tokens);
     }
 
@@ -219,14 +227,7 @@ export class LLMAutomationService {
       }
     }
     
-    // Check for catalog/application listing requests
-    if (lowerMessage.includes('list available applications') || 
-        lowerMessage.includes('applications to request') ||
-        lowerMessage.includes('available apps') ||
-        lowerMessage.includes('show catalog')) {
-      console.log('📋 Pattern matched catalog request');
-      return await this.handleCatalogRequest(user, tokens);
-    }
+    // This section is now handled above with enhanced patterns
     
     // Enhanced pattern: Access revocation requests (e.g., "revoke access to Salesforce.com")
     const revokeAccessPattern = /(?:revoke|remove|disable)\s+access\s+(?:to|from)\s+(.+?)(?:\s|$)/i;
@@ -401,12 +402,21 @@ export class LLMAutomationService {
       return { intent: 'group_management', confidence: 0.9 };
     }
     
-    // Check for catalog requests
-    if (lowerMessage.includes('list available applications') || 
-        lowerMessage.includes('applications to request') ||
-        lowerMessage.includes('available apps') ||
-        lowerMessage.includes('show catalog')) {
-      return { intent: 'catalog_request', confidence: 0.8 };
+    // Enhanced catalog request patterns - HIGH PRIORITY for access request variations
+    const catalogPatterns = [
+      'list available applications', 'applications to request', 'available apps',
+      'show catalog', 'access request', 'what can i request', 'show apps',
+      'list apps', 'available applications', 'show available apps',
+      'what apps can i get', 'apps i can request', 'what is available',
+      'show me apps', 'browse apps', 'view apps', 'catalog of apps',
+      'request access', 'need access', 'want access', 'get access',
+      'access to apps', 'available resources', 'show available',
+      'i need access', 'can i get access', 'want to access',
+      'apply for access', 'request for access', 'give me access'
+    ];
+    
+    if (catalogPatterns.some(pattern => lowerMessage.includes(pattern))) {
+      return { intent: 'catalog_request', confidence: 0.95 };
     }
     
     // Check for access level inquiries

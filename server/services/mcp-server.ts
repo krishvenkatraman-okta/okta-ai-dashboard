@@ -74,7 +74,23 @@ export class McpServerService {
       return { type: 'governance', action: 'start' };
     }
 
-    // Enhanced catalog and access request patterns
+    // Enhanced catalog and access request patterns with priority order
+    
+    // PRIORITY 1: Check for specific application access requests first
+    const specificAppPatterns = [
+      /(?:need|want|request|get)\s+access\s+to\s+(.+)/i,
+      /(?:i need|can i get|give me)\s+access\s+to\s+(.+)/i,
+      /(?:request|apply for)\s+(.+?)\s+access/i,
+      /(?:access|permission)\s+(?:to|for)\s+(.+)/i
+    ];
+    
+    for (const pattern of specificAppPatterns) {
+      if (pattern.test(lowerMessage)) {
+        return { type: 'access_request', action: 'submit' };
+      }
+    }
+    
+    // PRIORITY 2: General catalog patterns
     const catalogPatterns = [
       'catalog', 'available apps', 'show apps', 'list apps', 'show applications', 
       'list applications', 'available applications', 'apps to request', 
@@ -82,23 +98,16 @@ export class McpServerService {
       'available resources', 'show available', 'what apps', 'which apps'
     ];
     
-    const accessRequestPatterns = [
-      'access request', 'request access', 'need access', 'get access', 
-      'i need', 'can i get', 'want access', 'apply for', 'submit request',
-      'request for', 'access to', 'permission for', 'authorize me',
-      'grant access', 'give me access', 'add me to', 'provision access'
-    ];
+    // PRIORITY 3: General access request patterns (without specific app names)
+    const generalAccessPatterns = ['access request', 'request access', 'need access', 'want access', 'get access'];
+    const isGeneralAccessRequest = generalAccessPatterns.some(pattern => 
+      lowerMessage === pattern || (lowerMessage.includes(pattern) && !lowerMessage.includes(' to '))
+    );
 
     // Check if this is a catalog/app listing request
-    const isCatalogRequest = catalogPatterns.some(pattern => lowerMessage.includes(pattern));
+    const isCatalogRequest = catalogPatterns.some(pattern => lowerMessage.includes(pattern)) || isGeneralAccessRequest;
     if (isCatalogRequest) {
       return { type: 'list_catalog' };
-    }
-
-    // Check if this is an access request (general or specific)
-    const isAccessRequest = accessRequestPatterns.some(pattern => lowerMessage.includes(pattern));
-    if (isAccessRequest) {
-      return { type: 'access_request', action: 'submit' };
     }
 
     // PAM patterns

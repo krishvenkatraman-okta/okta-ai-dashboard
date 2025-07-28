@@ -189,18 +189,39 @@ export class LLMAutomationService {
     
     // Enhanced pattern matching for access requests and catalog listing
     
-    // Comprehensive catalog/application listing patterns
-    const catalogPatterns = [
-      'list available applications', 'applications to request', 'available apps',
-      'show catalog', 'access request', 'what can i request', 'show apps',
-      'list apps', 'available applications', 'show available apps',
-      'what apps can i get', 'apps i can request', 'what is available',
-      'show me apps', 'browse apps', 'view apps', 'catalog of apps',
-      'request access', 'need access', 'want access', 'get access',
-      'access to apps', 'available resources', 'show available'
+    // PRIORITY 1: Check for specific application access requests first
+    const specificAppPatterns = [
+      /(?:need|want|request|get)\s+access\s+to\s+(.+)/i,
+      /(?:i need|can i get|give me)\s+access\s+to\s+(.+)/i,
+      /(?:request|apply for)\s+(.+?)\s+access/i,
+      /(?:access|permission)\s+(?:to|for)\s+(.+)/i
     ];
     
-    const foundCatalogPattern = catalogPatterns.find(pattern => lowerMessage.includes(pattern));
+    for (const pattern of specificAppPatterns) {
+      const match = message.match(pattern);
+      if (match) {
+        const appName = match[1].trim();
+        console.log('🎯 SPECIFIC APP REQUEST detected:', appName);
+        return await this.handleApplicationEntitlements(appName, user, tokens);
+      }
+    }
+    
+    // PRIORITY 2: General catalog patterns (only if no specific app mentioned)
+    const catalogPatterns = [
+      'list available applications', 'applications to request', 'available apps',
+      'show catalog', 'show apps', 'list apps', 'available applications', 
+      'show available apps', 'what apps can i get', 'apps i can request', 
+      'what is available', 'show me apps', 'browse apps', 'view apps', 
+      'catalog of apps', 'available resources', 'show available'
+    ];
+    
+    // Only match general patterns like "access request", "need access", "want access" without specific app names
+    const generalAccessPatterns = ['access request', 'request access', 'need access', 'want access', 'get access'];
+    const isGeneralAccessRequest = generalAccessPatterns.some(pattern => 
+      lowerMessage === pattern || (lowerMessage.includes(pattern) && !lowerMessage.includes(' to '))
+    );
+    
+    const foundCatalogPattern = catalogPatterns.find(pattern => lowerMessage.includes(pattern)) || isGeneralAccessRequest;
     if (foundCatalogPattern) {
       console.log('📋 Enhanced pattern matched catalog request:', foundCatalogPattern);
       return await this.handleCatalogRequest(user, tokens);
@@ -402,20 +423,36 @@ export class LLMAutomationService {
       return { intent: 'group_management', confidence: 0.9 };
     }
     
-    // Enhanced catalog request patterns - HIGH PRIORITY for access request variations
-    const catalogPatterns = [
-      'list available applications', 'applications to request', 'available apps',
-      'show catalog', 'access request', 'what can i request', 'show apps',
-      'list apps', 'available applications', 'show available apps',
-      'what apps can i get', 'apps i can request', 'what is available',
-      'show me apps', 'browse apps', 'view apps', 'catalog of apps',
-      'request access', 'need access', 'want access', 'get access',
-      'access to apps', 'available resources', 'show available',
-      'i need access', 'can i get access', 'want to access',
-      'apply for access', 'request for access', 'give me access'
+    // Enhanced catalog request patterns - with specific app detection
+    // First check for specific app requests
+    const specificAppPatterns = [
+      /(?:need|want|request|get)\s+access\s+to\s+(.+)/i,
+      /(?:i need|can i get|give me)\s+access\s+to\s+(.+)/i,
+      /(?:request|apply for)\s+(.+?)\s+access/i
     ];
     
-    if (catalogPatterns.some(pattern => lowerMessage.includes(pattern))) {
+    for (const pattern of specificAppPatterns) {
+      if (pattern.test(lowerMessage)) {
+        return { intent: 'access_request', confidence: 0.95 };
+      }
+    }
+    
+    // General catalog patterns (without specific app names)
+    const catalogPatterns = [
+      'list available applications', 'applications to request', 'available apps',
+      'show catalog', 'what can i request', 'show apps', 'list apps', 
+      'available applications', 'show available apps', 'what apps can i get', 
+      'apps i can request', 'what is available', 'show me apps', 'browse apps', 
+      'view apps', 'catalog of apps', 'available resources', 'show available'
+    ];
+    
+    // Only match general access requests without specific app names
+    const generalAccessPatterns = ['access request', 'request access', 'need access', 'want access', 'get access'];
+    const isGeneralAccessRequest = generalAccessPatterns.some(pattern => 
+      lowerMessage === pattern || (lowerMessage.includes(pattern) && !lowerMessage.includes(' to '))
+    );
+    
+    if (catalogPatterns.some(pattern => lowerMessage.includes(pattern)) || isGeneralAccessRequest) {
       return { intent: 'catalog_request', confidence: 0.95 };
     }
     

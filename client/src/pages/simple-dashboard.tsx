@@ -307,6 +307,34 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }): 
   const [feedbackStatus, setFeedbackStatus] = useState<Record<string, string>>({});
   const [autoReviewLoaded, setAutoReviewLoaded] = useState(false);
 
+  // Create a proper welcome sequence
+  const createWelcomeSequence = async () => {
+    const messages = [];
+    
+    // 1. Fastpass status message (if enrolled)
+    const fastpassMessage = {
+      id: 'fastpass-welcome',
+      role: 'assistant' as const,
+      content: `**🎉 Welcome ${user.name.split(' ')[0]}!** I see you're enrolled in Fastpass - **You are secured!** 🔒\n\nYour security-first approach is impressive and I've just awarded you with some well-deserved recognition:\n\n**🏆 Security Champion Rewards**\n• +50 points for maintaining security excellence\n• "Welcome Aboard, Security Champion badge" earned!\n\n**Your Security Profile:**\n✅ Multi-Factor Auth (Okta Verify) - Enrolled & Active\n✅ Device Authentication - Verified\n✅ Security Standards - Outstanding\n\nYou're not just protecting yourself -- you're helping secure our entire organization. That's leadership!`,
+      data: undefined
+    };
+    messages.push(fastpassMessage);
+    
+    // 2. Role-based capabilities message
+    const capabilitiesMessage = {
+      id: 'capabilities',
+      role: 'assistant' as const,
+      content: getAccessLevelMessage(user),
+      data: undefined
+    };
+    messages.push(capabilitiesMessage);
+    
+    setMessages(messages);
+    
+    // Mark that we should load 30-day review next
+    setAutoReviewLoaded(false);
+  };
+
   // Load existing chat messages on component mount
   useEffect(() => {
     const loadChatMessages = async () => {
@@ -320,14 +348,27 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }): 
         if (response.ok) {
           const data = await response.json();
           console.log('📨 Loaded existing messages:', data.messages.length);
-          console.log('📨 Messages content:', data.messages.map((m: any) => ({ id: m.id, role: m.role, contentPreview: m.content.substring(0, 50) + '...' })));
           
           if (data.messages && data.messages.length > 0) {
-            // Load existing messages from database
+            // Check for multiple duplicate Fastpass messages
+            const fastpassMessages = data.messages.filter((msg: any) => 
+              msg.content.includes('enrolled in Fastpass') || 
+              msg.content.includes('You are secured') ||
+              msg.content.includes('Security Champion')
+            );
+            
+            // If there are multiple Fastpass messages, clear chat and start fresh
+            if (fastpassMessages.length > 1) {
+              console.log('🧹 Found multiple Fastpass messages, clearing chat for clean sequence');
+              await clearChat();
+              return; // clearChat will set up proper welcome sequence
+            }
+            
+            // Load existing messages if no duplicates detected
             setMessages(data.messages);
             console.log('✅ Chat messages loaded and set in state');
             
-            // Check if auto-review already exists in loaded messages
+            // Check if auto-review already exists
             const hasAutoReview = data.messages.some((msg: any) => 
               msg.content.includes('30-Day Access Review') || 
               msg.id?.includes('review') || 
@@ -335,57 +376,21 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }): 
             );
             
             if (hasAutoReview) {
-              console.log('🔍 Auto-review already exists in loaded messages, skipping auto-load');
+              console.log('🔍 Auto-review already exists, skipping auto-load');
               setAutoReviewLoaded(true);
             }
-            
-            // Check if quick actions already exist in loaded messages
-            const hasQuickActions = data.messages.some((msg: any) => 
-              msg.content.includes('Quick Actions Available') || 
-              msg.id?.includes('quick-actions')
-            );
-            
-            // Only add quick actions if they don't already exist and last message contains Fastpass
-            const lastMessage = data.messages[data.messages.length - 1];
-            if (!hasQuickActions && lastMessage && lastMessage.content && lastMessage.content.includes('Fastpass')) {
-              // Add quick actions prompt after Fastpass message
-              const quickActionsMessage = {
-                id: 'quick-actions-' + Date.now(),
-                role: 'assistant' as const,
-                content: `**Quick Actions Available:**\n• "Show me apps I accessed in the last 30 days"\n• "List available applications to request"\n• "Show my groups"\n• "What can I do with my current access level?"\n\nWhat can I help you with today?`,
-                data: undefined
-              };
-              setMessages(prev => [...prev, quickActionsMessage]);
-            }
           } else {
-            // No existing messages - show welcome message
-            const welcomeMessage = {
-              id: 'welcome',
-              role: 'assistant' as const,
-              content: `Hello ${user.name.split(' ')[0]}! I'm your AI-powered Okta Assistant with continuous learning.\n\n${getAccessLevelMessage(user)}\n\n**Quick Actions:**\n• "Show me apps I accessed in the last 30 days"\n• "List available applications to request"\n• "Show my groups"\n• "What can I do with my current access level?"\n\nWhat can I help you with today?`,
-              data: undefined
-            };
-            setMessages([welcomeMessage]);
+            // No existing messages - create proper welcome sequence
+            console.log('🎬 Creating fresh welcome sequence');
+            await createWelcomeSequence();
           }
         } else {
           console.error('❌ Failed to load chat messages:', response.status);
-          // Show welcome message as fallback
-          setMessages([{
-            id: 'welcome',
-            role: 'assistant' as const,
-            content: `Hello ${user.name.split(' ')[0]}! I'm your AI-powered Okta Assistant with continuous learning.\n\n${getAccessLevelMessage(user)}\n\n**Quick Actions:**\n• "Show me apps I accessed in the last 30 days"\n• "List available applications to request"\n• "Show my groups"\n• "What can I do with my current access level?"\n\nWhat can I help you with today?`,
-            data: undefined
-          }]);
+          await createWelcomeSequence();
         }
       } catch (error) {
         console.error('❌ Error loading chat messages:', error);
-        // Show welcome message as fallback
-        setMessages([{
-          id: 'welcome',
-          role: 'assistant' as const,
-          content: `Hello ${user.name.split(' ')[0]}! I'm your AI-powered Okta Assistant with continuous learning.\n\n${getAccessLevelMessage(user)}\n\n**Quick Actions:**\n• "Show me apps I accessed in the last 30 days"\n• "List available applications to request"\n• "Show my groups"\n• "What can I do with my current access level?"\n\nWhat can I help you with today?`,
-          data: undefined
-        }]);
+        await createWelcomeSequence();
       }
     };
 
@@ -546,14 +551,8 @@ function OktaAssistantChat({ user }: { user: User & { allRoles?: string[] } }): 
       if (response.ok) {
         setMessages([]);
         setAutoReviewLoaded(false);
-        // Show a simple welcome message
-        const welcomeMessage = {
-          id: 'welcome-' + Date.now(),
-          role: 'assistant' as const,
-          content: `Hello ${user.name.split(' ')[0]}! Chat cleared. How can I help you?`,
-          data: undefined
-        };
-        setMessages([welcomeMessage]);
+        // Create fresh welcome sequence
+        await createWelcomeSequence();
       }
     } catch (error) {
       console.error('Failed to clear chat:', error);

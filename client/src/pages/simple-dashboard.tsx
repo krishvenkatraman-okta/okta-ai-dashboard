@@ -7,7 +7,7 @@ import { ExternalLink, Grid, Monitor, Trophy, MessageCircle } from "lucide-react
 import AdminSessionHandler from "@/components/admin-session-handler";
 import { GamificationWidget } from '@/components/gamification-widget';
 import GovernanceChat from '@/components/governance-chat';
-import { useOrgBranding } from '../hooks/use-org-branding';
+
 
 interface User {
   id: number;
@@ -712,8 +712,9 @@ export default function SimpleDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [governanceAuthStatus, setGovernanceAuthStatus] = useState<'pending' | 'authenticated' | 'failed' | 'skipped'>('pending');
   
-  // Fetch organization branding
-  const { data: orgBranding } = useOrgBranding();
+  // Use simple org logo for demo
+  const orgLogo = "https://ok14static.oktacdn.com/fs/bco/1/fs0tnwksh58fSWJMN697";
+  const orgName = "Okta";
 
   useEffect(() => {
     const initializeUserAndGovernance = async () => {
@@ -828,58 +829,7 @@ export default function SimpleDashboard() {
     );
   }
 
-  // Apply custom CSS styles if available
-  useEffect(() => {
-    if (orgBranding?.customStyles) {
-      const styleElement = document.createElement('style');
-      styleElement.id = 'org-custom-styles';
-      
-      let customCSS = '';
-      orgBranding.customStyles.forEach(style => {
-        if (style.type === 'inline' && style.content) {
-          customCSS += style.content + '\n';
-        }
-      });
-      
-      // Apply org colors to CSS variables
-      if (orgBranding.colors?.primary) {
-        customCSS += `
-          :root {
-            --org-primary-color: ${orgBranding.colors.primary};
-          }
-          .bg-org-primary {
-            background-color: var(--org-primary-color) !important;
-          }
-          .text-org-primary {
-            color: var(--org-primary-color) !important;
-          }
-        `;
-      }
-      
-      styleElement.textContent = customCSS;
-      document.head.appendChild(styleElement);
-      
-      // Load external stylesheets
-      orgBranding.customStyles.forEach(style => {
-        if (style.type === 'link' && style.href) {
-          const linkElement = document.createElement('link');
-          linkElement.rel = 'stylesheet';
-          linkElement.href = style.href;
-          linkElement.className = 'org-stylesheet';
-          document.head.appendChild(linkElement);
-        }
-      });
-      
-      return () => {
-        // Cleanup on unmount
-        const customStyle = document.getElementById('org-custom-styles');
-        if (customStyle) customStyle.remove();
-        
-        const orgLinks = document.querySelectorAll('.org-stylesheet');
-        orgLinks.forEach(link => link.remove());
-      };
-    }
-  }, [orgBranding]);
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -888,28 +838,21 @@ export default function SimpleDashboard() {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              {orgBranding?.orgLogo ? (
-                <img 
-                  src={orgBranding.orgLogo} 
-                  alt={orgBranding.orgName || 'Organization'} 
-                  className="h-8 w-auto max-w-32"
-                  onError={(e) => {
-                    // Fallback to standard logo on error
-                    e.currentTarget.style.display = 'none';
-                    const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                    if (fallback) fallback.style.display = 'flex';
-                  }}
-                />
-              ) : null}
-              <div 
-                className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center"
-                style={{ display: orgBranding?.orgLogo ? 'none' : 'flex' }}
-              >
+              <img 
+                src={orgLogo} 
+                alt={orgName} 
+                className="h-8 w-auto max-w-32"
+                onError={(e) => {
+                  // Fallback to standard logo on error
+                  e.currentTarget.style.display = 'none';
+                  const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                  if (fallback) fallback.style.display = 'flex';
+                }}
+              />
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center" style={{ display: 'none' }}>
                 <span className="text-white font-semibold">O</span>
               </div>
-              <h1 className="text-xl font-semibold text-gray-900">
-                {orgBranding?.orgName ? `${orgBranding.orgName} AI Dashboard` : 'Okta AI Dashboard'}
-              </h1>
+              <h1 className="text-xl font-semibold text-gray-900">Okta AI Dashboard</h1>
             </div>
             
             <div className="flex items-center space-x-4">
@@ -962,25 +905,19 @@ export default function SimpleDashboard() {
           {/* Organization Logo */}
           <div className="p-4 border-b border-gray-800">
             <div className="flex items-center space-x-2">
-              {orgBranding?.orgLogo ? (
-                <img 
-                  src={orgBranding.orgLogo} 
-                  alt={orgBranding.orgName || 'Organization'} 
-                  className="h-8 w-auto max-w-32"
-                  onError={(e) => {
-                    // Fallback to standard Okta logo on error
-                    e.currentTarget.style.display = 'none';
-                    e.currentTarget.nextElementSibling?.setAttribute('style', 'display: flex');
-                  }}
-                />
-              ) : null}
-              <div 
-                className="w-6 h-6 bg-white rounded flex items-center justify-center"
-                style={{ display: orgBranding?.orgLogo ? 'none' : 'flex' }}
-              >
-                <span className="text-gray-900 font-bold text-sm">
-                  {orgBranding?.orgName || 'okta'}
-                </span>
+              <img 
+                src={orgLogo} 
+                alt={orgName} 
+                className="h-8 w-auto max-w-32 bg-white rounded p-1"
+                onError={(e) => {
+                  // Fallback to standard Okta logo on error
+                  e.currentTarget.style.display = 'none';
+                  const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                  if (fallback) fallback.style.display = 'flex';
+                }}
+              />
+              <div className="w-6 h-6 bg-white rounded flex items-center justify-center" style={{ display: 'none' }}>
+                <span className="text-gray-900 font-bold text-sm">okta</span>
               </div>
             </div>
           </div>

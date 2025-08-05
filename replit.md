@@ -1,284 +1,63 @@
 # Okta AI Dashboard
 
 ## Overview
-
-This is a full-stack web application that provides an AI-powered dashboard for Okta identity management with intelligent governance capabilities. The application features secure authentication through Okta OIDC, a comprehensive dashboard for managing users and applications, and an AI assistant powered by local Ollama (Llama 3.1 8B) for handling governance, privileged access management (PAM), and real-time access reviews using System Log API integration.
+This is a full-stack web application providing an AI-powered dashboard for Okta identity management with intelligent governance capabilities. It features secure authentication via Okta OIDC, a comprehensive dashboard for user and application management, and an AI assistant powered by local Ollama (Llama 3.1 8B). The AI assistant handles governance, privileged access management (PAM), and real-time access reviews using Okta's System Log API. The project aims to enhance identity governance, streamline access management, and provide a user-friendly interface for Okta administrators and end-users.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-The application follows a modern full-stack architecture with clear separation between frontend and backend concerns:
+The application employs a modern full-stack architecture, separating frontend and backend concerns.
 
 ### Frontend Architecture
 - **Framework**: React 18 with TypeScript
-- **Styling**: Tailwind CSS with shadcn/ui component library
-- **State Management**: TanStack Query for server state management
-- **Routing**: Wouter for client-side routing
-- **Build Tool**: Vite for development and production builds
-- **UI Components**: Comprehensive set of Radix UI primitives with custom styling
+- **Styling**: Tailwind CSS with shadcn/ui components, built on Radix UI primitives
+- **State Management**: TanStack Query
+- **Routing**: Wouter
+- **Build Tool**: Vite
 
 ### Backend Architecture
-- **Runtime**: Node.js with Express.js framework
+- **Runtime**: Node.js with Express.js
 - **Language**: TypeScript with ES modules
-- **API Style**: RESTful API with structured error handling
-- **Authentication**: Okta OIDC integration with session management
+- **API Style**: RESTful API
+- **Authentication**: Okta OIDC integration with cookie-based session management
 - **Database**: PostgreSQL with Drizzle ORM
 - **AI Integration**: Model Context Protocol (MCP) server for intelligent assistance
 
-## Key Components
-
-### Authentication System
-- **Provider**: Okta OIDC with authorization code flow (PKCE)
-- **Session Management**: Cookie-based sessions with PostgreSQL storage
-- **Authorization**: Role-based access control (super_admin, app_owner, regular_user)
-- **Security**: Secure token handling and automatic session refresh
-- **Admin Authentication**: Simplified redirect-based admin authentication - users are redirected to fcxdemo-admin.okta.com/admin/dashboard for admin auth and return to confirm session
-- **Admin Session Storage**: Simple in-memory flag tracking admin session status with 1-hour expiration
-
-### Database Schema
-- **Users**: Stores Okta user information, roles, and group memberships
-- **Sessions**: Manages authentication sessions with Okta token storage
-- **Chat Messages**: Logs AI assistant conversations for audit and continuity
-- **PAM Sessions**: Tracks privileged access management sessions and activities
-
-### AI Assistant (MCP Integration)
-- **Intent Analysis**: Natural language processing to categorize user requests
-- **Governance Workflows**: Automated compliance and governance task handling
-- **PAM Operations**: Privileged access session management and monitoring
-- **Okta API Integration**: Direct integration with Okta Management APIs for real-time operations
-
-### Dashboard Features
-- **User Management**: View and manage Okta users and groups
-- **Application Overview**: Monitor connected applications and their status
-- **Analytics**: Real-time statistics and usage metrics
-- **Access Requests**: Handle and approve access requests through the AI assistant
-
-## Data Flow
-
-1. **Authentication Flow**: User initiates login → Okta OIDC redirect → Authorization code exchange → Session creation → Dashboard access
-2. **AI Assistant Flow**: User query → Intent analysis → Okta API calls or governance workflows → Response generation → Database logging
-3. **Dashboard Data Flow**: Authenticated requests → Okta Management API → Data aggregation → Real-time dashboard updates
+### Key System Features
+- **Authentication System**: Okta OIDC (PKCE flow) with role-based access control (super_admin, app_owner, regular_user). Supports simplified redirect-based admin authentication.
+- **Database Schema**: Manages Okta user information, roles, group memberships, authentication sessions, chat messages, and PAM sessions.
+- **AI Assistant (MCP Integration)**: Performs natural language intent analysis, automates governance workflows, manages PAM operations, and integrates directly with Okta Management APIs for real-time actions. Features dynamic request construction, continuous learning from user feedback, and adaptive confidence for improved accuracy.
+- **Dashboard Features**: Includes user management, application overview, analytics, and AI-assisted access request handling. Supports comprehensive gamification with points, badges, license seat savings tracking, and a leaderboard.
+- **Data Flow**: Secure authentication, AI-driven query processing (intent analysis, Okta API calls, governance workflows, response generation), and real-time data aggregation for dashboard updates.
+- **Security**: Focuses on secure token handling, session refresh, and environment-based configuration for sensitive credentials. Implements Fastpass authenticator adoption checking and gamification for security compliance.
+- **Deployment Strategy**: Frontend built with Vite, backend with esbuild. Designed for Neon PostgreSQL hosting, with Express serving static assets. Configurable via environment variables for Okta OIDC and API settings.
 
 ## External Dependencies
 
 ### Core Dependencies
-- **@neondatabase/serverless**: PostgreSQL database connection for Neon hosting
-- **drizzle-orm**: Type-safe database operations and migrations
-- **@tanstack/react-query**: Efficient server state management and caching
-- **express**: Web application framework for the backend API
+- **@neondatabase/serverless**: PostgreSQL database connection
+- **drizzle-orm**: ORM for database operations
+- **@tanstack/react-query**: Server state management
+- **express**: Backend web framework
 
 ### Authentication
 - **Okta OIDC**: Primary authentication provider
-- **cookie-parser**: Session cookie management
+- **cookie-parser**: Cookie-based session management
 - **connect-pg-simple**: PostgreSQL session store
 
 ### UI Framework
-- **@radix-ui/***: Comprehensive set of accessible UI primitives
-- **tailwindcss**: Utility-first CSS framework
-- **class-variance-authority**: Type-safe variant management for components
+- **@radix-ui/***: Accessible UI primitives
+- **tailwindcss**: CSS framework
+- **class-variance-authority**: Type-safe variant management
 
 ### Development Tools
-- **tsx**: TypeScript execution for development
-- **esbuild**: Fast bundling for production builds
-- **vite**: Development server with HMR and optimized builds
+- **tsx**: TypeScript execution
+- **esbuild**: Bundler
+- **vite**: Development server
 
-## Deployment Strategy
-
-### Build Process
-- **Frontend**: Vite builds React application to `dist/public`
-- **Backend**: esbuild bundles Express server to `dist/index.js`
-- **Database**: Drizzle Kit handles schema migrations
-
-### Environment Configuration
-- **Development**: Local development with Vite dev server and tsx for backend
-- **Production**: Node.js server serving both API and static files
-- **Database**: PostgreSQL with connection via `DATABASE_URL`
-- **Okta OIDC Configuration (PKCE Flow)**: 
-  - `OKTA_DOMAIN` (e.g., fcxdemo.okta.com)
-  - `OKTA_CLIENT_ID` (OIDC application client ID - public client)
-  - `OKTA_REDIRECT_URI` (Custom domain: https://atko.kriyahub.com/api/auth/callback)
-  - **Authorization Server**: Org authorization server (`https://fcxdemo.okta.com/oauth2/v1/authorize`) instead of default
-  - **OAuth scopes**: `openid profile email okta.enduser.dashboard.manage okta.enduser.dashboard.read okta.enduser.manage okta.enduser.read okta.myAccount.profile.manage okta.myAccount.profile.read okta.myAccount.sessions.manage okta.users.manage.self okta.users.read.self`
-  - **Admin Authentication**: Simple redirect to admin dashboard (no additional OAuth scopes needed)
-- **Okta API & PAM Configuration**:
-  - `OKTA_API_TOKEN` (Management API token for MCP server operations)
-  - `OKTA_PAM_DOMAIN` (PAM-specific domain, defaults to OKTA_DOMAIN)
-  - `OKTA_PAM_TEAM` (PAM team name for constructing API calls)
-
-### Hosting Considerations
-- **Database**: Designed for Neon PostgreSQL (serverless PostgreSQL)
-- **Static Assets**: Served directly by Express in production
-- **Session Storage**: PostgreSQL-backed session store for scalability
-- **Security**: Environment-based configuration for sensitive credentials
-
-The application is architected for scalability and maintainability, with clear separation of concerns, comprehensive error handling, and modern development practices throughout the stack.
-
-## Recent Updates (July 19, 2025)
-
-**Current Session Focus (July 28, 2025 - Session 17):**
-- ✅ **Enhanced Natural Language Processing**: Improved pattern matching for access request variations to handle prompts like "access request", "need access", "can I get access" 
-- ✅ **Comprehensive Intent Detection**: Added 25+ different access request patterns to both MCP server and LLM automation fallback classification
-- ✅ **Simplified Org Branding**: Removed complex branding system that caused blank dashboard, implemented simple org logo integration using specific CDN URL (https://ok14static.oktacdn.com/fs/bco/1/fs0tnwksh58fSWJMN697)
-- ✅ **Fixed ES Module Integration**: Converted OktaOrgBrandingService to proper ES module syntax to resolve import errors
-- ✅ **Pattern Priority Enhancement**: Set catalog request patterns to 95% confidence in fallback classification to ensure proper routing
-- ✅ **User Experience Improvement**: Now "access request" prompts work as well as "Show available apps" for better natural language understanding
-
-**Previous Session Focus (July 24, 2025 - Session 16):**
-- ✅ **Fixed Duplicate 30-Day Review Bug**: Resolved infinite loop where 30-day access review was auto-loading repeatedly in chat
-- ✅ **Added Auto-Review State Management**: Implemented autoReviewLoaded flag to prevent duplicate auto-loading of reviews
-- ✅ **Enhanced Review Detection Logic**: Added smart detection to check for existing review messages before auto-loading
-- ✅ **Improved Mobile User Experience**: Fixed chatbot behavior reported from iPhone browser access
-- ✅ **Fixed Syntax Errors**: Resolved multiple TypeScript compilation errors including duplicate exports and useEffect return types
-- ✅ **Deployment Error Resolution**: Fixed build failures caused by missing closing parentheses and incorrect function signatures
-- ✅ **Added Clear Chat Functionality**: Implemented "Clear Chat" button and API endpoint to resolve duplicate message issues
-- ✅ **Removed Test Fastpass Button**: Cleaned up UI by removing manual Fastpass test button (automatic check on login remains)
-- ✅ **Fixed TypeScript Storage Errors**: Resolved LSP diagnostics for proper type handling in storage interface
-- ✅ **Added Okta-Style Left Sidebar**: Implemented authentic Okta dashboard navigation panel with My Apps, Recently Used, Office, Personal sections, admin-only items (Superuser, Logs), and proper styling to match original Okta interface
-- ✅ **Implemented Org-Specific Branding**: Created comprehensive branding system using `/UserHome` and `/enduser/api/v1/home` endpoints to fetch organization logos, custom stylesheets, and theme configurations for authentic org branding instead of generic Okta styling
-
-**Previous Session Focus (July 23, 2025 - Session 15):**
-- ✅ **Fastpass Security Integration**: Added comprehensive Fastpass authenticator adoption checking via `/idp/myaccount/authenticators` endpoint
-- ✅ **Security-Focused Gamification**: Implemented Security Champion badge for users with Okta Verify enrollment (50 points first-time)
-- ✅ **First-Time vs Repeat Logic**: Smart verification system awards points only on first successful Fastpass check, subsequent checks show recognition
-- ✅ **Intelligent Pattern Matching**: Added Fastpass request patterns (fastpass, authenticator, okta verify, security check) with high priority processing
-- ✅ **Security Compliance Rewards**: Higher point allocation (50 points) for security-related achievements vs regular governance actions (25 points)
-- ✅ **Enhanced Badge System**: Added Security Champion badge to comprehensive badge set with proper tracking in user stats
-- ✅ **API-Driven Security Verification**: Uses user session token to check actual Okta Verify enrollment status rather than simulated data
-- ✅ **User-Friendly Security Messaging**: Clear feedback for enrolled users vs non-enrolled users with actionable next steps
-- ✅ **Persistent Fastpass Tracking**: Added fastpassVerified and lastFastpassCheck fields to UserStats interface for proper state management
-- ✅ **MAJOR: Automatic Login Fastpass Check**: System now automatically checks Fastpass enrollment on every login and provides immediate feedback
-- ✅ **Auto-Generated Security Messages**: First-time enrollment shows "Great job on fastpass enrollment" with points/badges, subsequent logins show "You are secured"
-- ✅ **Seamless Security Integration**: Fastpass verification happens during auth callback, creating automatic assistant messages for security status
-- ✅ **Persistent Database Schema**: Implemented user_gamification and activity_logs tables for persistent gamification data storage
-- ✅ **Fallback to Working System**: Temporarily using in-memory gamification service to ensure functionality while debugging database integration
-- ✅ **CRITICAL OIDC Scope Updates**: Added `okta.authenticators.manage.self` and `okta.myAccount.authenticators.read` scopes to OIDC authentication for comprehensive authenticator management and read permissions
-- ✅ **Fixed API Integration**: Corrected Fastpass API calls to use official MyAccount API with proper `okta-version=1.0.0` header and `expand=enrollments` parameter
-- ✅ **Enhanced Enrollment Detection**: Updated logic to check `_embedded.enrollments` structure and `okta_verify` key as per official Okta documentation
-- ✅ **Personalized Welcome Messages**: Enhanced automatic login messages with personalized "Welcome [Name]! I see you're enrolled in Fastpass - You are secured" messaging
-- ✅ **Cool Security Messaging**: Implemented engaging welcome messages that acknowledge Fastpass enrollment with security-focused language and rewards display
-
-**Previous Session Focus (July 22, 2025 - Session 14):**
-- ✅ **MAJOR ARCHITECTURAL CHANGE**: Eliminated complex multi-OAuth system in favor of comprehensive OIDC scopes
-- ✅ **Comprehensive Scope Integration**: Added all governance scopes to initial OIDC authentication flow
-- ✅ **Single Token Strategy**: End user access token now has full governance capabilities including access requests
-- ✅ **Removed Governance OAuth Popups**: Eliminated separate governance authentication step that was causing user confusion
-- ✅ **Updated OIDC Scopes**: Now includes okta.accessRequests.catalog.read, okta.accessRequests.request.manage, okta.accessRequests.request.read, okta.governance.accessCertifications.manage/read
-- ✅ **Simplified Authentication Flow**: Users authenticate once and get immediate access to all features
-- ✅ **LLM Service Update**: Modified to use session tokens exclusively for governance operations
-- ✅ **Enhanced User Experience**: Removed complex popup redirects and authentication barriers
-- ✅ **Fixed API Endpoint**: Updated to correct Okta IGA v2 endpoint structure `/governance/api/v2/my/catalogs/default/entries`
-- ✅ **Intelligent Access Request**: Added smart pattern matching for direct requests like "need adobe express 1 hour access"
-- ✅ **Auto-Entitlement Selection**: System now automatically selects best entitlement based on duration and application type
-- ✅ **Smart Duration Processing**: Converts natural language durations to proper Okta ISO 8601 format (PT2H, P1D, etc.)
-- ✅ **One-Command Access Requests**: Users can now bypass multi-step flow with intelligent single commands
-- ✅ **Intelligent Access Revocation**: Added smart revocation that checks assignment method (direct vs group) and uses admin API to actually remove access
-- ✅ **Assignment Analysis**: System analyzes how apps are assigned and removes appropriately (direct assignment removal or group membership removal)
-- ✅ **Comprehensive Revocation**: Handles both individual app assignments and group-based assignments with detailed reporting
-- ✅ **Complete Gamification System**: Added interactive tabbed dashboard with comprehensive points, badges, and tracking
-- ✅ **License Seat Savings Tracking**: Updated from dollar amounts to license seat counting for accurate cost tracking since app license costs vary
-- ✅ **Tabbed Dashboard Interface**: Added Progress & Rewards tab alongside AI Assistant with seamless user experience
-- ✅ **Achievement System**: Daily visit tracking, governance action rewards, streak counting, and badge unlocks
-- ✅ **Real-time Activity Feed**: Shows recent governance actions with points earned and license seats saved
-- ✅ **Company-wide Leaderboard**: Competitive rankings showing top performers in governance activities
-
-**Previous Session Focus (July 22, 2025 - Session 12):**
-- ✅ **Enhanced OAuth Scopes**: Updated OIDC scopes to include governance and enduser permissions for proper catalog access
-- ✅ **Governance API Compatibility**: Updated to use correct public API scopes: `okta.enduser.read`, `okta.enduser.manage`, `okta.enduser.dashboard.read`, etc.
-- ✅ **Admin Session Scopes**: Enhanced admin auth flow with `okta.governance.read` and `okta.governance.manage` permissions
-- ✅ **Eliminated Apps API Fallback**: System now properly handles governance permission issues instead of falling back to Apps API
-- ✅ **Session Token Governance**: All governance operations (catalog, access requests) now use expanded user session token scopes
-- ✅ **Simplified Admin Flow**: Replaced complex OAuth admin flow with simple redirect to admin dashboard + manual confirmation
-- ✅ **Admin Dashboard Integration**: Users authenticate at fcxdemo-admin.okta.com/admin/dashboard and return to confirm admin session
-- ✅ **No Admin OAuth Scopes**: Removed complex admin OAuth since admin flow is just redirect-based authentication
-- ✅ **CRITICAL: User Session Token Authentication**: Implemented exclusive use of user's browser session bearer token for all governance operations
-- ✅ **Eliminated "Okta Admin" Requests**: Removed management API fallback that was causing requests to appear as API key owner instead of actual user
-- ✅ **User Attribution Fixed**: Access requests now properly submit as the logged-in user (steve.rogers) with correct scoping
-- ✅ **Admin Session Button Fixed**: Corrected action field mismatch (admin_auth_required → admin_oauth_flow) between frontend and backend
-- ✅ **Governance API User Context**: Catalog requests now use user session token for proper user scoping and permissions
-- ✅ **Enhanced Error Logging**: Clear distinction between user session token vs management API usage in logs
-- ✅ **Proper Request Attribution**: Added requestedFor.externalId, requestedBy.externalId, and requested.entryId fields per Okta docs
-- ✅ **Authentication Strategy**: User session tokens for governance/access requests, management API only for role extraction and 30-day usage
-
-**Previous Session Focus (July 21, 2025 - Session 9):**
-- ✅ **Session-Based Authentication Implementation**: Replaced API token authentication with proper session-based authentication for audit logging
-- ✅ **Admin Session Management**: Created AdminSessionHandler component for redirecting to admin portal when admin operations are required
-- ✅ **End-User vs Admin Operation Distinction**: LLM automation service now differentiates between operations that can use regular session tokens vs requiring admin authentication
-- ✅ **Admin Domain Redirect Pattern**: Implements redirect to {domain}-admin.okta.com/admin/dashboard for proper admin audit trail
-- ✅ **Frontend Admin Session UI**: Created components to handle admin session establishment with popup authentication flow
-- ✅ **Audit Trail Compliance**: End-user operations (30-day reviews, access requests) use session tokens while admin operations require separate admin session
-- ✅ **Role Display Fix**: Custom roles now properly display in chat interface instead of defaulting to "REGULAR USER"
-
-**Previous Session Focus (July 20, 2025 - Session 8):**
-- ✅ **Complete Custom Role Support**: Implemented full Okta IAM custom role detection with resource set integration
-- ✅ **Resource Set API Integration**: Added `/api/v1/iam/resource-sets/{resourceSetId}` endpoint support for custom role permissions
-- ✅ **Enhanced Group Management**: Custom roles with group resource sets now fetch all manageable groups via `/api/v1/groups` API
-- ✅ **Smart Role Detection**: System detects role.type === "CUSTOM" and processes resource sets to determine access level
-- ✅ **Role Display Enhancement**: Updated getAllUserRoles to fetch and format custom role labels (e.g., "sap_group_admins" → "Sap Group Admins")
-- ✅ **Duplicate Role Fix**: Removed duplicate getAllUserRoles method and fixed LSP TypeScript errors
-- ✅ **API Pattern Upgrade**: Supports both standard role targets and custom role resource sets simultaneously
-
-**Latest Major Enhancement (July 19, 2025 - Session 6):**
-- ✅ **Fixed Governance Review Natural Language Mapping**: Added comprehensive governance campaign workflow with proper intent detection
-- ✅ **Enhanced MCP Server Workflow Processing**: Added dedicated governance campaign creation and listing functionality
-- ✅ **Implemented Complete Access Request Flow**: Fixed duration parsing, field label inference, and end-to-end submission with all required fields
-- ✅ **Resolved All Variable Naming Conflicts**: Fixed duplicate variable declarations causing build failures (entitlementName, campaignsData)
-- ✅ **Added Intelligent Field Label Processing**: System now infers proper field names when API returns "undefined" labels
-- ✅ **Enhanced Duration Field Support**: Natural language duration parsing ("1 hour", "2 days") with proper Okta API format conversion
-- ✅ **Complete Governance API Integration**: Added getGovernanceCampaigns() and createGovernanceCampaign() methods to governance service
-
-**Previous Critical Bug Fixes (July 19, 2025 - Session 5):**
-- ✅ **Fixed Chat System Fatal Error**: Fixed `this.analyzeRequest is not a function` error by correcting method name to `this.analyzeIntent()`
-- ✅ **Fixed 30-Day Review Processing**: Now processes actual System Log data instead of returning generic "AI Request Processed" message
-- ✅ **Fixed Service Import Error**: Resolved `Cannot access 'OktaGovernanceService2' before initialization` error in entitlement fields lookup
-- ✅ **Enhanced 30-Day Review Analysis**: Now shows detailed breakdown of used vs unused applications from real System Log API data
-- ✅ **Improved Error Handling**: Added detailed error logging to identify root causes faster
-- ✅ **Fixed MCP Server Method Calls**: Corrected async/await syntax for proper intent analysis
-
-## Recent Updates (July 19, 2025)
-
-**Latest Major Enhancement (July 19, 2025 - Session 4):**
-- ✅ **Implemented Comprehensive API Documentation System**: Created structured API workflow documentation based on official Okta IGA API 2024 specs
-- ✅ **Enhanced MCP Server with Workflow-Based Processing**: Added intelligent workflow detection and execution for proper API sequence handling
-- ✅ **Integrated Complete Access Request Flow**: Proper sequence from app selection → entitlement discovery → field requirements → submission
-- ✅ **Added Request-Fields API Integration**: System now fetches and shows actual form fields required for each entitlement before submission
-- ✅ **Fixed API Sequence Logic**: MCP server now follows documented workflows instead of random pattern matching
-- ✅ **Improved Error Handling with Fallbacks**: Comprehensive error handling with fallback strategies for each API step
-
-**Previous Critical Fixes (Session 3):**
-- ✅ **Fixed "url is not defined" Runtime Error**: Resolved MCP server reference error preventing API execution
-- ✅ **Fixed Governance Campaign API Error 405**: Updated endpoint from `/governance/api/v2/campaigns` to `/api/v1/governance/campaigns`
-- ✅ **Enhanced IGA Catalog API Processing**: Added multi-endpoint fallback strategy for catalog access
-- ✅ **Implemented Required Filter Parameter**: Fixed catalog API "filter parameter required" error
-- ✅ **Added Apps API Fallback**: When IGA catalog fails, system now falls back to Apps API for catalog simulation
-- ✅ **Comprehensive Error Handling**: All API failures now show helpful messages instead of generic errors
-- ✅ **Custom Governance Service Integration**: MCP server now uses governance service directly for improved catalog handling
-
-**Previous Fixes (Session 2):**
-- ✅ **Fixed OIDC Authentication Error**: Resolved "authService is not defined" reference error in routes
-- ✅ **Implemented Official Okta Role Assignment API**: Now uses `/api/v1/users/{userId}/roles` endpoint per Okta documentation
-- ✅ **Enhanced Role Detection**: Replaced group-based role detection with proper Okta assigned role types
-- ✅ **Multiple Role Display Support**: Added comprehensive role mapping for all Okta admin role types
-- ✅ **Fixed MCP Server Errors**: Resolved catalog API "Body already read" error and data processing issues
-- ✅ **Updated Role Hierarchy**: Proper priority-based role determination (SUPER_ADMIN > APP_ADMIN > GROUP_ADMIN etc.)
-
-**Continuous Learning & MCP Server Implementation:**
-- ✅ **Intelligent MCP Server**: Model Context Protocol server that analyzes natural language and maps to appropriate Okta API calls
-- ✅ **Dynamic Request Construction**: System automatically builds proper API requests with authentication based on user intent
-- ✅ **Continuous Learning System**: LLM Training Service that learns from user feedback and API response patterns
-- ✅ **Pattern Recognition**: AI improves intent detection accuracy over time based on success rates and user corrections
-- ✅ **Feedback Integration**: Interactive feedback buttons (👍👎) allow users to train the AI in real-time
-- ✅ **Adaptive Confidence**: System adjusts confidence scores based on historical success rates and recent performance
-- ✅ **Context-Aware Learning**: Role-based and time-based pattern matching improves API call accuracy
-- ✅ **Multi-API Support**: Intelligent routing across IGA Catalog, System Log, User Management, and Governance APIs
-- ✅ **Real-Time Training**: Every 5 minutes processing of feedback queue to continuously improve patterns
-- ✅ **Training Analytics**: Statistics tracking for interaction success rates and pattern performance
-
-**Previous System Log API Integration:**
-- ✅ **System Log API Implementation**: Proper 30-day usage tracking with exact filter format
-- ✅ **Real Usage Data**: Fetches actual SSO authentication events instead of generic app assignment dates  
-- ✅ **Enhanced Error Handling**: Improved System Log API calls with better fallback values
-- ✅ **Auto-Load 30-Day Review**: Chat automatically displays access review on load
-- ✅ **Ollama Integration**: Successfully using local Llama 3.1 8B model instead of OpenAI
+### Okta Specific Integrations
+- **Okta Management APIs**: Used by the AI assistant for user management, application overview, governance campaigns, access requests, access reviews (System Log API), and role management.
+- **Okta IGA API**: Specifically for governance, access requests, and catalog management.
+- **Ollama (Llama 3.1 8B)**: Local large language model for AI assistant processing.

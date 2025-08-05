@@ -103,7 +103,13 @@ The application will be available at `http://localhost:5000`.
 
 1. Connect your GitHub repository to Vercel
 2. Configure environment variables in Vercel dashboard
-3. Deploy automatically on push to main branch
+3. The build process uses a custom `build.js` script that:
+   - Builds the React frontend with Vite
+   - Creates a serverless function for the Express backend
+   - Properly configures routing for both API and static assets
+4. Deploy automatically on push to main branch
+
+**Important**: If you encounter a 404 error after deployment, redeploy the project after ensuring all environment variables are correctly set.
 
 ### Environment Variables for Vercel
 

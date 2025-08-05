@@ -72,6 +72,11 @@ You'll need to create three Okta applications:
 3. Import your GitHub repository
 4. Vercel will auto-detect it as a Node.js project
 
+### Important Build Settings
+- **Build Command**: `node build.js` (this is already configured in vercel.json)
+- **Output Directory**: `dist` (for frontend assets)
+- **Install Command**: `npm install`
+
 ### Configure Environment Variables
 
 In Vercel project settings, add these environment variables:
@@ -123,18 +128,43 @@ After deployment, update your Okta applications with the actual Vercel URL:
 
 After successful deployment, you'll need to initialize the database:
 
-1. In your local development environment, update the `DATABASE_URL` to point to your production database
+### Option A: Local Setup (Recommended)
+1. In your local development environment, update the `DATABASE_URL` in `.env` to point to your production database
 2. Run: `npm run db:push`
 3. This will create all necessary tables
+
+### Option B: Vercel CLI
+1. Install Vercel CLI: `npm i -g vercel`
+2. Link your project: `vercel link`
+3. Run database setup: `vercel env pull .env.local && npm run db:push`
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Build Failures**: Check that all environment variables are set correctly
-2. **Database Connection**: Ensure DATABASE_URL is correct and accessible
-3. **Okta Authentication**: Verify redirect URIs match exactly
-4. **API Timeouts**: Increase Vercel function timeout if needed
+1. **404 Not Found Error**: 
+   - Ensure the build completed successfully
+   - Check that `build.js` runs without errors
+   - Verify all environment variables are set correctly
+
+2. **Build Failures**: 
+   - Check Vercel build logs for specific errors
+   - Ensure all dependencies are properly installed
+   - Verify the build command is set to `node build.js`
+
+3. **Database Connection**: 
+   - Ensure DATABASE_URL is correct and accessible from Vercel
+   - Check that the database allows connections from Vercel's IP ranges
+   - Verify database schema is initialized with `npm run db:push`
+
+4. **Okta Authentication**: 
+   - Update redirect URIs in Okta apps to match your Vercel domain
+   - Ensure all Okta environment variables are set correctly
+   - Check that the domain configuration matches your deployment
+
+5. **API Timeouts**: 
+   - Functions have a 30-second timeout (configurable in vercel.json)
+   - For longer operations, consider implementing background jobs
 
 ### Logs and Debugging
 

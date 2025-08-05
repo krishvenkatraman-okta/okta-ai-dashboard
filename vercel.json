@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "framework": null,
   "builds": [
     {
       "src": "package.json",
@@ -12,16 +13,23 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/serverless"
+      "dest": "/api/index.js"
     },
     {
       "src": "/(.*)",
       "dest": "/dist/$1"
     }
   ],
+  "env": {
+    "NODE_ENV": "production",
+    "VERCEL": "1"
+  },
   "functions": {
-    "api/serverless.js": {
-      "maxDuration": 30
+    "api/index.js": {
+      "maxDuration": 30,
+      "memory": 1024
     }
-  }
+  },
+  "installCommand": "npm install",
+  "buildCommand": "node build.js"
 }

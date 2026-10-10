@@ -302,7 +302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user.role = userRole; // Update in-memory user object
         user.groups = oktaUser.groups || [];
         
-        console.log('✅ Updated user role in database to:', userRole);
+        console.log('✅ Updated in-memory user role to:', userRole);
       }
 
       // Create session
@@ -417,7 +417,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               points: gamificationResult.points,
               badges: gamificationResult.badgesEarned
             });
-            console.log('✅ Auto Fastpass message saved to database for user:', user.name);
+            console.log('✅ Auto Fastpass message saved in memory for user:', user.name);
             console.log('💬 Fastpass message content:', {
               message: autoMessage,
               responsePreview: autoResponse.substring(0, 100) + '...'
@@ -588,7 +588,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newRole = oktaAuth.determineUserRole(oktaUser.groups || []);
       console.log('🔄 Determined role:', newRole);
       
-      // Update user in database with fresh role information including custom roles
+      // Update the in-memory user with fresh role information including custom roles
       const allRoles = await oktaAuth.getAllUserRoles(user.oktaId, oktaUser.groups || []);
       await storage.updateUser(user.id, {
         role: newRole,

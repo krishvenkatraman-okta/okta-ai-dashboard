@@ -1,6 +1,6 @@
 # GitHub Repository Setup
 
-Follow these steps to create a GitHub repository and deploy to Vercel.
+Follow these steps to push this project to GitHub. The app does not require a database.
 
 ## Quick Setup Commands
 
@@ -11,7 +11,7 @@ git add .
 git commit -m "Initial commit: Okta AI Dashboard with enhanced NLP"
 ```
 
-2. **Create GitHub repository:**
+2. **Create or choose a GitHub repository:**
    - Go to [GitHub.com](https://github.com/new)
    - Repository name: `okta-ai-dashboard`
    - Description: `AI-powered Okta Identity Management Portal with intelligent access governance`
@@ -39,16 +39,12 @@ Your repository will include:
 
 ## Next Steps After GitHub Setup
 
-1. **Deploy to Vercel:**
-   - Connect your GitHub repo to Vercel
-   - Configure environment variables
-   - Deploy automatically
+1. **Deploy the app (optional):**
+   - Choose a long-running, single-process Node.js host
+   - Configure the Okta environment variables from `.env.example`
+   - Do not configure a database
 
-2. **Set up database:**
-   - Create PostgreSQL database (Neon recommended)
-   - Run migrations: `npm run db:push`
-
-3. **Configure Okta:**
+2. **Configure Okta:**
    - Create OIDC applications
    - Set redirect URIs to your Vercel domain
    - Generate API tokens
@@ -61,7 +57,6 @@ okta-ai-dashboard/
 ├── server/                 # Express backend
 ├── shared/                 # Shared types and schemas
 ├── api/                    # Vercel serverless functions
-├── migrations/             # Database migrations
 ├── vercel.json            # Vercel deployment config
 ├── README.md              # Project documentation
 ├── DEPLOYMENT.md          # Deployment guide
@@ -81,14 +76,15 @@ okta-ai-dashboard/
 
 ## Environment Variables Required
 
-See `.env.example` for the complete list of required environment variables including:
-- Database connection
+See `.env.example` for the environment variables, including:
 - Okta configuration (domain, client IDs, API tokens)
 - OpenAI API key
 - Redirect URIs for your domain
+
+Users, sessions, chat, and gamification state are stored in server memory only. They reset when the server restarts, so use a long-running single-process Node.js host rather than a serverless host unless you add external session storage.
 
 ## Support
 
 - Check `DEPLOYMENT.md` for detailed deployment instructions
 - Review `README.md` for technical documentation
-- See project logs in Vercel dashboard for troubleshooting
+- See your hosting provider's logs for troubleshooting

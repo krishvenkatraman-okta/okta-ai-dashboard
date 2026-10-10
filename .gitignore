@@ -15,10 +15,6 @@ build/
 .env.test.local
 .env.production.local
 
-# Database
-*.sqlite
-*.db
-
 # Logs
 logs
 *.log
@@ -87,6 +83,3 @@ attached_assets/
 # Debug files
 debug-*.js
 cookies.txt
-
-# Drizzle
-drizzle/

@@ -24,7 +24,7 @@ An advanced AI-powered Okta Identity Management Portal that provides intelligent
 ### Backend
 - Node.js with Express.js
 - TypeScript with ES modules
-- PostgreSQL with Drizzle ORM
+- In-memory user, session, and chat storage (no database required)
 - Okta Management APIs integration
 - OpenAI GPT-4o for intelligent assistance
 
@@ -37,8 +37,7 @@ An advanced AI-powered Okta Identity Management Portal that provides intelligent
 ## Quick Start
 
 ### Prerequisites
-- Node.js 18+ 
-- PostgreSQL database
+- Node.js 18+
 - Okta developer account with appropriate API tokens
 
 ### Environment Variables
@@ -46,9 +45,6 @@ An advanced AI-powered Okta Identity Management Portal that provides intelligent
 Create a `.env` file with the following variables:
 
 ```env
-# Database
-DATABASE_URL=postgresql://username:password@host:port/database
-
 # Okta Configuration
 OKTA_DOMAIN=your-okta-domain.okta.com
 OKTA_CLIENT_ID=your-client-id
@@ -85,35 +81,30 @@ cd okta-ai-dashboard
 npm install
 ```
 
-3. Set up the database:
-```bash
-npm run db:push
-```
-
-4. Start the development server:
+3. Start the development server:
 ```bash
 npm run dev
 ```
 
 The application will be available at `http://localhost:5000`.
+User, session, chat, and gamification data is kept in memory and resets when the server restarts. No database or database URL is needed.
 
 ## Deployment
 
-### Vercel Deployment
+### Hosting
 
-1. Connect your GitHub repository to Vercel
-2. Configure environment variables in Vercel dashboard
-3. The build process uses a custom `build.js` script that:
-   - Builds the React frontend with Vite
-   - Creates a serverless function for the Express backend
-   - Properly configures routing for both API and static assets
-4. Deploy automatically on push to main branch
+Use a long-running Node.js host and configure the required Okta environment variables. The production build can be created with:
 
-**Important**: If you encounter a 404 error after deployment, redeploy the project after ensuring all environment variables are correctly set.
+```bash
+npm run build
+npm start
+```
 
-### Environment Variables for Vercel
+**Important**: This app stores sessions in memory. Serverless hosts such as Vercel can route requests to different instances, so authentication and state are not reliable there. Use a long-running, single-process Node.js host, or add a persistent session store before using a multi-instance/serverless host.
 
-Add all environment variables from the `.env` file to your Vercel project settings.
+### Environment Variables
+
+Add the Okta and optional AI variables from `.env.example` to your hosting provider. No database URL is needed.
 
 ## Project Structure
 
@@ -127,7 +118,6 @@ Add all environment variables from the `.env` file to your Vercel project settin
 │   ├── services/           # Business logic services
 │   └── routes.ts           # API routes
 ├── shared/                 # Shared types and schemas
-└── migrations/             # Database migrations
 ```
 
 ## Key Features
@@ -142,7 +132,7 @@ Add all environment variables from the `.env` file to your Vercel project settin
 ### Authentication Flow
 - Okta OIDC with PKCE flow
 - Role-based access control (super_admin, app_owner, regular_user)
-- Session management with PostgreSQL store
+- In-memory session management (cleared when the server restarts)
 - Admin session handling for privileged operations
 
 ### Gamification System

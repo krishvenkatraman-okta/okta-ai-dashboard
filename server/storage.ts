@@ -1,4 +1,4 @@
-import { users, sessions, chatMessages, pamSessions, type User, type InsertUser, type Session, type InsertSession, type ChatMessage, type InsertChatMessage, type PamSession, type InsertPamSession } from "@shared/schema";
+import type { User, InsertUser, Session, InsertSession, ChatMessage, InsertChatMessage, PamSession, InsertPamSession } from "@shared/schema";
 
 export interface IStorage {
   // Users

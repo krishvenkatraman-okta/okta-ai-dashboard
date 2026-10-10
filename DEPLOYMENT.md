@@ -1,13 +1,12 @@
 # Deployment Guide
 
-This guide will help you deploy the Okta AI Dashboard to Vercel.
+This guide covers the app's hosting requirements. No database is required.
 
 ## Prerequisites
 
 1. **GitHub Account**: You'll need a GitHub account to host the repository
 2. **Vercel Account**: Sign up for a free Vercel account
-3. **PostgreSQL Database**: Set up a PostgreSQL database (Neon, Supabase, or Vercel Postgres recommended)
-4. **Okta Developer Account**: Configure Okta applications and obtain API tokens
+3. **Okta Developer Account**: Configure Okta applications and obtain API tokens
 
 ## Step 1: Create GitHub Repository
 
@@ -31,17 +30,9 @@ git push -u origin main
 
 Replace `YOUR_USERNAME` with your actual GitHub username.
 
-## Step 3: Set Up Database
+## Step 3: Choose a Host
 
-### Option A: Neon (Recommended)
-1. Go to [Neon](https://neon.tech)
-2. Create a new project
-3. Copy the connection string
-
-### Option B: Vercel Postgres
-1. In your Vercel dashboard, go to Storage
-2. Create a new Postgres database
-3. Copy the connection string
+The app stores users, sessions, chat, and gamification data in server memory. State is lost on restart, and serverless or multi-instance hosts may send related requests to different processes. Use a long-running, single-process Node.js host for reliable Okta authentication.
 
 ## Step 4: Configure Okta Applications
 
@@ -65,12 +56,9 @@ You'll need to create three Okta applications:
 2. Same settings as above
 3. Note the Client ID and Secret
 
-## Step 5: Deploy to Vercel
+## Step 5: Deploy to a Long-running Node.js Host
 
-1. Go to [Vercel](https://vercel.com) and sign in
-2. Click "New Project"
-3. Import your GitHub repository
-4. Vercel will auto-detect it as a Node.js project
+Choose a host that runs one persistent Node.js process and import the GitHub repository.
 
 ### Important Build Settings
 - **Build Command**: `node build.js` (this is already configured in vercel.json)
@@ -82,9 +70,6 @@ You'll need to create three Okta applications:
 In Vercel project settings, add these environment variables:
 
 ```env
-# Database
-DATABASE_URL=postgresql://username:password@host:port/database
-
 # Okta Configuration
 OKTA_DOMAIN=your-domain.okta.com
 OKTA_CLIENT_ID=your-main-client-id
@@ -119,24 +104,10 @@ NODE_ENV=production
 
 ## Step 7: Update Okta Redirect URIs
 
-After deployment, update your Okta applications with the actual Vercel URL:
+After deployment, update your Okta applications with your app's URL:
 
-1. Replace `your-app.vercel.app` with your actual Vercel domain
+1. Replace `your-app.vercel.app` with your actual app domain
 2. Update all three Okta applications with the correct redirect URIs
-
-## Step 8: Initialize Database
-
-After successful deployment, you'll need to initialize the database:
-
-### Option A: Local Setup (Recommended)
-1. In your local development environment, update the `DATABASE_URL` in `.env` to point to your production database
-2. Run: `npm run db:push`
-3. This will create all necessary tables
-
-### Option B: Vercel CLI
-1. Install Vercel CLI: `npm i -g vercel`
-2. Link your project: `vercel link`
-3. Run database setup: `vercel env pull .env.local && npm run db:push`
 
 ## Troubleshooting
 
@@ -152,24 +123,19 @@ After successful deployment, you'll need to initialize the database:
    - Ensure all dependencies are properly installed
    - Verify the build command is set to `node build.js`
 
-3. **Database Connection**: 
-   - Ensure DATABASE_URL is correct and accessible from Vercel
-   - Check that the database allows connections from Vercel's IP ranges
-   - Verify database schema is initialized with `npm run db:push`
-
-4. **Okta Authentication**: 
+3. **Okta Authentication**: 
    - Update redirect URIs in Okta apps to match your Vercel domain
    - Ensure all Okta environment variables are set correctly
    - Check that the domain configuration matches your deployment
 
-5. **API Timeouts**: 
+4. **API Timeouts**: 
    - Functions have a 30-second timeout (configurable in vercel.json)
    - For longer operations, consider implementing background jobs
 
 ### Logs and Debugging
 
-1. Check Vercel function logs in the Vercel dashboard
-2. Use Vercel CLI for local testing: `vercel dev`
+1. Check your host's application logs
+2. Run the app locally with `npm run dev`
 3. Check browser console for frontend errors
 
 ## Maintenance
@@ -178,9 +144,9 @@ After successful deployment, you'll need to initialize the database:
 1. Push changes to your GitHub repository
 2. Vercel will automatically deploy the changes
 
-### Database Migrations
-- Use `npm run db:push` for schema changes
-- Always backup your database before major updates
+### In-memory state
+- User and gamification data, sessions, and chat are cleared whenever the server process restarts.
+- Do not run multiple app instances unless you add a shared session and data store.
 
 ## Security Notes
 
@@ -196,4 +162,4 @@ If you encounter issues:
 1. Check Vercel deployment logs
 2. Verify all environment variables
 3. Test Okta configuration
-4. Check database connectivity
+4. Confirm the app is running as a single long-lived process

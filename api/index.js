@@ -29227,7 +29227,7 @@ I checked your authenticator enrollment and found that you haven't set up Fastpa
         });
         user.role = userRole;
         user.groups = oktaUser.groups || [];
-        console.log("\u2705 Updated user role in database to:", userRole);
+        console.log("\u2705 Updated in-memory user role to:", userRole);
       }
       const sessionId = oktaAuth.generateSessionId();
       await storage.createSession({
@@ -29343,7 +29343,7 @@ Your device is locked down tight and ready for secure access. Great job maintain
               points: gamificationResult.points,
               badges: gamificationResult.badgesEarned
             });
-            console.log("\u2705 Auto Fastpass message saved to database for user:", user.name);
+            console.log("\u2705 Auto Fastpass message saved in memory for user:", user.name);
             console.log("\u{1F4AC} Fastpass message content:", {
               message: autoMessage,
               responsePreview: autoResponse.substring(0, 100) + "..."
@@ -30257,7 +30257,6 @@ async function initializeApp() {
   isInitialized = true;
 }
 initializeApp().catch(console.error);
-module.exports = app;
 var vercel_handler_default = app;
 /*! Bundled license information:
 

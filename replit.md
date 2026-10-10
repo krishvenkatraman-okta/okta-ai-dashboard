@@ -22,30 +22,28 @@ The application employs a modern full-stack architecture, separating frontend an
 - **Language**: TypeScript with ES modules
 - **API Style**: RESTful API
 - **Authentication**: Okta OIDC integration with cookie-based session management
-- **Database**: PostgreSQL with Drizzle ORM
+- **Data Storage**: In-memory maps; no database is required
 - **AI Integration**: Model Context Protocol (MCP) server for intelligent assistance
 
 ### Key System Features
 - **Authentication System**: Okta OIDC (PKCE flow) with role-based access control (super_admin, app_owner, regular_user). Supports simplified redirect-based admin authentication.
-- **Database Schema**: Manages Okta user information, roles, group memberships, authentication sessions, chat messages, and PAM sessions.
+- **In-memory State**: Stores user details, sessions, chat messages, and PAM sessions only while the server process is running.
 - **AI Assistant (MCP Integration)**: Performs natural language intent analysis, automates governance workflows, manages PAM operations, and integrates directly with Okta Management APIs for real-time actions. Features dynamic request construction, continuous learning from user feedback, and adaptive confidence for improved accuracy.
 - **Dashboard Features**: Includes user management, application overview, analytics, and AI-assisted access request handling. Supports comprehensive gamification with points, badges, license seat savings tracking, and a leaderboard.
 - **Data Flow**: Secure authentication, AI-driven query processing (intent analysis, Okta API calls, governance workflows, response generation), and real-time data aggregation for dashboard updates.
 - **Security**: Focuses on secure token handling, session refresh, and environment-based configuration for sensitive credentials. Implements Fastpass authenticator adoption checking and gamification for security compliance.
-- **Deployment Strategy**: Frontend built with Vite, backend with esbuild. Designed for Neon PostgreSQL hosting, with Express serving static assets. Configurable via environment variables for Okta OIDC and API settings.
+- **Deployment Strategy**: Frontend built with Vite, backend with esbuild, and Express serving static assets. A persistent single-process Node.js host is required for reliable in-memory sessions; state resets on restart.
 
 ## External Dependencies
 
 ### Core Dependencies
-- **@neondatabase/serverless**: PostgreSQL database connection
-- **drizzle-orm**: ORM for database operations
 - **@tanstack/react-query**: Server state management
 - **express**: Backend web framework
 
 ### Authentication
 - **Okta OIDC**: Primary authentication provider
 - **cookie-parser**: Cookie-based session management
-- **connect-pg-simple**: PostgreSQL session store
+- **In-memory maps**: User and session state, without an external database
 
 ### UI Framework
 - **@radix-ui/***: Accessible UI primitives

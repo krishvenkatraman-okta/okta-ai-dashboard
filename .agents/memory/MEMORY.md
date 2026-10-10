@@ -1,0 +1,1 @@
+- [GitHub push verification](github-push-auth.md) — confirm shell access to the intended repo before pushing; an “active” connection message alone is not enough.
